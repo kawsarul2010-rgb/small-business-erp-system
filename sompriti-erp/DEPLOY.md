@@ -16,6 +16,51 @@ Everything below is done in the Railway dashboard at <https://railway.com>. Roug
 
 ---
 
+## 0. Running the first month free
+
+Railway has no permanent free tier, but new accounts get a **30-day trial with $5 of credit and no
+credit card**. That is enough to run this app for about a month (figures below, checked 25 Sep 2026).
+
+**Sign up with GitHub, not with an email address.** A trial on a verified GitHub account is the *full*
+trial; an unverified one is the *limited* trial, which restricts outbound network access — and that
+would stop the BulkSMSBD API calls, so SMS would fail.
+
+What the trial gives you: up to 1 GB RAM per service, shared CPU, 5 services per project, and the same
+features as the Hobby plan.
+
+**What this app actually costs.** Railway bills what you use: $10/GB/month of RAM, $20/vCPU/month of
+CPU, $0.15/GB/month of volume storage. Idling, the API container sits around 0.2 GB and PostgreSQL
+around 0.15 GB, and neither uses much CPU:
+
+| | RAM | CPU | Storage | Monthly |
+| --- | --- | --- | --- | --- |
+| App (API + web) | ~$2.00 | ~$0.40 | – | ~$2.40 |
+| PostgreSQL | ~$1.50 | ~$0.20 | ~$0.15 | ~$1.85 |
+| | | | | **~$4.25** |
+
+So the $5 lasts roughly a month of both services running continuously — with little headroom. Two
+things stretch it:
+
+- **Turn on Serverless for the app service** (app service → Settings → **Serverless**). The container
+  scales to zero when no requests arrive and wakes on the next one, which roughly halves its cost for a
+  shop that is not using the system all night. The trade-off is a cold start of a few seconds on the
+  first request, and the SMS dispatch worker only runs while the app is awake — not a problem in
+  practice, because messages are queued by someone using the app, who is keeping it awake anyway.
+- **Leave Serverless off for PostgreSQL.** A sleeping database is not worth the trouble.
+
+**When the 30 days end**, the account drops to the Free plan: $1 of credit a month, 0.5 GB RAM per
+service, one project, three services. That is about five days of running this app, so it is not a home
+for it. The Hobby plan at **$5/month** (which includes $5 of usage — roughly this app's whole bill) is
+the realistic next step.
+
+> **Back up before the credit expires.** Railway deletes volumes belonging to trial accounts 30 days
+> after the credit runs out. If there is real data in the database by then, either upgrade to Hobby or
+> take a dump first (see *Backups* below).
+
+Set **Usage → alerts** on day one so the balance does not surprise you.
+
+---
+
 ## 1. Create the project and the database
 
 1. Railway → **New Project** → **Deploy from GitHub repo**.
