@@ -93,8 +93,11 @@ public static class ConnectionStrings
         var port = uri.Port > 0 ? uri.Port : 5432;
         var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
         var sslMode = query["sslmode"] ?? "Prefer";
+        // Managed PostgreSQL (Railway, Heroku, Render) presents a self-signed certificate, so
+        // certificate validation has to be off whenever the connection is encrypted at all.
+        var trust = sslMode.Equals("Disable", StringComparison.OrdinalIgnoreCase) ? "" : "Trust Server Certificate=true;";
         return $"Host={uri.Host};Port={port};Database={database};Username={user};Password={password};" +
-               $"SSL Mode={sslMode};Maximum Pool Size=20;Timezone=UTC";
+               $"SSL Mode={sslMode};{trust}Maximum Pool Size=20;Timezone=UTC";
     }
 }
 

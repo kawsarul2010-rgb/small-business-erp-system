@@ -101,6 +101,16 @@ public class ConnectionStringTests
         Assert.Contains("Database=railway", cs);
         Assert.Contains("Username=postgres", cs);
         Assert.Contains("Password=p@ss", cs);
+        // Managed PostgreSQL uses a self-signed certificate.
+        Assert.Contains("Trust Server Certificate=true", cs);
+    }
+
+    [Fact]
+    public void Plain_connection_does_not_trust_certificates()
+    {
+        var cs = ConnectionStrings.FromUrl("postgresql://postgres:pw@localhost:5432/erp?sslmode=Disable");
+        Assert.Contains("SSL Mode=Disable", cs);
+        Assert.DoesNotContain("Trust Server Certificate", cs);
     }
 
     [Fact]

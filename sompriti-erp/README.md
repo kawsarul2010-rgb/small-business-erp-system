@@ -133,9 +133,14 @@ Or run everything in containers: `docker compose --profile app up --build` → h
 
 ## Deploy to Railway
 
+**[DEPLOY.md](DEPLOY.md) has the full walkthrough** — dashboard steps, the complete variable block,
+post-deploy checks and troubleshooting. The short version:
+
 1. Push this repository to GitHub.
-2. In Railway: **New Project → Deploy from GitHub repo** and select the repository. Railway detects `railway.json` and builds the `Dockerfile`.
-3. **+ New → Database → PostgreSQL** in the same project.
+2. In Railway: **New Project → Deploy from GitHub repo** and select the repository.
+   Then **Settings → Root Directory → `sompriti-erp`**, so Railway finds `railway.json` and the
+   `Dockerfile` (they are in this subfolder, not at the top of the repository).
+3. **+ Create → Database → PostgreSQL** in the same project.
 4. Open the app service → **Variables** and add (see `.env.example`):
    - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (variable reference to the database service)
    - `Jwt__SigningKey` = a long random secret (`openssl rand -base64 48`)
