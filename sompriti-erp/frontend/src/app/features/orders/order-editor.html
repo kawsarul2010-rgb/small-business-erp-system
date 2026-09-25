@@ -72,13 +72,13 @@
       <section class="card lines-card">
         <div class="lines-head">
           <h2 class="card-title">Line items</h2>
-          <span class="muted">Prices are per piece. Values fill in automatically and can be changed.</span>
+          <span class="muted">Prices are per unit. Values fill in automatically and can be changed.</span>
         </div>
 
         @if (!layout.isHandset()) {
           <div class="line-grid line-labels" aria-hidden="true">
-            <span>#</span><span>Product</span><span>Type</span><span>Boxes / Pcs</span><span>Total pcs</span>
-            <span>Per pcs</span><span>Per box</span><span>Line total</span><span></span>
+            <span>#</span><span>Product</span><span>Unit</span><span>Quantity</span><span>Total</span>
+            <span>Unit price</span><span>Per box</span><span>Line total</span><span></span>
           </div>
         }
 
@@ -102,7 +102,7 @@
                 @if (productMeta(i); as p) {
                   <div class="product-info">
                     @if (p.pcsPerBox) { {{ p.pcsPerBox }} pcs/box · }
-                    @if (p.currentStock !== null) { stock {{ p.currentStock | qty }} pcs }
+                    @if (p.currentStock !== null) { stock {{ p.currentStock | qty }} {{ stockUnitFor(i) }} }
                   </div>
                 }
 
@@ -110,8 +110,9 @@
                   <mat-form-field subscriptSizing="dynamic">
                     <mat-label>Type</mat-label>
                     <mat-select formControlName="quantityType" (selectionChange)="onQuantityTypeChange(i)">
-                      <mat-option value="PCS">PCS</mat-option>
-                      <mat-option value="BOX" [disabled]="!canUseBox(i)">BOX</mat-option>
+                      @for (t of entryTypes(i); track t) {
+                        <mat-option [value]="t" [disabled]="t === 'BOX' && !canUseBox(i)">{{ t }}</mat-option>
+                      }
                     </mat-select>
                   </mat-form-field>
 
@@ -122,14 +123,14 @@
                     </mat-form-field>
                   } @else {
                     <mat-form-field subscriptSizing="dynamic">
-                      <mat-label>Pcs</mat-label>
-                      <input matInput type="number" inputmode="numeric" min="1" step="1" formControlName="pcsQuantity" (input)="recalcQuantity(i)" />
+                      <mat-label>{{ quantityLabelFor(i) }}</mat-label>
+                      <input matInput type="number" [attr.inputmode]="quantityModeFor(i)" min="0" [step]="quantityStepFor(i)" formControlName="pcsQuantity" (input)="recalcQuantity(i)" />
                     </mat-form-field>
                   }
 
                   <mat-form-field subscriptSizing="dynamic">
-                    <mat-label>Total pcs</mat-label>
-                    <input matInput type="number" inputmode="numeric" min="1" step="1" formControlName="totalQuantityPcs" (input)="recalcFromTotalQty(i)" />
+                    <mat-label>Total {{ unitFor(i) }}</mat-label>
+                    <input matInput type="number" [attr.inputmode]="quantityModeFor(i)" min="0" [step]="quantityStepFor(i)" formControlName="totalQuantityPcs" (input)="recalcFromTotalQty(i)" />
                   </mat-form-field>
 
                   <mat-form-field subscriptSizing="dynamic">
@@ -176,7 +177,7 @@
                   @if (productMeta(i); as p) {
                     <div class="product-info">
                       @if (p.pcsPerBox) { {{ p.pcsPerBox }} pcs/box · }
-                      @if (p.currentStock !== null) { stock {{ p.currentStock | qty }} pcs }
+                      @if (p.currentStock !== null) { stock {{ p.currentStock | qty }} {{ stockUnitFor(i) }} }
                     </div>
                   }
                 </div>
@@ -184,8 +185,9 @@
                 <mat-form-field class="cell" subscriptSizing="dynamic">
                   <mat-label>Type</mat-label>
                   <mat-select formControlName="quantityType" (selectionChange)="onQuantityTypeChange(i)">
-                    <mat-option value="PCS">PCS</mat-option>
-                    <mat-option value="BOX" [disabled]="!canUseBox(i)">BOX</mat-option>
+                    @for (t of entryTypes(i); track t) {
+                      <mat-option [value]="t" [disabled]="t === 'BOX' && !canUseBox(i)">{{ t }}</mat-option>
+                    }
                   </mat-select>
                 </mat-form-field>
 
@@ -196,18 +198,18 @@
                   </mat-form-field>
                 } @else {
                   <mat-form-field class="cell" subscriptSizing="dynamic">
-                    <mat-label>Pcs</mat-label>
-                    <input matInput type="number" min="1" step="1" formControlName="pcsQuantity" (input)="recalcQuantity(i)" />
+                    <mat-label>{{ quantityLabelFor(i) }}</mat-label>
+                    <input matInput type="number" min="0" [step]="quantityStepFor(i)" formControlName="pcsQuantity" (input)="recalcQuantity(i)" />
                   </mat-form-field>
                 }
 
                 <mat-form-field class="cell" subscriptSizing="dynamic">
-                  <mat-label>Total pcs</mat-label>
-                  <input matInput type="number" min="1" step="1" formControlName="totalQuantityPcs" (input)="recalcFromTotalQty(i)" />
+                  <mat-label>Total {{ unitFor(i) }}</mat-label>
+                  <input matInput type="number" min="0" [step]="quantityStepFor(i)" formControlName="totalQuantityPcs" (input)="recalcFromTotalQty(i)" />
                 </mat-form-field>
 
                 <mat-form-field class="cell" subscriptSizing="dynamic">
-                  <mat-label>Per pcs</mat-label>
+                  <mat-label>Per {{ unitFor(i) }}</mat-label>
                   <input matInput type="number" min="0" step="0.01" formControlName="perPcsPrice" (input)="recalcFromPerPcs(i)" />
                 </mat-form-field>
 

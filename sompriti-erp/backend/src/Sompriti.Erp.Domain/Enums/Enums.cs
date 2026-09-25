@@ -7,9 +7,9 @@ public enum RecordStatus { Active, Deleted }
 
 public enum Role { Admin, Manager, User }
 
-public enum Uom { Pcs, Box }
+public enum Uom { Pcs, Box, Kg, Litre }
 
-public enum QuantityType { Pcs, Box }
+public enum QuantityType { Pcs, Box, Kg, Litre }
 
 public enum PaymentType { Cash, Due, Installment }
 

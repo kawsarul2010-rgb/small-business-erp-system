@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -22,6 +22,7 @@ import { applyServerErrors, controlError } from '../../shared/form-errors';
 import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { MoneyPipe, QtyPipe } from '../../shared/pipes';
+import { UOM_OPTIONS, allowsFractions, shortLabel, stockLabel } from '../../shared/units';
 
 @Component({
   selector: 'app-products',
@@ -35,7 +36,7 @@ import { MoneyPipe, QtyPipe } from '../../shared/pipes';
         <div>
           <h1>Products</h1>
           @if (!layout.isHandset()) {
-            <div class="subtitle">Prices are per piece (PCS). Stock is always counted in pieces.</div>
+            <div class="subtitle">Prices are per unit. PCS and BOX are counted in whole pieces; KG and LITRE are measured and may be fractional.</div>
           }
         </div>
         @if (auth.isAdmin() && !layout.isHandset()) {
@@ -65,7 +66,7 @@ import { MoneyPipe, QtyPipe } from '../../shared/pipes';
                   </div>
                   <div class="m-right">
                     <span class="m-amount" [class.negative]="p.lowStockThreshold !== null && p.currentStock <= p.lowStockThreshold">
-                      {{ p.currentStock | qty }} <span class="unit">pcs</span>
+                      {{ p.currentStock | qty }} <span class="unit">{{ stockUnit(p.uom) }}</span>
                     </span>
                     @if (auth.isAdmin()) {
                       <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Actions"><mat-icon>more_vert</mat-icon></button>
@@ -77,8 +78,8 @@ import { MoneyPipe, QtyPipe } from '../../shared/pipes';
                   </div>
                 </div>
                 <div class="m-meta two">
-                  <div><span class="k">Purchase / pcs</span><span class="v">{{ p.productPurchasePrice | money: false }}</span></div>
-                  <div><span class="k">Sales / pcs</span><span class="v">{{ p.productSalesPrice | money: false }}</span></div>
+                  <div><span class="k">Purchase / {{ stockUnit(p.uom) }}</span><span class="v">{{ p.productPurchasePrice | money: false }}</span></div>
+                  <div><span class="k">Sales / {{ stockUnit(p.uom) }}</span><span class="v">{{ p.productSalesPrice | money: false }}</span></div>
                 </div>
               </div>
             }
@@ -89,10 +90,10 @@ import { MoneyPipe, QtyPipe } from '../../shared/pipes';
               <ng-container matColumnDef="productCode"><th mat-header-cell *matHeaderCellDef mat-sort-header>Code</th><td mat-cell *matCellDef="let p" class="code">{{ p.productCode }}</td></ng-container>
               <ng-container matColumnDef="productName"><th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th><td mat-cell *matCellDef="let p">{{ p.productName }}</td></ng-container>
               <ng-container matColumnDef="uom"><th mat-header-cell *matHeaderCellDef>UOM</th><td mat-cell *matCellDef="let p" class="nowrap">{{ p.uom }}@if (p.pcsPerBox) { <span class="muted"> · {{ p.pcsPerBox }}/box</span> }</td></ng-container>
-              <ng-container matColumnDef="productPurchasePrice"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Purchase / pcs</th><td mat-cell *matCellDef="let p" class="num nowrap">{{ p.productPurchasePrice | money }}</td></ng-container>
-              <ng-container matColumnDef="productSalesPrice"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Sales / pcs</th><td mat-cell *matCellDef="let p" class="num nowrap">{{ p.productSalesPrice | money }}</td></ng-container>
-              <ng-container matColumnDef="currentStock"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Stock (pcs)</th>
-                <td mat-cell *matCellDef="let p" class="num" [class.negative]="p.lowStockThreshold !== null && p.currentStock <= p.lowStockThreshold">{{ p.currentStock | qty }}</td></ng-container>
+              <ng-container matColumnDef="productPurchasePrice"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Purchase / unit</th><td mat-cell *matCellDef="let p" class="num nowrap">{{ p.productPurchasePrice | money }}</td></ng-container>
+              <ng-container matColumnDef="productSalesPrice"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Sales / unit</th><td mat-cell *matCellDef="let p" class="num nowrap">{{ p.productSalesPrice | money }}</td></ng-container>
+              <ng-container matColumnDef="currentStock"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Stock</th>
+                <td mat-cell *matCellDef="let p" class="num" [class.negative]="p.lowStockThreshold !== null && p.currentStock <= p.lowStockThreshold">{{ p.currentStock | qty: p.uom }}</td></ng-container>
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef></th>
                 <td mat-cell *matCellDef="let p" class="num nowrap">
@@ -127,6 +128,11 @@ export class ProductsPage implements OnInit {
   private readonly notify = inject(NotifyService);
   readonly lowOnly = signal(false);
   readonly columns = ['productCode', 'productName', 'uom', 'productPurchasePrice', 'productSalesPrice', 'currentStock', 'actions'];
+
+  /** Stock is counted in the product's own unit: pcs, kg or litre. */
+  stockUnit(uom: Uom): string {
+    return stockLabel(uom);
+  }
   readonly list = new ListState<Product>((q) => this.api.get<Paged<Product>>('/products', { ...q, lowStockOnly: this.lowOnly() }));
 
   ngOnInit(): void {
@@ -161,17 +167,26 @@ export class ProductsPage implements OnInit {
           <mat-form-field><mat-label>Product code</mat-label><input matInput formControlName="productCode" /><mat-error>{{ err('productCode', 'Product code') }}</mat-error></mat-form-field>
           <mat-form-field>
             <mat-label>UOM</mat-label>
-            <mat-select formControlName="uom"><mat-option value="PCS">PCS</mat-option><mat-option value="BOX">BOX</mat-option></mat-select>
+            <mat-select formControlName="uom">
+              @for (u of uomOptions; track u) { <mat-option [value]="u">{{ u }}</mat-option> }
+            </mat-select>
+            <mat-hint>{{ measured() ? 'Measured — quantities may be fractional' : 'Counted in whole units' }}</mat-hint>
           </mat-form-field>
-          <mat-form-field><mat-label>Purchase price per pcs</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productPurchasePrice" /><mat-error>{{ err('productPurchasePrice', 'Purchase price') }}</mat-error></mat-form-field>
-          <mat-form-field><mat-label>Sales price per pcs</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productSalesPrice" /><mat-error>{{ err('productSalesPrice', 'Sales price') }}</mat-error></mat-form-field>
+          <mat-form-field><mat-label>Purchase price per {{ unit() }}</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productPurchasePrice" /><mat-error>{{ err('productPurchasePrice', 'Purchase price') }}</mat-error></mat-form-field>
+          <mat-form-field><mat-label>Sales price per {{ unit() }}</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productSalesPrice" /><mat-error>{{ err('productSalesPrice', 'Sales price') }}</mat-error></mat-form-field>
+          @if (form.value.uom === 'PCS' || form.value.uom === 'BOX') {
+            <mat-form-field>
+              <mat-label>Pcs per box</mat-label>
+              <input matInput type="number" inputmode="numeric" min="1" step="1" formControlName="pcsPerBox" />
+              <mat-hint>{{ form.value.uom === 'BOX' ? 'Required for BOX' : 'Optional — enables BOX entry on orders' }}</mat-hint>
+              <mat-error>{{ err('pcsPerBox', 'Pcs per box') }}</mat-error>
+            </mat-form-field>
+          }
           <mat-form-field>
-            <mat-label>Pcs per box</mat-label>
-            <input matInput type="number" inputmode="numeric" min="1" step="1" formControlName="pcsPerBox" />
-            <mat-hint>{{ form.value.uom === 'BOX' ? 'Required for BOX' : 'Optional — enables BOX entry on orders' }}</mat-hint>
-            <mat-error>{{ err('pcsPerBox', 'Pcs per box') }}</mat-error>
+            <mat-label>Low stock alert at ({{ unit() }})</mat-label>
+            <input matInput type="number" [attr.inputmode]="measured() ? 'decimal' : 'numeric'" min="0" [step]="measured() ? 0.001 : 1" formControlName="lowStockThreshold" />
+            <mat-hint>Optional</mat-hint>
           </mat-form-field>
-          <mat-form-field><mat-label>Low stock alert at (pcs)</mat-label><input matInput type="number" inputmode="numeric" min="0" step="1" formControlName="lowStockThreshold" /><mat-hint>Optional</mat-hint></mat-form-field>
         </div>
         @if (error()) { <p class="negative">{{ error() }}</p> }
       </mat-dialog-content>
@@ -199,14 +214,23 @@ export class ProductDialog {
     lowStockThreshold: [this.data?.lowStockThreshold ?? null as number | null, [Validators.min(0)]],
   });
 
+  readonly uomOptions = UOM_OPTIONS;
+  private readonly uomValue = signal<Uom>(this.data?.uom ?? 'PCS');
+  /** KG and LITRE are measured, so quantities and thresholds may be fractional. */
+  readonly measured = computed(() => allowsFractions(this.uomValue()));
+  readonly unit = computed(() => shortLabel(this.uomValue()));
+
   constructor() {
-    const syncBox = (uom: Uom | null) => {
+    const sync = (uom: Uom | null) => {
+      this.uomValue.set(uom ?? 'PCS');
       const ctrl = this.form.controls.pcsPerBox;
+      // A measured product has no box conversion, so the field is cleared and dropped.
+      if (uom === 'KG' || uom === 'LITRE') ctrl.setValue(null, { emitEvent: false });
       ctrl.setValidators(uom === 'BOX' ? [Validators.required, Validators.min(1)] : [Validators.min(1)]);
       ctrl.updateValueAndValidity({ emitEvent: false });
     };
-    syncBox(this.form.controls.uom.value);
-    this.form.controls.uom.valueChanges.pipe(takeUntilDestroyed()).subscribe(syncBox);
+    sync(this.form.controls.uom.value);
+    this.form.controls.uom.valueChanges.pipe(takeUntilDestroyed()).subscribe(sync);
   }
 
   err(name: string, label: string): string {

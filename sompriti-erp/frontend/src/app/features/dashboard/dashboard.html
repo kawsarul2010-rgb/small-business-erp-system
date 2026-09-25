@@ -70,7 +70,7 @@
           @for (p of d.lowStock; track p.productUuid) {
             <div class="low-row">
               <div>{{ p.productName }} <span class="code">{{ p.productCode }}</span></div>
-              <div class="nowrap"><strong class="negative">{{ p.currentStock | qty }}</strong> <span class="muted">/ {{ p.threshold }} pcs</span></div>
+              <div class="nowrap"><strong class="negative">{{ p.currentStock | qty }}</strong> <span class="muted">/ {{ p.threshold | qty }}</span></div>
             </div>
           } @empty {
             <div class="empty">All products are above their alert level.</div>

@@ -82,13 +82,13 @@ public class Product : SoftDeletableEntity
     public decimal ProductPurchasePrice { get; set; }
     public Uom Uom { get; set; } = Uom.Pcs;
     public int? PcsPerBox { get; set; }
-    public int? LowStockThreshold { get; set; }
+    public decimal? LowStockThreshold { get; set; }
 }
 
 public class StockBalance : AuditedEntity
 {
     public Guid ProductUuid { get; set; }
-    public int CurrentStockBalance { get; set; }
+    public decimal CurrentStockBalance { get; set; }
 }
 
 public class StockLedger
@@ -96,8 +96,8 @@ public class StockLedger
     public Guid Uuid { get; set; }
     public Guid ProductUuid { get; set; }
     public MovementType MovementType { get; set; }
-    public int QuantityChange { get; set; }
-    public int BalanceAfter { get; set; }
+    public decimal QuantityChange { get; set; }
+    public decimal BalanceAfter { get; set; }
     public ReferenceType ReferenceType { get; set; }
     public Guid ReferenceUuid { get; set; }
     public string ReferenceNumber { get; set; } = "";
@@ -111,7 +111,7 @@ public class StockAdjustment : SoftDeletableEntity
     public string? AdjustmentNumber { get; set; }
     public Guid ProductUuid { get; set; }
     public AdjustmentType AdjustmentType { get; set; }
-    public int QuantityPcs { get; set; }
+    public decimal QuantityPcs { get; set; }
     public AdjustmentReason Reason { get; set; }
     public string? Note { get; set; }
     public DateOnly AdjustmentDate { get; set; }
@@ -150,9 +150,9 @@ public abstract class OrderLine : SoftDeletableEntity
     public Guid ProductUuid { get; set; }
     public QuantityType QuantityType { get; set; }
     public int? BoxQuantity { get; set; }
-    public int? PcsQuantity { get; set; }
+    public decimal? PcsQuantity { get; set; }
     public int? PcsPerBoxSnapshot { get; set; }
-    public int TotalQuantityPcs { get; set; }
+    public decimal TotalQuantityPcs { get; set; }
     public decimal PerPcsPrice { get; set; }
     public decimal? PerBoxPrice { get; set; }
     public decimal TotalPrice { get; set; }

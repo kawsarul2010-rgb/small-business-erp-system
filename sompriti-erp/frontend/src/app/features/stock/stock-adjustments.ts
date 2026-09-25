@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -14,6 +14,7 @@ import { MatTableModule } from '@angular/material/table';
 import { ApiService, dateToIso } from '../../core/api.service';
 import { LayoutService } from '../../core/layout.service';
 import { AdjustmentReason, AdjustmentType, Paged, ProductDropdownItem, StockAdjustment } from '../../core/models';
+import { allowsFractions, stockLabel } from '../../shared/units';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
 import { ListFooter } from '../../shared/list-footer';
@@ -118,19 +119,19 @@ export class StockAdjustmentsPage implements OnInit {
 
 @Component({
   selector: 'app-adjustment-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule, MatButtonToggleModule, MatDatepickerModule, SearchSelect],
+  imports: [ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule, MatButtonToggleModule, MatDatepickerModule, SearchSelect, QtyPipe],
   template: `
     <h2 mat-dialog-title>New stock adjustment</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
       <mat-dialog-content>
         <app-search-select label="Product" [control]="form.controls.productUuid" [fetch]="fetchProducts" [hint]="stockHint" (selected)="selected.set($event)" />
-        @if (selected(); as p) { <p class="muted" style="margin-top: -8px">Current stock: <strong>{{ p.currentStock }}</strong> pcs</p> }
+        @if (selected(); as p) { <p class="muted" style="margin-top: -8px">Current stock: <strong>{{ p.currentStock | qty }}</strong> {{ unit() }}</p> }
         <mat-button-toggle-group formControlName="adjustmentType" style="margin-bottom: 16px">
           <mat-button-toggle value="INCREASE">Increase</mat-button-toggle>
           <mat-button-toggle value="DECREASE">Decrease</mat-button-toggle>
         </mat-button-toggle-group>
         <div class="form-grid">
-          <mat-form-field><mat-label>Quantity (pcs)</mat-label><input matInput type="number" min="1" step="1" formControlName="quantityPcs" /><mat-error>{{ err('quantityPcs', 'Quantity') }}</mat-error></mat-form-field>
+          <mat-form-field><mat-label>Quantity ({{ unit() }})</mat-label><input matInput type="number" [attr.inputmode]="measured() ? 'decimal' : 'numeric'" min="0" [step]="measured() ? 0.001 : 1" formControlName="quantityPcs" /><mat-error>{{ err('quantityPcs', 'Quantity') }}</mat-error></mat-form-field>
           <mat-form-field>
             <mat-label>Reason</mat-label>
             <mat-select formControlName="reason">
@@ -169,11 +170,16 @@ export class AdjustmentDialog {
     { value: 'OTHER', label: 'Other' },
   ];
   readonly fetchProducts = (term: string) => this.api.get<ProductDropdownItem[]>('/products/dropdown', { search: term });
-  readonly stockHint = (p: ProductDropdownItem) => `${p.currentStock} pcs`;
+  readonly stockHint = (p: ProductDropdownItem) => `${p.currentStock} ${stockLabel(p.uom)}`;
+
+  /** The unit of the product picked for this adjustment. */
+  readonly unit = computed(() => stockLabel(this.selected()?.uom));
+  /** Measured products accept fractional adjustments. */
+  readonly measured = computed(() => allowsFractions(this.selected()?.uom));
   readonly form = inject(FormBuilder).group({
     productUuid: [null as string | null, Validators.required],
     adjustmentType: ['INCREASE' as AdjustmentType, Validators.required],
-    quantityPcs: [null as number | null, [Validators.required, Validators.min(1)]],
+    quantityPcs: [null as number | null, [Validators.required, Validators.min(0.001)]],
     reason: ['OPENING_STOCK' as AdjustmentReason, Validators.required],
     adjustmentDate: [new Date() as Date | null],
     note: [''],

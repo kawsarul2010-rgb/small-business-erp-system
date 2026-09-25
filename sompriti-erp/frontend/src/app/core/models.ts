@@ -2,8 +2,8 @@
 
 export type Role = 'ADMIN' | 'MANAGER' | 'USER';
 export type RecordStatus = 'ACTIVE' | 'DELETED';
-export type Uom = 'PCS' | 'BOX';
-export type QuantityType = 'PCS' | 'BOX';
+export type Uom = 'PCS' | 'BOX' | 'KG' | 'LITRE';
+export type QuantityType = 'PCS' | 'BOX' | 'KG' | 'LITRE';
 export type PaymentType = 'CASH' | 'DUE' | 'INSTALLMENT';
 export type PostingStatus = 'DRAFT' | 'FINAL' | 'VOID';
 export type TransactionType = 'PURCHASE' | 'SALES';

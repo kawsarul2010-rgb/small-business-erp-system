@@ -25,7 +25,7 @@ public sealed record OrderCompanyDto(Guid Uuid, string CompanyName, string Compa
 
 public sealed record OrderLineDto(
     Guid Uuid, int LineNumber, Guid ProductUuid, string ProductCode, string ProductName,
-    QuantityType QuantityType, int? BoxQuantity, int? PcsQuantity, int? PcsPerBoxSnapshot, int TotalQuantityPcs,
+    QuantityType QuantityType, int? BoxQuantity, decimal? PcsQuantity, int? PcsPerBoxSnapshot, decimal TotalQuantityPcs,
     decimal PerPcsPrice, decimal? PerBoxPrice, decimal TotalPrice);
 
 public sealed record OrderPaymentDto(
@@ -42,8 +42,8 @@ public sealed record OrderDetailDto(
     IReadOnlyList<OrderLineDto> Lines, IReadOnlyList<OrderPaymentDto> Payments);
 
 public sealed record OrderLineRequest(
-    Guid? Uuid, Guid? ProductUuid, QuantityType? QuantityType, int? BoxQuantity, int? PcsQuantity,
-    int? TotalQuantityPcs, decimal? PerPcsPrice, decimal? PerBoxPrice, decimal? TotalPrice);
+    Guid? Uuid, Guid? ProductUuid, QuantityType? QuantityType, int? BoxQuantity, decimal? PcsQuantity,
+    decimal? TotalQuantityPcs, decimal? PerPcsPrice, decimal? PerBoxPrice, decimal? TotalPrice);
 
 public sealed record OrderSaveRequest(
     Guid? CompanyUuid, Guid? PartyUuid, PaymentType? PaymentType, DateOnly? OrderDate, string? Notes,

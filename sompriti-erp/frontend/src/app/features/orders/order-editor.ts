@@ -13,12 +13,13 @@ import { forkJoin, of } from 'rxjs';
 import { ApiService, dateToIso, isoToDate, problemOf } from '../../core/api.service';
 import { LayoutService } from '../../core/layout.service';
 import {
-  DropdownItem, OrderDetail, OrderKind, OrderLineRequest, OrderSaveRequest, PaymentType, Product, ProductDropdownItem, QuantityType, StockShortage,
+  DropdownItem, OrderDetail, OrderKind, OrderLineRequest, OrderSaveRequest, PaymentType, Product, ProductDropdownItem, QuantityType, StockShortage, Uom,
 } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
 import { MoneyPipe, QtyPipe } from '../../shared/pipes';
 import { SearchSelect } from '../../shared/search-select';
+import { allowsFractions, entryTypesFor, quantityInputMode, quantityLabel, quantityStep, shortLabel, stockLabel } from '../../shared/units';
 import { orderMeta } from './order-kind';
 
 type LineForm = FormGroup<{
@@ -36,6 +37,7 @@ type LineForm = FormGroup<{
 /** What the editor needs to know about a line's product. */
 interface LineProduct {
   label: string;
+  uom: Uom;
   pcsPerBox: number | null;
   defaultPrice: number;
   currentStock: number | null;
@@ -98,8 +100,10 @@ export class OrderEditorPage implements OnInit {
 
   readonly fetchParties = (term: string) => this.api.get<DropdownItem[]>(`${this.meta().partyApi}/dropdown`, { search: term });
   readonly fetchProducts = (term: string) => this.api.get<ProductDropdownItem[]>('/products/dropdown', { search: term });
-  readonly productHint = (p: ProductDropdownItem) =>
-    `${p.currentStock} pcs in stock · Tk ${this.isSales() ? p.salesPrice : p.purchasePrice}/pcs`;
+  readonly productHint = (p: ProductDropdownItem) => {
+    const unit = stockLabel(p.uom);
+    return `${p.currentStock} ${unit} in stock · Tk ${this.isSales() ? p.salesPrice : p.purchasePrice}/${unit}`;
+  };
 
   ngOnInit(): void {
     const id = this.id();
@@ -157,6 +161,8 @@ export class OrderEditorPage implements OnInit {
           }));
           metas.push({
             label: `${l.productName} (${l.productCode})`,
+            // Fall back to the line's own quantity type when the product is no longer listed.
+            uom: p?.uom ?? (l.quantityType === 'BOX' ? 'BOX' : (l.quantityType as Uom)),
             pcsPerBox: p?.pcsPerBox ?? l.pcsPerBoxSnapshot,
             defaultPrice: p ? (this.isSales() ? p.productSalesPrice : p.productPurchasePrice) : l.perPcsPrice,
             currentStock: p?.currentStock ?? null,
@@ -219,6 +225,35 @@ export class OrderEditorPage implements OnInit {
     return (this.productMeta(i)?.pcsPerBox ?? 0) > 0;
   }
 
+  /** The units this line may be entered in, from the selected product. */
+  entryTypes(i: number): QuantityType[] {
+    return entryTypesFor(this.productMeta(i)?.uom ?? 'PCS');
+  }
+
+  /** "Pcs", "Kg", "Litre" - the label for this line's quantity field. */
+  quantityLabelFor(i: number): string {
+    return quantityLabel(this.lines.at(i).controls.quantityType.value);
+  }
+
+  /** Measured lines accept fractions; counted lines step by whole units. */
+  quantityStepFor(i: number): number {
+    return quantityStep(this.lines.at(i).controls.quantityType.value);
+  }
+
+  quantityModeFor(i: number): 'decimal' | 'numeric' {
+    return quantityInputMode(this.lines.at(i).controls.quantityType.value);
+  }
+
+  /** "kg", "pcs" - the unit the line total is counted in. */
+  unitFor(i: number): string {
+    return shortLabel(this.lines.at(i).controls.quantityType.value);
+  }
+
+  /** The unit this line's product is stocked in. */
+  stockUnitFor(i: number): string {
+    return stockLabel(this.productMeta(i)?.uom ?? 'PCS');
+  }
+
   onProductSelected(i: number, item: ProductDropdownItem | null): void {
     const line = this.lines.at(i);
     if (!item) {
@@ -228,14 +263,16 @@ export class OrderEditorPage implements OnInit {
     }
     const meta: LineProduct = {
       label: item.label,
+      uom: item.uom,
       pcsPerBox: item.pcsPerBox,
       defaultPrice: this.isSales() ? item.salesPrice : item.purchasePrice,
       currentStock: item.currentStock,
     };
     this.lineProducts.update((m) => m.map((x, idx) => (idx === i ? meta : x)));
+    // A product is ordered in its own unit: boxes for a BOX product, kg for a KG one.
     const useBox = item.uom === 'BOX' && (item.pcsPerBox ?? 0) > 0;
     line.patchValue({
-      quantityType: useBox ? 'BOX' : 'PCS',
+      quantityType: useBox ? 'BOX' : entryTypesFor(item.uom)[0],
       boxQuantity: useBox ? line.value.boxQuantity ?? 1 : null,
       pcsQuantity: useBox ? null : line.value.pcsQuantity ?? 1,
       perPcsPrice: meta.defaultPrice,
@@ -301,9 +338,12 @@ export class OrderEditorPage implements OnInit {
 
   private applyQuantityValidators(i: number): void {
     const line = this.lines.at(i);
-    const isBox = line.controls.quantityType.value === 'BOX';
+    const type = line.controls.quantityType.value;
+    const isBox = type === 'BOX';
+    // Measured units may be a fraction of one, so the minimum is the smallest step.
+    const min = allowsFractions(type) ? 0.001 : 1;
     line.controls.boxQuantity.setValidators(isBox ? [Validators.required, Validators.min(1)] : []);
-    line.controls.pcsQuantity.setValidators(isBox ? [] : [Validators.required, Validators.min(1)]);
+    line.controls.pcsQuantity.setValidators(isBox ? [] : [Validators.required, Validators.min(min)]);
     line.controls.boxQuantity.updateValueAndValidity({ emitEvent: false });
     line.controls.pcsQuantity.updateValueAndValidity({ emitEvent: false });
   }

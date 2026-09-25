@@ -187,6 +187,104 @@ public class LineCalculatorTests
     }
 }
 
+public class MeasuredUnitTests
+{
+    private static readonly Product KgProduct = new()
+    {
+        Uuid = Guid.NewGuid(), ProductCode = "P-KG", ProductName = "Miniket rice", Uom = Uom.Kg,
+        ProductPurchasePrice = 78m, ProductSalesPrice = 85m
+    };
+
+    private static readonly Product LitreProduct = new()
+    {
+        Uuid = Guid.NewGuid(), ProductCode = "P-LTR", ProductName = "Loose soybean oil", Uom = Uom.Litre,
+        ProductPurchasePrice = 165m, ProductSalesPrice = 175m
+    };
+
+    private static readonly Product PcsProduct = new()
+    {
+        Uuid = Guid.NewGuid(), ProductCode = "P-PCS", ProductName = "Pcs product", Uom = Uom.Pcs,
+        ProductPurchasePrice = 3m, ProductSalesPrice = 4m
+    };
+
+    private static LineValues Calc(LineInput input, Product product, decimal price, out Validator v)
+    {
+        v = new Validator();
+        return LineCalculator.Normalize(input, product, price, "lines[0]", v);
+    }
+
+    [Fact]
+    public void Kg_line_keeps_a_fractional_quantity_and_prices_it_per_kg()
+    {
+        var r = Calc(new LineInput(null, KgProduct.Uuid, QuantityType.Kg, null, 2.5m, null, null, null, null),
+            KgProduct, 85m, out var v);
+        Assert.False(v.HasErrors);
+        Assert.Equal(2.5m, r.TotalQuantityPcs);
+        Assert.Equal(85m, r.PerPcsPrice);
+        Assert.Equal(212.5m, r.TotalPrice);
+        Assert.Null(r.PerBoxPrice);
+    }
+
+    [Fact]
+    public void Litre_line_rounds_the_quantity_to_three_decimals()
+    {
+        var r = Calc(new LineInput(null, LitreProduct.Uuid, QuantityType.Litre, null, 1.23456m, null, 100m, null, null),
+            LitreProduct, 175m, out var v);
+        Assert.False(v.HasErrors);
+        Assert.Equal(1.235m, r.TotalQuantityPcs);
+        Assert.Equal(123.5m, r.TotalPrice);
+    }
+
+    [Fact]
+    public void A_measured_product_cannot_be_ordered_by_the_piece()
+    {
+        Calc(new LineInput(null, KgProduct.Uuid, QuantityType.Pcs, null, 3, null, null, null, null),
+            KgProduct, 85m, out var v);
+        Assert.True(v.HasErrors);
+    }
+
+    [Fact]
+    public void A_counted_product_rejects_a_fractional_quantity()
+    {
+        Calc(new LineInput(null, PcsProduct.Uuid, QuantityType.Pcs, null, 2.5m, null, null, null, null),
+            PcsProduct, 4m, out var v);
+        Assert.True(v.HasErrors);
+    }
+
+    [Fact]
+    public void Entry_types_follow_the_products_unit()
+    {
+        static string Types(Uom uom) => string.Join(",", Units.EntryTypesFor(uom));
+        Assert.Equal("Box,Pcs", Types(Uom.Box));
+        Assert.Equal("Pcs", Types(Uom.Pcs));
+        Assert.Equal("Kg", Types(Uom.Kg));
+        Assert.Equal("Litre", Types(Uom.Litre));
+        Assert.True(Units.IsValidFor(Uom.Box, QuantityType.Pcs));
+        Assert.False(Units.IsValidFor(Uom.Kg, QuantityType.Pcs));
+        Assert.True(Units.AllowsFractions(Uom.Kg));
+        Assert.False(Units.AllowsFractions(Uom.Box));
+    }
+
+    [Fact]
+    public void Quantities_print_without_trailing_zeros()
+    {
+        Assert.Equal("12", Qty.Format(12m));
+        Assert.Equal("2.5", Qty.Format(2.5m));
+        Assert.Equal("0.75", Qty.Format(0.750m));
+        Assert.Equal("2.5 kg", Qty.Format(2.5m, QuantityType.Kg));
+        Assert.Equal("12 pcs", Qty.Format(12m, QuantityType.Pcs));
+    }
+
+    [Fact]
+    public void Unit_names_serialize_as_upper_case_text()
+    {
+        Assert.Equal("KG", EnumText.ToText(Uom.Kg));
+        Assert.Equal("LITRE", EnumText.ToText(Uom.Litre));
+        Assert.Equal(Uom.Kg, EnumText.Parse<Uom>("KG"));
+        Assert.Equal(QuantityType.Litre, EnumText.Parse<QuantityType>("LITRE"));
+    }
+}
+
 public class SmsTemplateTests
 {
     [Fact]

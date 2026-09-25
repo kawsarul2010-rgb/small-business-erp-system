@@ -17,6 +17,75 @@ public static class Money
     public static string FormatPlain(decimal value) => value.ToString("#,##0.00", CultureInfo.InvariantCulture);
 }
 
+/// <summary>
+/// Quantity rules. PCS and BOX are counted in whole units; KG and LITRE are measured and
+/// carry up to three decimal places, which covers grams and millilitres.
+/// </summary>
+public static class Qty
+{
+    public const int Decimals = 3;
+
+    /// <summary>Round to 3 decimals, half away from zero.</summary>
+    public static decimal Round(decimal value) => Math.Round(value, Decimals, MidpointRounding.AwayFromZero);
+
+    /// <summary>"12" for a whole quantity, "2.5" for a measured one - never "2.500".</summary>
+    public static string Format(decimal value) =>
+        Round(value).ToString("0.###", CultureInfo.InvariantCulture);
+
+    /// <summary>"2.5 kg", "12 pcs" - the quantity with the unit it was measured in.</summary>
+    public static string Format(decimal value, QuantityType unit) => $"{Format(value)} {Units.ShortLabel(unit)}";
+}
+
+/// <summary>What each unit of measure means for pricing, stock and data entry.</summary>
+public static class Units
+{
+    /// <summary>KG and LITRE are measured, so fractions are meaningful. PCS and BOX are counted.</summary>
+    public static bool AllowsFractions(Uom uom) => uom is Uom.Kg or Uom.Litre;
+
+    public static bool AllowsFractions(QuantityType type) => type is QuantityType.Kg or QuantityType.Litre;
+
+    /// <summary>Only BOX needs a pcs-per-box conversion; every other unit is its own base unit.</summary>
+    public static bool RequiresPcsPerBox(Uom uom) => uom == Uom.Box;
+
+    /// <summary>
+    /// The ways a line for this product may be entered. A BOX product can also be sold loose
+    /// by the piece; everything else is ordered in its own unit.
+    /// </summary>
+    public static QuantityType[] EntryTypesFor(Uom uom) => uom switch
+    {
+        Uom.Box => [QuantityType.Box, QuantityType.Pcs],
+        Uom.Kg => [QuantityType.Kg],
+        Uom.Litre => [QuantityType.Litre],
+        _ => [QuantityType.Pcs],
+    };
+
+    public static bool IsValidFor(Uom uom, QuantityType type) => Array.IndexOf(EntryTypesFor(uom), type) >= 0;
+
+    public static string ShortLabel(QuantityType type) => type switch
+    {
+        QuantityType.Box => "box",
+        QuantityType.Kg => "kg",
+        QuantityType.Litre => "litre",
+        _ => "pcs",
+    };
+
+    public static string ShortLabel(Uom uom) => uom switch
+    {
+        Uom.Box => "box",
+        Uom.Kg => "kg",
+        Uom.Litre => "litre",
+        _ => "pcs",
+    };
+
+    /// <summary>The unit stock is counted in: pieces for PCS and BOX products, kg or litres otherwise.</summary>
+    public static string StockLabel(Uom uom) => uom switch
+    {
+        Uom.Kg => "kg",
+        Uom.Litre => "litre",
+        _ => "pcs",
+    };
+}
+
 /// <summary>Bangladesh mobile number rules (SRS 11.3).</summary>
 public static partial class BdMobile
 {
@@ -89,8 +158,8 @@ public sealed record LineInput(
     Guid ProductUuid,
     QuantityType QuantityType,
     int? BoxQuantity,
-    int? PcsQuantity,
-    int? TotalQuantityPcs,
+    decimal? PcsQuantity,
+    decimal? TotalQuantityPcs,
     decimal? PerPcsPrice,
     decimal? PerBoxPrice,
     decimal? TotalPrice);
@@ -99,9 +168,9 @@ public sealed record LineInput(
 public sealed record LineValues(
     QuantityType QuantityType,
     int? BoxQuantity,
-    int? PcsQuantity,
+    decimal? PcsQuantity,
     int? PcsPerBoxSnapshot,
-    int TotalQuantityPcs,
+    decimal TotalQuantityPcs,
     decimal PerPcsPrice,
     decimal? PerBoxPrice,
     decimal TotalPrice);
@@ -117,8 +186,16 @@ public static class LineCalculator
     public static LineValues Normalize(LineInput input, Product product, decimal defaultPerPcsPrice, string fieldPrefix, Validator v)
     {
         int? pcsPerBox = null;
-        int? box = null, pcs = null;
-        int total;
+        int? box = null;
+        decimal? pcs = null;
+        decimal total;
+
+        // A line must be entered in a unit the product is actually measured in: a product sold
+        // by weight cannot be ordered by the piece, and only a BOX product can be ordered in boxes.
+        if (!Units.IsValidFor(product.Uom, input.QuantityType))
+            v.Add($"{fieldPrefix}.quantityType",
+                $"Product {product.ProductCode} is measured in {EnumText.ToText(product.Uom)}, so "
+                + $"{EnumText.ToText(input.QuantityType)} cannot be used.");
 
         if (input.QuantityType == QuantityType.Box)
         {
@@ -131,10 +208,17 @@ public static class LineCalculator
         }
         else
         {
-            pcs = input.PcsQuantity;
-            if (pcs is not > 0) v.Add($"{fieldPrefix}.pcsQuantity", "Pcs quantity must be greater than 0.");
+            pcs = input.PcsQuantity is { } q ? Qty.Round(q) : null;
+            if (pcs is not > 0)
+                v.Add($"{fieldPrefix}.pcsQuantity", $"{char.ToUpperInvariant(Units.ShortLabel(input.QuantityType)[0])}{Units.ShortLabel(input.QuantityType)[1..]} quantity must be greater than 0.");
             total = input.TotalQuantityPcs ?? pcs ?? 0;
         }
+
+        // Counted units stay whole; only measured ones may carry a fraction.
+        total = Qty.Round(total);
+        if (!Units.AllowsFractions(input.QuantityType) && total != decimal.Truncate(total))
+            v.Add($"{fieldPrefix}.totalQuantityPcs",
+                $"{EnumText.ToText(input.QuantityType)} quantities must be whole numbers.");
 
         if (total <= 0) v.Add($"{fieldPrefix}.totalQuantityPcs", "Total quantity must be greater than 0.");
 
@@ -170,7 +254,7 @@ public static class LineCalculator
     }
 
     /// <summary>Sum of quantities per product (a product may appear on several lines).</summary>
-    public static Dictionary<Guid, int> QuantityByProduct(IEnumerable<OrderLine> lines) =>
+    public static Dictionary<Guid, decimal> QuantityByProduct(IEnumerable<OrderLine> lines) =>
         lines.Where(l => l.IsActive)
              .GroupBy(l => l.ProductUuid)
              .ToDictionary(g => g.Key, g => g.Sum(l => l.TotalQuantityPcs));

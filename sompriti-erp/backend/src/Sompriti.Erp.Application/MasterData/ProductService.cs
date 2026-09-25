@@ -8,16 +8,16 @@ namespace Sompriti.Erp.Application.MasterData;
 
 public sealed record ProductDto(
     Guid Uuid, string ProductName, string ProductCode, decimal ProductSalesPrice, decimal ProductPurchasePrice,
-    Uom Uom, int? PcsPerBox, int? LowStockThreshold, int CurrentStock, Guid Revision,
+    Uom Uom, int? PcsPerBox, decimal? LowStockThreshold, decimal CurrentStock, Guid Revision,
     DateTimeOffset CreatedDate, DateTimeOffset UpdatedDate, string CreatedByUserName, string UpdatedByUserName);
 
 public sealed record ProductSaveRequest(
     string? ProductName, string? ProductCode, decimal? ProductSalesPrice, decimal? ProductPurchasePrice,
-    Uom? Uom, int? PcsPerBox, int? LowStockThreshold, Guid? Revision);
+    Uom? Uom, int? PcsPerBox, decimal? LowStockThreshold, Guid? Revision);
 
 public sealed record ProductDropdownItem(
     Guid Uuid, string Code, string Name, string Label, Uom Uom, int? PcsPerBox,
-    decimal SalesPrice, decimal PurchasePrice, int CurrentStock);
+    decimal SalesPrice, decimal PurchasePrice, decimal CurrentStock);
 
 public sealed class ProductService(IAppDbContext db)
 {
@@ -34,7 +34,7 @@ public sealed class ProductService(IAppDbContext db)
     public sealed class ProductRow
     {
         public Product P { get; set; } = null!;
-        public int Stock { get; set; }
+        public decimal Stock { get; set; }
     }
 
     private IQueryable<ProductRow> Rows() =>
@@ -44,7 +44,7 @@ public sealed class ProductService(IAppDbContext db)
         where p.Status == RecordStatus.Active
         select new ProductRow { P = p, Stock = s == null ? 0 : s.CurrentStockBalance };
 
-    private static ProductDto ToDto(Product p, int stock) => new(p.Uuid, p.ProductName, p.ProductCode, p.ProductSalesPrice,
+    private static ProductDto ToDto(Product p, decimal stock) => new(p.Uuid, p.ProductName, p.ProductCode, p.ProductSalesPrice,
         p.ProductPurchasePrice, p.Uom, p.PcsPerBox, p.LowStockThreshold, stock, p.Revision, p.CreatedDate, p.UpdatedDate,
         p.CreatedByUserName, p.UpdatedByUserName);
 

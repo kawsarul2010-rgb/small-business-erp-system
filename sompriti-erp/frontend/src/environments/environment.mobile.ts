@@ -7,5 +7,5 @@
  */
 export const environment = {
   production: true,
-  apiBaseUrl: 'https://CHANGE-ME.up.railway.app',
+  apiBaseUrl: 'https://sompriti-sikriti-business.up.railway.app',
 };

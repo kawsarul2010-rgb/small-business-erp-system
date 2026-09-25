@@ -37,7 +37,7 @@ public sealed record DashboardDto(
     LinkedSummary? AsBuyer, LinkedSummary? AsSupplier,
     IReadOnlyList<DailyTotal> SalesLast30Days);
 
-public sealed record LowStockItem(Guid ProductUuid, string ProductCode, string ProductName, int CurrentStock, int Threshold);
+public sealed record LowStockItem(Guid ProductUuid, string ProductCode, string ProductName, decimal CurrentStock, decimal Threshold);
 public sealed record LinkedSummary(Guid PartyUuid, string PartyName, int OrderCount, decimal TotalAmount, decimal TotalPaid, decimal Due);
 public sealed record DailyTotal(DateOnly Date, decimal Total);
 

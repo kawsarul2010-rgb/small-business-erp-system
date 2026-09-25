@@ -3,24 +3,25 @@ using Sompriti.Erp.Application.Common;
 using Sompriti.Erp.Domain.Common;
 using Sompriti.Erp.Domain.Entities;
 using Sompriti.Erp.Domain.Enums;
+using Sompriti.Erp.Domain.Rules;
 
 namespace Sompriti.Erp.Application.Stock;
 
 public sealed record StockBalanceDto(Guid ProductUuid, string ProductCode, string ProductName, Uom Uom, int? PcsPerBox,
-    int CurrentStockBalance, int? LowStockThreshold, bool IsLowStock, DateTimeOffset UpdatedDate);
+    decimal CurrentStockBalance, decimal? LowStockThreshold, bool IsLowStock, DateTimeOffset UpdatedDate);
 
 public sealed record StockLedgerDto(Guid Uuid, Guid ProductUuid, string ProductCode, string ProductName,
-    MovementType MovementType, int QuantityChange, int BalanceAfter, ReferenceType ReferenceType, Guid ReferenceUuid,
+    MovementType MovementType, decimal QuantityChange, decimal BalanceAfter, ReferenceType ReferenceType, Guid ReferenceUuid,
     string ReferenceNumber, DateTimeOffset CreatedDate, string CreatedByUserName);
 
 public sealed record StockAdjustmentDto(Guid Uuid, string AdjustmentNumber, Guid ProductUuid, string ProductCode, string ProductName,
-    AdjustmentType AdjustmentType, int QuantityPcs, AdjustmentReason Reason, string? Note, DateOnly AdjustmentDate,
+    AdjustmentType AdjustmentType, decimal QuantityPcs, AdjustmentReason Reason, string? Note, DateOnly AdjustmentDate,
     DateTimeOffset CreatedDate, string CreatedByUserName);
 
-public sealed record StockAdjustmentRequest(Guid? ProductUuid, AdjustmentType? AdjustmentType, int? QuantityPcs,
+public sealed record StockAdjustmentRequest(Guid? ProductUuid, AdjustmentType? AdjustmentType, decimal? QuantityPcs,
     AdjustmentReason? Reason, string? Note, DateOnly? AdjustmentDate);
 
-public sealed record StockShortage(Guid ProductUuid, string ProductCode, string ProductName, int Available, int Required);
+public sealed record StockShortage(Guid ProductUuid, string ProductCode, string ProductName, decimal Available, decimal Required);
 
 public sealed record StockLedgerQuery : PageQuery
 {
@@ -124,13 +125,20 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
             .FirstOrDefaultAsync(p => p.Uuid == r.ProductUuid && p.Status == RecordStatus.Active, ct);
         product.OrNotFound("Product");
 
+        // Pieces and boxes are counted, so a fractional adjustment would be meaningless.
+        var quantity = Qty.Round(r.QuantityPcs!.Value);
+        if (!Units.AllowsFractions(product!.Uom) && quantity != decimal.Truncate(quantity))
+            new Validator()
+                .Add("quantityPcs", $"{EnumText.ToText(product.Uom)} quantities must be whole numbers.")
+                .ThrowIfInvalid();
+
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var adj = new StockAdjustment
         {
             Uuid = Guid.NewGuid(),
             ProductUuid = r.ProductUuid!.Value,
             AdjustmentType = r.AdjustmentType!.Value,
-            QuantityPcs = r.QuantityPcs!.Value,
+            QuantityPcs = quantity,
             Reason = r.Reason!.Value,
             Note = Validator.Clean(r.Note),
             AdjustmentDate = r.AdjustmentDate ?? today,
@@ -139,7 +147,7 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
         await db.SaveChangesAsync(ct); // generates adjustment_number
 
         var change = adj.AdjustmentType == AdjustmentType.Increase ? adj.QuantityPcs : -adj.QuantityPcs;
-        await ApplyMovementsAsync(new Dictionary<Guid, int> { [adj.ProductUuid] = change },
+        await ApplyMovementsAsync(new Dictionary<Guid, decimal> { [adj.ProductUuid] = change },
             adj.AdjustmentType == AdjustmentType.Increase ? MovementType.AdjustmentIn : MovementType.AdjustmentOut,
             ReferenceType.StockAdjustment, adj.Uuid, adj.AdjustmentNumber!, ErrorCodes.NegativeStock,
             "This adjustment would make stock negative.", ct);
@@ -156,7 +164,7 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
     /// locks the balance rows in product_uuid order, validates no negative balance, updates balances
     /// and adds ledger rows. The caller must call SaveChangesAsync and commit.
     /// </summary>
-    public async Task ApplyMovementsAsync(IReadOnlyDictionary<Guid, int> changes, MovementType movement,
+    public async Task ApplyMovementsAsync(IReadOnlyDictionary<Guid, decimal> changes, MovementType movement,
         ReferenceType referenceType, Guid referenceUuid, string referenceNumber,
         string shortageCode, string shortageMessage, CancellationToken ct)
     {
@@ -218,7 +226,7 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
     }
 
     /// <summary>Current balances for the given products (no locking), used for line-level stock warnings.</summary>
-    public async Task<Dictionary<Guid, int>> CurrentBalancesAsync(IEnumerable<Guid> productIds, CancellationToken ct)
+    public async Task<Dictionary<Guid, decimal>> CurrentBalancesAsync(IEnumerable<Guid> productIds, CancellationToken ct)
     {
         var ids = productIds.Distinct().ToList();
         return await db.StockBalances.AsNoTracking().Where(s => ids.Contains(s.ProductUuid))

@@ -13,10 +13,11 @@ import { RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { LayoutService } from '../../core/layout.service';
-import { Paged, StockBalance } from '../../core/models';
+import { Paged, StockBalance, Uom } from '../../core/models';
 import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { QtyPipe } from '../../shared/pipes';
+import { stockLabel } from '../../shared/units';
 
 @Component({
   selector: 'app-stock-balances',
@@ -61,7 +62,7 @@ import { QtyPipe } from '../../shared/pipes';
                     <div class="m-sub">{{ s.productCode }}@if (s.pcsPerBox) { · {{ boxes(s) }} boxes }</div>
                   </div>
                   <div class="m-right">
-                    <span class="m-amount" [class.negative]="s.isLowStock">{{ s.currentStockBalance | qty }} <span class="unit">pcs</span></span>
+                    <span class="m-amount" [class.negative]="s.isLowStock">{{ s.currentStockBalance | qty }} <span class="unit">{{ unit(s.uom) }}</span></span>
                     @if (s.isLowStock) { <span class="low">Low stock</span> }
                   </div>
                 </div>
@@ -73,7 +74,7 @@ import { QtyPipe } from '../../shared/pipes';
             <table mat-table [dataSource]="list.items()" matSort (matSortChange)="list.onSort($event)">
               <ng-container matColumnDef="productCode"><th mat-header-cell *matHeaderCellDef mat-sort-header>Code</th><td mat-cell *matCellDef="let s" class="code">{{ s.productCode }}</td></ng-container>
               <ng-container matColumnDef="productName"><th mat-header-cell *matHeaderCellDef mat-sort-header>Product</th><td mat-cell *matCellDef="let s">{{ s.productName }}</td></ng-container>
-              <ng-container matColumnDef="currentStockBalance"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Stock (pcs)</th>
+              <ng-container matColumnDef="currentStockBalance"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Stock</th>
                 <td mat-cell *matCellDef="let s" class="num" [class.negative]="s.isLowStock"><strong>{{ s.currentStockBalance | qty }}</strong></td></ng-container>
               <ng-container matColumnDef="boxes"><th mat-header-cell *matHeaderCellDef class="num">Boxes</th>
                 <td mat-cell *matCellDef="let s" class="num muted">@if (s.pcsPerBox) { {{ boxes(s) }} }</td></ng-container>
@@ -111,6 +112,11 @@ export class StockBalancesPage implements OnInit {
 
   ngOnInit(): void {
     this.list.reload();
+  }
+
+  /** Stock is counted in the product's own unit: pcs, kg or litre. */
+  unit(uom: Uom): string {
+    return stockLabel(uom);
   }
 
   boxes(s: StockBalance): string {

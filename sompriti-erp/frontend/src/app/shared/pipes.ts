@@ -1,7 +1,10 @@
 import { Pipe, PipeTransform } from '@angular/core';
+import { QuantityType, Uom } from '../core/models';
+import { shortLabel } from './units';
 
 const moneyFormat = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const qtyFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+// Up to 3 decimals, and none at all for whole numbers: 12, 2.5, 0.75 - never 2.500.
+const qtyFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 3 });
 
 export function formatMoney(value: number | null | undefined, symbol = true): string {
   if (value === null || value === undefined) return '-';
@@ -16,10 +19,13 @@ export class MoneyPipe implements PipeTransform {
   }
 }
 
+/** 2.5 -> "2.5"; with a unit, 2.5 -> "2.5 kg". */
 @Pipe({ name: 'qty' })
 export class QtyPipe implements PipeTransform {
-  transform(value: number | null | undefined): string {
-    return value === null || value === undefined ? '-' : qtyFormat.format(value);
+  transform(value: number | null | undefined, unit?: Uom | QuantityType | null): string {
+    if (value === null || value === undefined) return '-';
+    const text = qtyFormat.format(value);
+    return unit ? `${text} ${shortLabel(unit)}` : text;
   }
 }
 
