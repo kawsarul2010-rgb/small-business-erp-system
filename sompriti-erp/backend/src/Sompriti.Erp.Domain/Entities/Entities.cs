@@ -81,7 +81,11 @@ public class Product : SoftDeletableEntity
     /// <summary>Per PCS.</summary>
     public decimal ProductPurchasePrice { get; set; }
     public Uom Uom { get; set; } = Uom.Pcs;
-    public int? PcsPerBox { get; set; }
+    /// <summary>What a box of this product holds. Only set when Uom is BOX.</summary>
+    public Uom? SecondaryUom { get; set; }
+
+    /// <summary>How much of the base unit one box holds. Required for a BOX product.</summary>
+    public decimal? UnitPerBox { get; set; }
     public decimal? LowStockThreshold { get; set; }
 }
 
@@ -111,7 +115,7 @@ public class StockAdjustment : SoftDeletableEntity
     public string? AdjustmentNumber { get; set; }
     public Guid ProductUuid { get; set; }
     public AdjustmentType AdjustmentType { get; set; }
-    public decimal QuantityPcs { get; set; }
+    public decimal Quantity { get; set; }
     public AdjustmentReason Reason { get; set; }
     public string? Note { get; set; }
     public DateOnly AdjustmentDate { get; set; }
@@ -150,10 +154,10 @@ public abstract class OrderLine : SoftDeletableEntity
     public Guid ProductUuid { get; set; }
     public QuantityType QuantityType { get; set; }
     public int? BoxQuantity { get; set; }
-    public decimal? PcsQuantity { get; set; }
-    public int? PcsPerBoxSnapshot { get; set; }
-    public decimal TotalQuantityPcs { get; set; }
-    public decimal PerPcsPrice { get; set; }
+    public decimal? UnitQuantity { get; set; }
+    public decimal? UnitPerBoxSnapshot { get; set; }
+    public decimal TotalQuantity { get; set; }
+    public decimal PerUnitPrice { get; set; }
     public decimal? PerBoxPrice { get; set; }
     public decimal TotalPrice { get; set; }
 }

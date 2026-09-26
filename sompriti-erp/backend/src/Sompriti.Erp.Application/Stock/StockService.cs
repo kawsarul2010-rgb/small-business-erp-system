@@ -7,7 +7,7 @@ using Sompriti.Erp.Domain.Rules;
 
 namespace Sompriti.Erp.Application.Stock;
 
-public sealed record StockBalanceDto(Guid ProductUuid, string ProductCode, string ProductName, Uom Uom, int? PcsPerBox,
+public sealed record StockBalanceDto(Guid ProductUuid, string ProductCode, string ProductName, Uom Uom, Uom? SecondaryUom, decimal? UnitPerBox,
     decimal CurrentStockBalance, decimal? LowStockThreshold, bool IsLowStock, DateTimeOffset UpdatedDate);
 
 public sealed record StockLedgerDto(Guid Uuid, Guid ProductUuid, string ProductCode, string ProductName,
@@ -15,10 +15,10 @@ public sealed record StockLedgerDto(Guid Uuid, Guid ProductUuid, string ProductC
     string ReferenceNumber, DateTimeOffset CreatedDate, string CreatedByUserName);
 
 public sealed record StockAdjustmentDto(Guid Uuid, string AdjustmentNumber, Guid ProductUuid, string ProductCode, string ProductName,
-    AdjustmentType AdjustmentType, decimal QuantityPcs, AdjustmentReason Reason, string? Note, DateOnly AdjustmentDate,
+    AdjustmentType AdjustmentType, decimal Quantity, AdjustmentReason Reason, string? Note, DateOnly AdjustmentDate,
     DateTimeOffset CreatedDate, string CreatedByUserName);
 
-public sealed record StockAdjustmentRequest(Guid? ProductUuid, AdjustmentType? AdjustmentType, decimal? QuantityPcs,
+public sealed record StockAdjustmentRequest(Guid? ProductUuid, AdjustmentType? AdjustmentType, decimal? Quantity,
     AdjustmentReason? Reason, string? Note, DateOnly? AdjustmentDate);
 
 public sealed record StockShortage(Guid ProductUuid, string ProductCode, string ProductName, decimal Available, decimal Required);
@@ -55,7 +55,7 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
             _ => q.Sort?.StartsWith('-') == true ? query.OrderByDescending(x => x.p.ProductName) : query.OrderBy(x => x.p.ProductName)
         };
 
-        return await query.ToPagedAsync(q, x => new StockBalanceDto(x.p.Uuid, x.p.ProductCode, x.p.ProductName, x.p.Uom, x.p.PcsPerBox,
+        return await query.ToPagedAsync(q, x => new StockBalanceDto(x.p.Uuid, x.p.ProductCode, x.p.ProductName, x.p.Uom, x.p.SecondaryUom, x.p.UnitPerBox,
             x.s.CurrentStockBalance, x.p.LowStockThreshold,
             x.p.LowStockThreshold != null && x.s.CurrentStockBalance <= x.p.LowStockThreshold, x.s.UpdatedDate), ct);
     }
@@ -104,7 +104,7 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
         }
         return await query.OrderByDescending(x => x.a.CreatedDate)
             .ToPagedAsync(q, x => new StockAdjustmentDto(x.a.Uuid, x.a.AdjustmentNumber!, x.a.ProductUuid, x.p.ProductCode, x.p.ProductName,
-                x.a.AdjustmentType, x.a.QuantityPcs, x.a.Reason, x.a.Note, x.a.AdjustmentDate, x.a.CreatedDate, x.a.CreatedByUserName), ct);
+                x.a.AdjustmentType, x.a.Quantity, x.a.Reason, x.a.Note, x.a.AdjustmentDate, x.a.CreatedDate, x.a.CreatedByUserName), ct);
     }
 
     // ------------------------------------------------------------------ commands
@@ -114,7 +114,7 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
         var today = BusinessClock.Today(clock.GetUtcNow());
         var v = new Validator().Required("productUuid", r.ProductUuid, "Product");
         v.When(r.AdjustmentType is null, "adjustmentType", "Adjustment type is required.");
-        v.When(r.QuantityPcs is not > 0, "quantityPcs", "Quantity must be greater than 0.");
+        v.When(r.Quantity is not > 0, "quantity", "Quantity must be greater than 0.");
         v.When(r.Reason is null, "reason", "Reason is required.");
         v.When(r.Reason == AdjustmentReason.Other && string.IsNullOrWhiteSpace(r.Note), "note", "Note is required when reason is OTHER.");
         v.MaxLength("note", r.Note, "Note", 500);
@@ -126,10 +126,10 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
         product.OrNotFound("Product");
 
         // Pieces and boxes are counted, so a fractional adjustment would be meaningless.
-        var quantity = Qty.Round(r.QuantityPcs!.Value);
+        var quantity = Qty.Round(r.Quantity!.Value);
         if (!Units.AllowsFractions(product!.Uom) && quantity != decimal.Truncate(quantity))
             new Validator()
-                .Add("quantityPcs", $"{EnumText.ToText(product.Uom)} quantities must be whole numbers.")
+                .Add("quantity", $"{EnumText.ToText(product.Uom)} quantities must be whole numbers.")
                 .ThrowIfInvalid();
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -138,7 +138,7 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
             Uuid = Guid.NewGuid(),
             ProductUuid = r.ProductUuid!.Value,
             AdjustmentType = r.AdjustmentType!.Value,
-            QuantityPcs = quantity,
+            Quantity = quantity,
             Reason = r.Reason!.Value,
             Note = Validator.Clean(r.Note),
             AdjustmentDate = r.AdjustmentDate ?? today,
@@ -146,7 +146,7 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
         db.StockAdjustments.Add(adj);
         await db.SaveChangesAsync(ct); // generates adjustment_number
 
-        var change = adj.AdjustmentType == AdjustmentType.Increase ? adj.QuantityPcs : -adj.QuantityPcs;
+        var change = adj.AdjustmentType == AdjustmentType.Increase ? adj.Quantity : -adj.Quantity;
         await ApplyMovementsAsync(new Dictionary<Guid, decimal> { [adj.ProductUuid] = change },
             adj.AdjustmentType == AdjustmentType.Increase ? MovementType.AdjustmentIn : MovementType.AdjustmentOut,
             ReferenceType.StockAdjustment, adj.Uuid, adj.AdjustmentNumber!, ErrorCodes.NegativeStock,
@@ -156,7 +156,7 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
         await tx.CommitAsync(ct);
 
         return new StockAdjustmentDto(adj.Uuid, adj.AdjustmentNumber!, adj.ProductUuid, product!.ProductCode, product.ProductName,
-            adj.AdjustmentType, adj.QuantityPcs, adj.Reason, adj.Note, adj.AdjustmentDate, adj.CreatedDate, adj.CreatedByUserName);
+            adj.AdjustmentType, adj.Quantity, adj.Reason, adj.Note, adj.AdjustmentDate, adj.CreatedDate, adj.CreatedByUserName);
     }
 
     /// <summary>

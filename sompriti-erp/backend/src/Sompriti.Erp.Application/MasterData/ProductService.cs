@@ -8,15 +8,15 @@ namespace Sompriti.Erp.Application.MasterData;
 
 public sealed record ProductDto(
     Guid Uuid, string ProductName, string ProductCode, decimal ProductSalesPrice, decimal ProductPurchasePrice,
-    Uom Uom, int? PcsPerBox, decimal? LowStockThreshold, decimal CurrentStock, Guid Revision,
+    Uom Uom, Uom? SecondaryUom, decimal? UnitPerBox, decimal? LowStockThreshold, decimal CurrentStock, Guid Revision,
     DateTimeOffset CreatedDate, DateTimeOffset UpdatedDate, string CreatedByUserName, string UpdatedByUserName);
 
 public sealed record ProductSaveRequest(
     string? ProductName, string? ProductCode, decimal? ProductSalesPrice, decimal? ProductPurchasePrice,
-    Uom? Uom, int? PcsPerBox, decimal? LowStockThreshold, Guid? Revision);
+    Uom? Uom, Uom? SecondaryUom, decimal? UnitPerBox, decimal? LowStockThreshold, Guid? Revision);
 
 public sealed record ProductDropdownItem(
-    Guid Uuid, string Code, string Name, string Label, Uom Uom, int? PcsPerBox,
+    Guid Uuid, string Code, string Name, string Label, Uom Uom, Uom? SecondaryUom, decimal? UnitPerBox,
     decimal SalesPrice, decimal PurchasePrice, decimal CurrentStock);
 
 public sealed class ProductService(IAppDbContext db)
@@ -45,7 +45,7 @@ public sealed class ProductService(IAppDbContext db)
         select new ProductRow { P = p, Stock = s == null ? 0 : s.CurrentStockBalance };
 
     private static ProductDto ToDto(Product p, decimal stock) => new(p.Uuid, p.ProductName, p.ProductCode, p.ProductSalesPrice,
-        p.ProductPurchasePrice, p.Uom, p.PcsPerBox, p.LowStockThreshold, stock, p.Revision, p.CreatedDate, p.UpdatedDate,
+        p.ProductPurchasePrice, p.Uom, p.SecondaryUom, p.UnitPerBox, p.LowStockThreshold, stock, p.Revision, p.CreatedDate, p.UpdatedDate,
         p.CreatedByUserName, p.UpdatedByUserName);
 
     public async Task<PagedResult<ProductDto>> ListAsync(PageQuery q, bool lowStockOnly, CancellationToken ct)
@@ -71,7 +71,7 @@ public sealed class ProductService(IAppDbContext db)
         }
         return await query.OrderBy(x => x.P.ProductName).Take(50)
             .Select(x => new ProductDropdownItem(x.P.Uuid, x.P.ProductCode, x.P.ProductName,
-                x.P.ProductName + " (" + x.P.ProductCode + ")", x.P.Uom, x.P.PcsPerBox,
+                x.P.ProductName + " (" + x.P.ProductCode + ")", x.P.Uom, x.P.SecondaryUom, x.P.UnitPerBox,
                 x.P.ProductSalesPrice, x.P.ProductPurchasePrice, x.Stock))
             .ToListAsync(ct);
     }
@@ -148,8 +148,12 @@ public sealed class ProductService(IAppDbContext db)
         v.When(r.ProductPurchasePrice is null, "productPurchasePrice", "Purchase price is required.");
         v.When(r.ProductPurchasePrice < 0, "productPurchasePrice", "Purchase price cannot be negative.");
         v.When(r.Uom is null, "uom", "UOM is required.");
-        v.When(r.Uom == Uom.Box && r.PcsPerBox is not > 0, "pcsPerBox", "Pcs per box is required and must be greater than 0 when UOM is BOX.");
-        v.When(r.PcsPerBox is <= 0, "pcsPerBox", "Pcs per box must be greater than 0.");
+        // A BOX product must say what its box holds and how much of it.
+        v.When(r.Uom == Uom.Box && r.SecondaryUom is null, "secondaryUom", "Secondary UOM is required when UOM is BOX.");
+        v.When(r.Uom == Uom.Box && r.UnitPerBox is not > 0, "unitPerBox", "Units per box is required and must be greater than 0 when UOM is BOX.");
+        v.When(r.SecondaryUom == Uom.Box, "secondaryUom", "Secondary UOM cannot be BOX.");
+        v.When(r.Uom != Uom.Box && r.SecondaryUom is not null, "secondaryUom", "Secondary UOM only applies when UOM is BOX.");
+        v.When(r.UnitPerBox is <= 0, "unitPerBox", "Units per box must be greater than 0.");
         v.When(r.LowStockThreshold is < 0, "lowStockThreshold", "Low stock threshold cannot be negative.");
         v.ThrowIfInvalid();
     }
@@ -161,7 +165,8 @@ public sealed class ProductService(IAppDbContext db)
         p.ProductSalesPrice = Domain.Rules.Money.Round(r.ProductSalesPrice!.Value);
         p.ProductPurchasePrice = Domain.Rules.Money.Round(r.ProductPurchasePrice!.Value);
         p.Uom = r.Uom!.Value;
-        p.PcsPerBox = r.PcsPerBox;
+        p.SecondaryUom = r.Uom == Uom.Box ? r.SecondaryUom : null;
+        p.UnitPerBox = r.UnitPerBox is { } upb ? Domain.Rules.Qty.Round(upb) : null;
         p.LowStockThreshold = r.LowStockThreshold;
     }
 }

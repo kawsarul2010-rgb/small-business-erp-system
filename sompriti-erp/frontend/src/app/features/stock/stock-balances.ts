@@ -59,10 +59,10 @@ import { stockLabel } from '../../shared/units';
                 <div class="m-card-head">
                   <div>
                     <div class="m-title">{{ s.productName }}</div>
-                    <div class="m-sub">{{ s.productCode }}@if (s.pcsPerBox) { · {{ boxes(s) }} boxes }</div>
+                    <div class="m-sub">{{ s.productCode }}@if (s.unitPerBox) { · {{ boxes(s) }} boxes }</div>
                   </div>
                   <div class="m-right">
-                    <span class="m-amount" [class.negative]="s.isLowStock">{{ s.currentStockBalance | qty }} <span class="unit">{{ unit(s.uom) }}</span></span>
+                    <span class="m-amount" [class.negative]="s.isLowStock">{{ s.currentStockBalance | qty }} <span class="unit">{{ unit(s) }}</span></span>
                     @if (s.isLowStock) { <span class="low">Low stock</span> }
                   </div>
                 </div>
@@ -77,7 +77,7 @@ import { stockLabel } from '../../shared/units';
               <ng-container matColumnDef="currentStockBalance"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Stock</th>
                 <td mat-cell *matCellDef="let s" class="num" [class.negative]="s.isLowStock"><strong>{{ s.currentStockBalance | qty }}</strong></td></ng-container>
               <ng-container matColumnDef="boxes"><th mat-header-cell *matHeaderCellDef class="num">Boxes</th>
-                <td mat-cell *matCellDef="let s" class="num muted">@if (s.pcsPerBox) { {{ boxes(s) }} }</td></ng-container>
+                <td mat-cell *matCellDef="let s" class="num muted">@if (s.unitPerBox) { {{ boxes(s) }} }</td></ng-container>
               <ng-container matColumnDef="threshold"><th mat-header-cell *matHeaderCellDef class="num">Alert at</th><td mat-cell *matCellDef="let s" class="num muted">{{ s.lowStockThreshold ?? '' }}</td></ng-container>
               <ng-container matColumnDef="updated"><th mat-header-cell *matHeaderCellDef>Last change</th><td mat-cell *matCellDef="let s" class="muted nowrap">{{ s.updatedDate | date: 'dd MMM yyyy, h:mm a' }}</td></ng-container>
               <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef></th>
@@ -114,14 +114,14 @@ export class StockBalancesPage implements OnInit {
     this.list.reload();
   }
 
-  /** Stock is counted in the product's own unit: pcs, kg or litre. */
-  unit(uom: Uom): string {
-    return stockLabel(uom);
+  /** Stock is counted in the product's base unit: pcs, kg or litre. */
+  unit(s: StockBalance): string {
+    return stockLabel(s);
   }
 
   boxes(s: StockBalance): string {
-    const full = Math.floor(s.currentStockBalance / (s.pcsPerBox ?? 1));
-    const loose = s.currentStockBalance % (s.pcsPerBox ?? 1);
+    const full = Math.floor(s.currentStockBalance / (s.unitPerBox ?? 1));
+    const loose = s.currentStockBalance % (s.unitPerBox ?? 1);
     return loose ? `${full} + ${loose} pcs` : `${full}`;
   }
 }

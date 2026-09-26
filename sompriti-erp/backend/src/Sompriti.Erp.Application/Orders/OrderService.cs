@@ -104,7 +104,7 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
                            where l.OrderUuid == id && l.Status == RecordStatus.Active
                            orderby l.LineNumber
                            select new OrderLineDto(l.Uuid, l.LineNumber, l.ProductUuid, p.ProductCode, p.ProductName, l.QuantityType,
-                               l.BoxQuantity, l.PcsQuantity, l.PcsPerBoxSnapshot, l.TotalQuantityPcs, l.PerPcsPrice, l.PerBoxPrice,
+                               l.BoxQuantity, l.UnitQuantity, l.UnitPerBoxSnapshot, l.TotalQuantity, l.PerUnitPrice, l.PerBoxPrice,
                                l.TotalPrice)).ToListAsync(ct);
 
         var payments = await Payments.AsNoTracking()
@@ -248,8 +248,8 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
             }
 
             var values = LineCalculator.Normalize(
-                new LineInput(req.Uuid, req.ProductUuid.Value, req.QuantityType.Value, req.BoxQuantity, req.PcsQuantity,
-                    req.TotalQuantityPcs, req.PerPcsPrice, req.PerBoxPrice, req.TotalPrice),
+                new LineInput(req.Uuid, req.ProductUuid.Value, req.QuantityType.Value, req.BoxQuantity, req.UnitQuantity,
+                    req.TotalQuantity, req.PerUnitPrice, req.PerBoxPrice, req.TotalPrice),
                 product, DefaultPrice(product), field, v);
 
             TLine line;

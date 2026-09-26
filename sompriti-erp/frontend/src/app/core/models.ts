@@ -102,14 +102,18 @@ export interface Product extends Audited {
   productSalesPrice: number;
   productPurchasePrice: number;
   uom: Uom;
-  pcsPerBox: number | null;
+  /** What a box holds, for a BOX product. */
+  secondaryUom: Uom | null;
+  /** How much of the base unit one box holds. */
+  unitPerBox: number | null;
   lowStockThreshold: number | null;
   currentStock: number;
 }
 
 export interface ProductDropdownItem extends DropdownItem {
   uom: Uom;
-  pcsPerBox: number | null;
+  secondaryUom: Uom | null;
+  unitPerBox: number | null;
   salesPrice: number;
   purchasePrice: number;
   currentStock: number;
@@ -121,7 +125,8 @@ export interface StockBalance {
   productCode: string;
   productName: string;
   uom: Uom;
-  pcsPerBox: number | null;
+  secondaryUom: Uom | null;
+  unitPerBox: number | null;
   currentStockBalance: number;
   lowStockThreshold: number | null;
   isLowStock: boolean;
@@ -150,7 +155,7 @@ export interface StockAdjustment {
   productCode: string;
   productName: string;
   adjustmentType: AdjustmentType;
-  quantityPcs: number;
+  quantity: number;
   reason: AdjustmentReason;
   note: string | null;
   adjustmentDate: string;
@@ -195,10 +200,10 @@ export interface OrderLine {
   productName: string;
   quantityType: QuantityType;
   boxQuantity: number | null;
-  pcsQuantity: number | null;
-  pcsPerBoxSnapshot: number | null;
-  totalQuantityPcs: number;
-  perPcsPrice: number;
+  unitQuantity: number | null;
+  unitPerBoxSnapshot: number | null;
+  totalQuantity: number;
+  perUnitPrice: number;
   perBoxPrice: number | null;
   totalPrice: number;
 }
@@ -240,9 +245,9 @@ export interface OrderLineRequest {
   productUuid: string | null;
   quantityType: QuantityType | null;
   boxQuantity: number | null;
-  pcsQuantity: number | null;
-  totalQuantityPcs: number | null;
-  perPcsPrice: number | null;
+  unitQuantity: number | null;
+  totalQuantity: number | null;
+  perUnitPrice: number | null;
   perBoxPrice: number | null;
   totalPrice: number | null;
 }

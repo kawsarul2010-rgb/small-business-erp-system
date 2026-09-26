@@ -22,7 +22,7 @@ import { applyServerErrors, controlError } from '../../shared/form-errors';
 import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { MoneyPipe, QtyPipe } from '../../shared/pipes';
-import { UOM_OPTIONS, allowsFractions, shortLabel, stockLabel } from '../../shared/units';
+import { SECONDARY_UOM_OPTIONS, UOM_OPTIONS, allowsFractions, baseUnit, baseUnitLabel, boxSizeLabel, shortLabel, stockLabel } from '../../shared/units';
 
 @Component({
   selector: 'app-products',
@@ -36,7 +36,7 @@ import { UOM_OPTIONS, allowsFractions, shortLabel, stockLabel } from '../../shar
         <div>
           <h1>Products</h1>
           @if (!layout.isHandset()) {
-            <div class="subtitle">Prices are per unit. PCS and BOX are counted in whole pieces; KG and LITRE are measured and may be fractional.</div>
+            <div class="subtitle">Prices and stock are per unit. A BOX product says what its box holds — 12 pcs, 25 kg, 5 litres — and stock is counted in that unit.</div>
           }
         </div>
         @if (auth.isAdmin() && !layout.isHandset()) {
@@ -62,11 +62,11 @@ import { UOM_OPTIONS, allowsFractions, shortLabel, stockLabel } from '../../shar
                 <div class="m-card-head">
                   <div>
                     <div class="m-title">{{ p.productName }}</div>
-                    <div class="m-sub">{{ p.productCode }} · {{ p.uom }}@if (p.pcsPerBox) { · {{ p.pcsPerBox }} pcs/box }</div>
+                    <div class="m-sub">{{ p.productCode }} · {{ p.uom }}@if (boxSize(p); as b) { · {{ b }} }</div>
                   </div>
                   <div class="m-right">
                     <span class="m-amount" [class.negative]="p.lowStockThreshold !== null && p.currentStock <= p.lowStockThreshold">
-                      {{ p.currentStock | qty }} <span class="unit">{{ stockUnit(p.uom) }}</span>
+                      {{ p.currentStock | qty }} <span class="unit">{{ stockUnit(p) }}</span>
                     </span>
                     @if (auth.isAdmin()) {
                       <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Actions"><mat-icon>more_vert</mat-icon></button>
@@ -78,8 +78,8 @@ import { UOM_OPTIONS, allowsFractions, shortLabel, stockLabel } from '../../shar
                   </div>
                 </div>
                 <div class="m-meta two">
-                  <div><span class="k">Purchase / {{ stockUnit(p.uom) }}</span><span class="v">{{ p.productPurchasePrice | money: false }}</span></div>
-                  <div><span class="k">Sales / {{ stockUnit(p.uom) }}</span><span class="v">{{ p.productSalesPrice | money: false }}</span></div>
+                  <div><span class="k">Purchase / {{ stockUnit(p) }}</span><span class="v">{{ p.productPurchasePrice | money: false }}</span></div>
+                  <div><span class="k">Sales / {{ stockUnit(p) }}</span><span class="v">{{ p.productSalesPrice | money: false }}</span></div>
                 </div>
               </div>
             }
@@ -89,11 +89,11 @@ import { UOM_OPTIONS, allowsFractions, shortLabel, stockLabel } from '../../shar
             <table mat-table [dataSource]="list.items()" matSort (matSortChange)="list.onSort($event)">
               <ng-container matColumnDef="productCode"><th mat-header-cell *matHeaderCellDef mat-sort-header>Code</th><td mat-cell *matCellDef="let p" class="code">{{ p.productCode }}</td></ng-container>
               <ng-container matColumnDef="productName"><th mat-header-cell *matHeaderCellDef mat-sort-header>Name</th><td mat-cell *matCellDef="let p">{{ p.productName }}</td></ng-container>
-              <ng-container matColumnDef="uom"><th mat-header-cell *matHeaderCellDef>UOM</th><td mat-cell *matCellDef="let p" class="nowrap">{{ p.uom }}@if (p.pcsPerBox) { <span class="muted"> · {{ p.pcsPerBox }}/box</span> }</td></ng-container>
+              <ng-container matColumnDef="uom"><th mat-header-cell *matHeaderCellDef>UOM</th><td mat-cell *matCellDef="let p" class="nowrap">{{ p.uom }}@if (boxSize(p); as b) { <span class="muted"> · {{ b }}</span> }</td></ng-container>
               <ng-container matColumnDef="productPurchasePrice"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Purchase / unit</th><td mat-cell *matCellDef="let p" class="num nowrap">{{ p.productPurchasePrice | money }}</td></ng-container>
               <ng-container matColumnDef="productSalesPrice"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Sales / unit</th><td mat-cell *matCellDef="let p" class="num nowrap">{{ p.productSalesPrice | money }}</td></ng-container>
               <ng-container matColumnDef="currentStock"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Stock</th>
-                <td mat-cell *matCellDef="let p" class="num" [class.negative]="p.lowStockThreshold !== null && p.currentStock <= p.lowStockThreshold">{{ p.currentStock | qty: p.uom }}</td></ng-container>
+                <td mat-cell *matCellDef="let p" class="num" [class.negative]="p.lowStockThreshold !== null && p.currentStock <= p.lowStockThreshold">{{ p.currentStock | qty }} <span class="muted">{{ stockUnit(p) }}</span></td></ng-container>
               <ng-container matColumnDef="actions">
                 <th mat-header-cell *matHeaderCellDef></th>
                 <td mat-cell *matCellDef="let p" class="num nowrap">
@@ -129,9 +129,14 @@ export class ProductsPage implements OnInit {
   readonly lowOnly = signal(false);
   readonly columns = ['productCode', 'productName', 'uom', 'productPurchasePrice', 'productSalesPrice', 'currentStock', 'actions'];
 
-  /** Stock is counted in the product's own unit: pcs, kg or litre. */
-  stockUnit(uom: Uom): string {
-    return stockLabel(uom);
+  /** Stock is counted in the product's base unit: pcs, kg or litre. */
+  stockUnit(p: Product): string {
+    return stockLabel(p);
+  }
+
+  /** "12 pcs/box", "25 kg/box" - null when the product has no box size. */
+  boxSize(p: Product): string | null {
+    return boxSizeLabel(p);
   }
   readonly list = new ListState<Product>((q) => this.api.get<Paged<Product>>('/products', { ...q, lowStockOnly: this.lowOnly() }));
 
@@ -170,18 +175,31 @@ export class ProductsPage implements OnInit {
             <mat-select formControlName="uom">
               @for (u of uomOptions; track u) { <mat-option [value]="u">{{ u }}</mat-option> }
             </mat-select>
-            <mat-hint>{{ measured() ? 'Measured — quantities may be fractional' : 'Counted in whole units' }}</mat-hint>
+            <mat-hint>{{ isBox() ? 'A box — say what it holds below' : (measured() ? 'Measured — quantities may be fractional' : 'Counted in whole units') }}</mat-hint>
           </mat-form-field>
-          <mat-form-field><mat-label>Purchase price per {{ unit() }}</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productPurchasePrice" /><mat-error>{{ err('productPurchasePrice', 'Purchase price') }}</mat-error></mat-form-field>
-          <mat-form-field><mat-label>Sales price per {{ unit() }}</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productSalesPrice" /><mat-error>{{ err('productSalesPrice', 'Sales price') }}</mat-error></mat-form-field>
-          @if (form.value.uom === 'PCS' || form.value.uom === 'BOX') {
+
+          @if (isBox()) {
             <mat-form-field>
-              <mat-label>Pcs per box</mat-label>
-              <input matInput type="number" inputmode="numeric" min="1" step="1" formControlName="pcsPerBox" />
-              <mat-hint>{{ form.value.uom === 'BOX' ? 'Required for BOX' : 'Optional — enables BOX entry on orders' }}</mat-hint>
-              <mat-error>{{ err('pcsPerBox', 'Pcs per box') }}</mat-error>
+              <mat-label>A box contains</mat-label>
+              <mat-select formControlName="secondaryUom">
+                @for (u of secondaryOptions; track u) { <mat-option [value]="u">{{ u }}</mat-option> }
+              </mat-select>
+              <mat-hint>Stock is counted in this unit</mat-hint>
+              <mat-error>{{ err('secondaryUom', 'Secondary UOM') }}</mat-error>
             </mat-form-field>
           }
+
+          @if (isBox() || form.value.uom === 'PCS') {
+            <mat-form-field>
+              <mat-label>{{ unitTitle() }} per box</mat-label>
+              <input matInput type="number" [attr.inputmode]="measured() ? 'decimal' : 'numeric'" min="0" [step]="measured() ? 0.001 : 1" formControlName="unitPerBox" />
+              <mat-hint>{{ isBox() ? 'Required for BOX' : 'Optional — enables BOX entry on orders' }}</mat-hint>
+              <mat-error>{{ err('unitPerBox', 'Units per box') }}</mat-error>
+            </mat-form-field>
+          }
+
+          <mat-form-field><mat-label>Purchase price per {{ unit() }}</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productPurchasePrice" /><mat-error>{{ err('productPurchasePrice', 'Purchase price') }}</mat-error></mat-form-field>
+          <mat-form-field><mat-label>Sales price per {{ unit() }}</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productSalesPrice" /><mat-error>{{ err('productSalesPrice', 'Sales price') }}</mat-error></mat-form-field>
           <mat-form-field>
             <mat-label>Low stock alert at ({{ unit() }})</mat-label>
             <input matInput type="number" [attr.inputmode]="measured() ? 'decimal' : 'numeric'" min="0" [step]="measured() ? 0.001 : 1" formControlName="lowStockThreshold" />
@@ -208,29 +226,52 @@ export class ProductDialog {
     productName: [this.data?.productName ?? '', [Validators.required, Validators.maxLength(200)]],
     productCode: [this.data?.productCode ?? '', [Validators.required, Validators.maxLength(50)]],
     uom: [(this.data?.uom ?? 'PCS') as Uom, Validators.required],
+    secondaryUom: [this.data?.secondaryUom ?? null as Uom | null],
     productPurchasePrice: [this.data?.productPurchasePrice ?? null as number | null, [Validators.required, Validators.min(0)]],
     productSalesPrice: [this.data?.productSalesPrice ?? null as number | null, [Validators.required, Validators.min(0)]],
-    pcsPerBox: [this.data?.pcsPerBox ?? null as number | null, [Validators.min(1)]],
+    unitPerBox: [this.data?.unitPerBox ?? null as number | null, [Validators.min(1)]],
     lowStockThreshold: [this.data?.lowStockThreshold ?? null as number | null, [Validators.min(0)]],
   });
 
   readonly uomOptions = UOM_OPTIONS;
+  readonly secondaryOptions = SECONDARY_UOM_OPTIONS;
+
   private readonly uomValue = signal<Uom>(this.data?.uom ?? 'PCS');
+  private readonly secondaryValue = signal<Uom | null>(this.data?.secondaryUom ?? null);
+
+  readonly isBox = computed(() => this.uomValue() === 'BOX');
+  /** The unit stock is counted in: the box contents for a BOX product, else its own unit. */
+  readonly base = computed(() => baseUnit({ uom: this.uomValue(), secondaryUom: this.secondaryValue() }));
   /** KG and LITRE are measured, so quantities and thresholds may be fractional. */
-  readonly measured = computed(() => allowsFractions(this.uomValue()));
-  readonly unit = computed(() => shortLabel(this.uomValue()));
+  readonly measured = computed(() => allowsFractions(this.base()));
+  readonly unit = computed(() => shortLabel(this.base()));
+  readonly unitTitle = computed(() => baseUnitLabel(this.base()));
 
   constructor() {
-    const sync = (uom: Uom | null) => {
+    const sync = () => {
+      const uom = this.form.controls.uom.value;
+      const secondary = this.form.controls.secondaryUom;
       this.uomValue.set(uom ?? 'PCS');
-      const ctrl = this.form.controls.pcsPerBox;
-      // A measured product has no box conversion, so the field is cleared and dropped.
-      if (uom === 'KG' || uom === 'LITRE') ctrl.setValue(null, { emitEvent: false });
-      ctrl.setValidators(uom === 'BOX' ? [Validators.required, Validators.min(1)] : [Validators.min(1)]);
-      ctrl.updateValueAndValidity({ emitEvent: false });
+
+      // A secondary unit only means something for a BOX product.
+      if (uom !== 'BOX') {
+        if (secondary.value !== null) secondary.setValue(null, { emitEvent: false });
+      } else if (secondary.value === null) {
+        secondary.setValue('PCS', { emitEvent: false });
+      }
+      secondary.setValidators(uom === 'BOX' ? [Validators.required] : []);
+      secondary.updateValueAndValidity({ emitEvent: false });
+      this.secondaryValue.set(secondary.value);
+
+      const perBox = this.form.controls.unitPerBox;
+      // Only a box has a box size; a loose product measured by weight has none.
+      if (uom === 'KG' || uom === 'LITRE') perBox.setValue(null, { emitEvent: false });
+      perBox.setValidators(uom === 'BOX' ? [Validators.required, Validators.min(0.001)] : [Validators.min(0.001)]);
+      perBox.updateValueAndValidity({ emitEvent: false });
     };
-    sync(this.form.controls.uom.value);
+    sync();
     this.form.controls.uom.valueChanges.pipe(takeUntilDestroyed()).subscribe(sync);
+    this.form.controls.secondaryUom.valueChanges.pipe(takeUntilDestroyed()).subscribe(sync);
   }
 
   err(name: string, label: string): string {

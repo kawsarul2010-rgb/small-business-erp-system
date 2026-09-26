@@ -19,7 +19,7 @@ import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
 import { MoneyPipe, QtyPipe } from '../../shared/pipes';
 import { SearchSelect } from '../../shared/search-select';
-import { allowsFractions, entryTypesFor, quantityInputMode, quantityLabel, quantityStep, shortLabel, stockLabel } from '../../shared/units';
+import { allowsFractions, baseQuantityType, baseUnit, boxSizeLabel, entryTypesFor, quantityInputMode, quantityLabel, quantityStep, stockLabel } from '../../shared/units';
 import { orderMeta } from './order-kind';
 
 type LineForm = FormGroup<{
@@ -27,9 +27,9 @@ type LineForm = FormGroup<{
   productUuid: FormControl<string | null>;
   quantityType: FormControl<QuantityType>;
   boxQuantity: FormControl<number | null>;
-  pcsQuantity: FormControl<number | null>;
-  totalQuantityPcs: FormControl<number | null>;
-  perPcsPrice: FormControl<number | null>;
+  unitQuantity: FormControl<number | null>;
+  totalQuantity: FormControl<number | null>;
+  perUnitPrice: FormControl<number | null>;
   perBoxPrice: FormControl<number | null>;
   totalPrice: FormControl<number | null>;
 }>;
@@ -38,7 +38,10 @@ type LineForm = FormGroup<{
 interface LineProduct {
   label: string;
   uom: Uom;
-  pcsPerBox: number | null;
+  /** What a box holds, for a BOX product. */
+  secondaryUom: Uom | null;
+  /** How much of the base unit one box holds. */
+  unitPerBox: number | null;
   defaultPrice: number;
   currentStock: number | null;
 }
@@ -101,7 +104,7 @@ export class OrderEditorPage implements OnInit {
   readonly fetchParties = (term: string) => this.api.get<DropdownItem[]>(`${this.meta().partyApi}/dropdown`, { search: term });
   readonly fetchProducts = (term: string) => this.api.get<ProductDropdownItem[]>('/products/dropdown', { search: term });
   readonly productHint = (p: ProductDropdownItem) => {
-    const unit = stockLabel(p.uom);
+    const unit = stockLabel(p);
     return `${p.currentStock} ${unit} in stock · Tk ${this.isSales() ? p.salesPrice : p.purchasePrice}/${unit}`;
   };
 
@@ -156,15 +159,16 @@ export class OrderEditorPage implements OnInit {
           const p = byId.get(l.productUuid);
           this.lines.push(this.newLine({
             uuid: l.uuid, productUuid: l.productUuid, quantityType: l.quantityType, boxQuantity: l.boxQuantity,
-            pcsQuantity: l.pcsQuantity, totalQuantityPcs: l.totalQuantityPcs, perPcsPrice: l.perPcsPrice,
+            unitQuantity: l.unitQuantity, totalQuantity: l.totalQuantity, perUnitPrice: l.perUnitPrice,
             perBoxPrice: l.perBoxPrice, totalPrice: l.totalPrice,
           }));
           metas.push({
             label: `${l.productName} (${l.productCode})`,
             // Fall back to the line's own quantity type when the product is no longer listed.
             uom: p?.uom ?? (l.quantityType === 'BOX' ? 'BOX' : (l.quantityType as Uom)),
-            pcsPerBox: p?.pcsPerBox ?? l.pcsPerBoxSnapshot,
-            defaultPrice: p ? (this.isSales() ? p.productSalesPrice : p.productPurchasePrice) : l.perPcsPrice,
+            secondaryUom: p?.secondaryUom ?? (l.quantityType === 'BOX' ? 'PCS' : null),
+            unitPerBox: p?.unitPerBox ?? l.unitPerBoxSnapshot,
+            defaultPrice: p ? (this.isSales() ? p.productSalesPrice : p.productPurchasePrice) : l.perUnitPrice,
             currentStock: p?.currentStock ?? null,
           });
         }
@@ -188,9 +192,9 @@ export class OrderEditorPage implements OnInit {
       productUuid: this.fb.control<string | null>(v?.productUuid ?? null, Validators.required),
       quantityType: this.fb.control<QuantityType>(v?.quantityType ?? 'PCS', { nonNullable: true }),
       boxQuantity: this.fb.control<number | null>(v?.boxQuantity ?? null, Validators.min(1)),
-      pcsQuantity: this.fb.control<number | null>(v?.pcsQuantity ?? null, Validators.min(1)),
-      totalQuantityPcs: this.fb.control<number | null>(v?.totalQuantityPcs ?? null, [Validators.required, Validators.min(1)]),
-      perPcsPrice: this.fb.control<number | null>(v?.perPcsPrice ?? null, [Validators.required, Validators.min(0)]),
+      unitQuantity: this.fb.control<number | null>(v?.unitQuantity ?? null, Validators.min(1)),
+      totalQuantity: this.fb.control<number | null>(v?.totalQuantity ?? null, [Validators.required, Validators.min(1)]),
+      perUnitPrice: this.fb.control<number | null>(v?.perUnitPrice ?? null, [Validators.required, Validators.min(0)]),
       perBoxPrice: this.fb.control<number | null>(v?.perBoxPrice ?? null, Validators.min(0)),
       totalPrice: this.fb.control<number | null>(v?.totalPrice ?? null, [Validators.required, Validators.min(0)]),
     }) as LineForm;
@@ -222,36 +226,41 @@ export class OrderEditorPage implements OnInit {
   }
 
   canUseBox(i: number): boolean {
-    return (this.productMeta(i)?.pcsPerBox ?? 0) > 0;
+    return (this.productMeta(i)?.unitPerBox ?? 0) > 0;
   }
 
-  /** The units this line may be entered in, from the selected product. */
+  /** The units this line may be entered in: by the box, and in the product's base unit. */
   entryTypes(i: number): QuantityType[] {
-    return entryTypesFor(this.productMeta(i)?.uom ?? 'PCS');
+    return entryTypesFor(this.productMeta(i));
   }
 
   /** "Pcs", "Kg", "Litre" - the label for this line's quantity field. */
   quantityLabelFor(i: number): string {
-    return quantityLabel(this.lines.at(i).controls.quantityType.value);
+    return quantityLabel(baseUnit(this.productMeta(i)));
   }
 
-  /** Measured lines accept fractions; counted lines step by whole units. */
+  /** Measured products accept fractions; counted ones step by whole units. */
   quantityStepFor(i: number): number {
-    return quantityStep(this.lines.at(i).controls.quantityType.value);
+    return quantityStep(baseUnit(this.productMeta(i)));
   }
 
   quantityModeFor(i: number): 'decimal' | 'numeric' {
-    return quantityInputMode(this.lines.at(i).controls.quantityType.value);
+    return quantityInputMode(baseUnit(this.productMeta(i)));
   }
 
   /** "kg", "pcs" - the unit the line total is counted in. */
   unitFor(i: number): string {
-    return shortLabel(this.lines.at(i).controls.quantityType.value);
+    return stockLabel(this.productMeta(i));
   }
 
   /** The unit this line's product is stocked in. */
   stockUnitFor(i: number): string {
-    return stockLabel(this.productMeta(i)?.uom ?? 'PCS');
+    return stockLabel(this.productMeta(i));
+  }
+
+  /** "25 kg/box" - shown next to a product that comes in boxes. */
+  boxSizeFor(i: number): string | null {
+    return boxSizeLabel(this.productMeta(i));
   }
 
   onProductSelected(i: number, item: ProductDropdownItem | null): void {
@@ -264,18 +273,19 @@ export class OrderEditorPage implements OnInit {
     const meta: LineProduct = {
       label: item.label,
       uom: item.uom,
-      pcsPerBox: item.pcsPerBox,
+      secondaryUom: item.secondaryUom,
+      unitPerBox: item.unitPerBox,
       defaultPrice: this.isSales() ? item.salesPrice : item.purchasePrice,
       currentStock: item.currentStock,
     };
     this.lineProducts.update((m) => m.map((x, idx) => (idx === i ? meta : x)));
     // A product is ordered in its own unit: boxes for a BOX product, kg for a KG one.
-    const useBox = item.uom === 'BOX' && (item.pcsPerBox ?? 0) > 0;
+    const useBox = item.uom === 'BOX' && (item.unitPerBox ?? 0) > 0;
     line.patchValue({
-      quantityType: useBox ? 'BOX' : entryTypesFor(item.uom)[0],
+      quantityType: useBox ? 'BOX' : baseQuantityType(item),
       boxQuantity: useBox ? line.value.boxQuantity ?? 1 : null,
-      pcsQuantity: useBox ? null : line.value.pcsQuantity ?? 1,
-      perPcsPrice: meta.defaultPrice,
+      unitQuantity: useBox ? null : line.value.unitQuantity ?? 1,
+      perUnitPrice: meta.defaultPrice,
     });
     this.applyQuantityValidators(i);
     this.recalcQuantity(i);
@@ -283,36 +293,37 @@ export class OrderEditorPage implements OnInit {
 
   onQuantityTypeChange(i: number): void {
     const line = this.lines.at(i);
-    const ppb = this.productMeta(i)?.pcsPerBox ?? 0;
+    const perBox = this.productMeta(i)?.unitPerBox ?? 0;
     if (line.value.quantityType === 'BOX') {
-      const pcs = line.value.pcsQuantity ?? 0;
-      line.patchValue({ boxQuantity: ppb > 0 ? Math.max(1, Math.round(pcs / ppb)) : 1, pcsQuantity: null });
+      const units = line.value.unitQuantity ?? 0;
+      line.patchValue({ boxQuantity: perBox > 0 ? Math.max(1, Math.round(units / perBox)) : 1, unitQuantity: null });
     } else {
-      line.patchValue({ pcsQuantity: line.value.totalQuantityPcs ?? 1, boxQuantity: null, perBoxPrice: null });
+      line.patchValue({ unitQuantity: line.value.totalQuantity ?? 1, boxQuantity: null, perBoxPrice: null });
     }
     this.applyQuantityValidators(i);
     this.recalcQuantity(i);
   }
 
-  /** Box or pcs quantity changed: total pcs = pcs, or boxes x pcs per box. */
+  /** Quantity changed: the total is the entered amount, or boxes x the box size. */
   recalcQuantity(i: number): void {
     const line = this.lines.at(i);
     const v = line.getRawValue();
-    const ppb = this.productMeta(i)?.pcsPerBox ?? 0;
-    const total = v.quantityType === 'BOX' ? (v.boxQuantity ?? 0) * ppb : v.pcsQuantity ?? 0;
-    line.controls.totalQuantityPcs.setValue(total || null);
-    this.recalcFromPerPcs(i);
+    const perBox = this.productMeta(i)?.unitPerBox ?? 0;
+    // 2 boxes of a 25 kg sack is 50 kg, exactly as 2 cartons of 12 pcs is 24 pcs.
+    const total = v.quantityType === 'BOX' ? (v.boxQuantity ?? 0) * perBox : v.unitQuantity ?? 0;
+    line.controls.totalQuantity.setValue(total || null);
+    this.recalcFromPerUnit(i);
   }
 
-  /** Per pcs price changed: derive per box price and total. */
-  recalcFromPerPcs(i: number): void {
+  /** Per unit price changed: derive the per box price and the line total. */
+  recalcFromPerUnit(i: number): void {
     const line = this.lines.at(i);
     const v = line.getRawValue();
-    const ppb = this.productMeta(i)?.pcsPerBox ?? 0;
-    const perPcs = v.perPcsPrice ?? 0;
+    const ppb = this.productMeta(i)?.unitPerBox ?? 0;
+    const perPcs = v.perUnitPrice ?? 0;
     line.patchValue({
       perBoxPrice: v.quantityType === 'BOX' && ppb > 0 ? round2(perPcs * ppb) : null,
-      totalPrice: round2((v.totalQuantityPcs ?? 0) * perPcs),
+      totalPrice: round2((v.totalQuantity ?? 0) * perPcs),
     });
     this.refresh();
   }
@@ -321,10 +332,10 @@ export class OrderEditorPage implements OnInit {
   recalcFromPerBox(i: number): void {
     const line = this.lines.at(i);
     const v = line.getRawValue();
-    const ppb = this.productMeta(i)?.pcsPerBox ?? 0;
+    const ppb = this.productMeta(i)?.unitPerBox ?? 0;
     if (ppb <= 0) return;
     const perBox = v.perBoxPrice ?? 0;
-    line.patchValue({ perPcsPrice: round2(perBox / ppb), totalPrice: round2((v.boxQuantity ?? 0) * perBox) });
+    line.patchValue({ perUnitPrice: round2(perBox / ppb), totalPrice: round2((v.boxQuantity ?? 0) * perBox) });
     this.refresh();
   }
 
@@ -332,20 +343,19 @@ export class OrderEditorPage implements OnInit {
   recalcFromTotalQty(i: number): void {
     const line = this.lines.at(i);
     const v = line.getRawValue();
-    line.controls.totalPrice.setValue(round2((v.totalQuantityPcs ?? 0) * (v.perPcsPrice ?? 0)));
+    line.controls.totalPrice.setValue(round2((v.totalQuantity ?? 0) * (v.perUnitPrice ?? 0)));
     this.refresh();
   }
 
   private applyQuantityValidators(i: number): void {
     const line = this.lines.at(i);
-    const type = line.controls.quantityType.value;
-    const isBox = type === 'BOX';
-    // Measured units may be a fraction of one, so the minimum is the smallest step.
-    const min = allowsFractions(type) ? 0.001 : 1;
+    const isBox = line.controls.quantityType.value === 'BOX';
+    // Fractions depend on the product's base unit, not on how the line is entered.
+    const min = allowsFractions(baseUnit(this.productMeta(i))) ? 0.001 : 1;
     line.controls.boxQuantity.setValidators(isBox ? [Validators.required, Validators.min(1)] : []);
-    line.controls.pcsQuantity.setValidators(isBox ? [] : [Validators.required, Validators.min(min)]);
+    line.controls.unitQuantity.setValidators(isBox ? [] : [Validators.required, Validators.min(min)]);
     line.controls.boxQuantity.updateValueAndValidity({ emitEvent: false });
-    line.controls.pcsQuantity.updateValueAndValidity({ emitEvent: false });
+    line.controls.unitQuantity.updateValueAndValidity({ emitEvent: false });
   }
 
   /** Recomputes the order total and sales stock warnings. */
@@ -355,7 +365,7 @@ export class OrderEditorPage implements OnInit {
 
     if (!this.isSales()) return;
     const needed = new Map<string, number>();
-    values.forEach((l) => l.productUuid && needed.set(l.productUuid, (needed.get(l.productUuid) ?? 0) + (Number(l.totalQuantityPcs) || 0)));
+    values.forEach((l) => l.productUuid && needed.set(l.productUuid, (needed.get(l.productUuid) ?? 0) + (Number(l.totalQuantity) || 0)));
     const warnings: string[] = [];
     const seen = new Set<string>();
     values.forEach((l, i) => {
@@ -398,7 +408,7 @@ export class OrderEditorPage implements OnInit {
       lines: v.lines.map((l) => ({
         ...l,
         boxQuantity: l.quantityType === 'BOX' ? l.boxQuantity : null,
-        pcsQuantity: l.quantityType === 'PCS' ? l.pcsQuantity : null,
+        unitQuantity: l.quantityType === 'PCS' ? l.unitQuantity : null,
         perBoxPrice: l.quantityType === 'BOX' ? l.perBoxPrice : null,
       })),
     };

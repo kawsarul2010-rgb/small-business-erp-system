@@ -44,22 +44,39 @@ public static class Units
 
     public static bool AllowsFractions(QuantityType type) => type is QuantityType.Kg or QuantityType.Litre;
 
-    /// <summary>Only BOX needs a pcs-per-box conversion; every other unit is its own base unit.</summary>
-    public static bool RequiresPcsPerBox(Uom uom) => uom == Uom.Box;
+    /// <summary>A BOX product must say what its box holds and how much of it.</summary>
+    public static bool RequiresSecondaryUom(Uom uom) => uom == Uom.Box;
 
     /// <summary>
-    /// The ways a line for this product may be entered. A BOX product can also be sold loose
-    /// by the piece; everything else is ordered in its own unit.
+    /// The unit this product's stock is counted in. A BOX product counts in whatever its box
+    /// holds - pieces, kilos or litres; every other product counts in its own unit.
     /// </summary>
-    public static QuantityType[] EntryTypesFor(Uom uom) => uom switch
+    public static Uom BaseUnit(Product product) =>
+        product.Uom == Uom.Box ? product.SecondaryUom ?? Uom.Pcs : product.Uom;
+
+    public static Uom BaseUnit(Uom uom, Uom? secondary) => uom == Uom.Box ? secondary ?? Uom.Pcs : uom;
+
+    /// <summary>The base unit as a line's quantity type.</summary>
+    public static QuantityType AsQuantityType(Uom uom) => uom switch
     {
-        Uom.Box => [QuantityType.Box, QuantityType.Pcs],
-        Uom.Kg => [QuantityType.Kg],
-        Uom.Litre => [QuantityType.Litre],
-        _ => [QuantityType.Pcs],
+        Uom.Box => QuantityType.Box,
+        Uom.Kg => QuantityType.Kg,
+        Uom.Litre => QuantityType.Litre,
+        _ => QuantityType.Pcs,
     };
 
-    public static bool IsValidFor(Uom uom, QuantityType type) => Array.IndexOf(EntryTypesFor(uom), type) >= 0;
+    /// <summary>
+    /// The ways a line for this product may be entered: by the box when it has a box size,
+    /// and always in its base unit - so a 25 kg sack can be ordered as 2 boxes or as 12.5 kg.
+    /// </summary>
+    public static QuantityType[] EntryTypesFor(Product product)
+    {
+        var baseType = AsQuantityType(BaseUnit(product));
+        return product.UnitPerBox is > 0 ? [QuantityType.Box, baseType] : [baseType];
+    }
+
+    public static bool IsValidFor(Product product, QuantityType type) =>
+        Array.IndexOf(EntryTypesFor(product), type) >= 0;
 
     public static string ShortLabel(QuantityType type) => type switch
     {
@@ -77,13 +94,10 @@ public static class Units
         _ => "pcs",
     };
 
-    /// <summary>The unit stock is counted in: pieces for PCS and BOX products, kg or litres otherwise.</summary>
-    public static string StockLabel(Uom uom) => uom switch
-    {
-        Uom.Kg => "kg",
-        Uom.Litre => "litre",
-        _ => "pcs",
-    };
+    /// <summary>The unit stock is counted in, as a label: "pcs", "kg" or "litre".</summary>
+    public static string StockLabel(Product product) => ShortLabel(BaseUnit(product));
+
+    public static string StockLabel(Uom uom, Uom? secondary) => ShortLabel(BaseUnit(uom, secondary));
 }
 
 /// <summary>Bangladesh mobile number rules (SRS 11.3).</summary>
@@ -158,9 +172,9 @@ public sealed record LineInput(
     Guid ProductUuid,
     QuantityType QuantityType,
     int? BoxQuantity,
-    decimal? PcsQuantity,
-    decimal? TotalQuantityPcs,
-    decimal? PerPcsPrice,
+    decimal? UnitQuantity,
+    decimal? TotalQuantity,
+    decimal? PerUnitPrice,
     decimal? PerBoxPrice,
     decimal? TotalPrice);
 
@@ -168,10 +182,10 @@ public sealed record LineInput(
 public sealed record LineValues(
     QuantityType QuantityType,
     int? BoxQuantity,
-    decimal? PcsQuantity,
-    int? PcsPerBoxSnapshot,
-    decimal TotalQuantityPcs,
-    decimal PerPcsPrice,
+    decimal? UnitQuantity,
+    decimal? UnitPerBoxSnapshot,
+    decimal TotalQuantity,
+    decimal PerUnitPrice,
     decimal? PerBoxPrice,
     decimal TotalPrice);
 
@@ -183,72 +197,78 @@ public static class LineCalculator
     /// total quantity from pcs/box quantity, prices from the product default price,
     /// total price from quantity x per pcs price. User-entered values are preserved.
     /// </summary>
-    public static LineValues Normalize(LineInput input, Product product, decimal defaultPerPcsPrice, string fieldPrefix, Validator v)
+    public static LineValues Normalize(LineInput input, Product product, decimal defaultPerUnitPrice, string fieldPrefix, Validator v)
     {
-        int? pcsPerBox = null;
+        var baseUnit = Units.BaseUnit(product);
+        var baseLabel = Units.ShortLabel(baseUnit);
+        decimal? unitPerBox = null;
         int? box = null;
-        decimal? pcs = null;
+        decimal? units = null;
         decimal total;
 
-        // A line must be entered in a unit the product is actually measured in: a product sold
-        // by weight cannot be ordered by the piece, and only a BOX product can be ordered in boxes.
-        if (!Units.IsValidFor(product.Uom, input.QuantityType))
+        // A line must be entered either by the box or in the product's base unit: a product
+        // stocked in kilos cannot be ordered by the piece.
+        if (!Units.IsValidFor(product, input.QuantityType))
             v.Add($"{fieldPrefix}.quantityType",
-                $"Product {product.ProductCode} is measured in {EnumText.ToText(product.Uom)}, so "
+                $"Product {product.ProductCode} is stocked in {EnumText.ToText(baseUnit)}, so "
                 + $"{EnumText.ToText(input.QuantityType)} cannot be used.");
 
         if (input.QuantityType == QuantityType.Box)
         {
-            if (product.PcsPerBox is not > 0)
-                v.Add($"{fieldPrefix}.quantityType", $"Product {product.ProductCode} has no pcs per box, so BOX cannot be used.");
-            pcsPerBox = product.PcsPerBox;
+            if (product.UnitPerBox is not > 0)
+                v.Add($"{fieldPrefix}.quantityType", $"Product {product.ProductCode} has no box size, so BOX cannot be used.");
+            unitPerBox = product.UnitPerBox;
             box = input.BoxQuantity;
             if (box is not > 0) v.Add($"{fieldPrefix}.boxQuantity", "Box quantity must be greater than 0.");
-            total = input.TotalQuantityPcs ?? (box ?? 0) * (pcsPerBox ?? 0);
+            // A box of 25 kg ordered twice is 50 kg; a carton of 12 pcs ordered twice is 24 pcs.
+            total = input.TotalQuantity ?? (box ?? 0) * (unitPerBox ?? 0);
         }
         else
         {
-            pcs = input.PcsQuantity is { } q ? Qty.Round(q) : null;
-            if (pcs is not > 0)
-                v.Add($"{fieldPrefix}.pcsQuantity", $"{char.ToUpperInvariant(Units.ShortLabel(input.QuantityType)[0])}{Units.ShortLabel(input.QuantityType)[1..]} quantity must be greater than 0.");
-            total = input.TotalQuantityPcs ?? pcs ?? 0;
+            units = input.UnitQuantity is { } q ? Qty.Round(q) : null;
+            if (units is not > 0)
+                v.Add($"{fieldPrefix}.unitQuantity",
+                    $"{char.ToUpperInvariant(baseLabel[0])}{baseLabel[1..]} quantity must be greater than 0.");
+            total = input.TotalQuantity ?? units ?? 0;
         }
 
-        // Counted units stay whole; only measured ones may carry a fraction.
+        // The total is always in the base unit, so whether it may carry a fraction
+        // depends on that unit, not on how the line was entered.
         total = Qty.Round(total);
-        if (!Units.AllowsFractions(input.QuantityType) && total != decimal.Truncate(total))
-            v.Add($"{fieldPrefix}.totalQuantityPcs",
-                $"{EnumText.ToText(input.QuantityType)} quantities must be whole numbers.");
+        if (!Units.AllowsFractions(baseUnit) && total != decimal.Truncate(total))
+            v.Add($"{fieldPrefix}.totalQuantity",
+                $"{EnumText.ToText(baseUnit)} quantities must be whole numbers.");
 
-        if (total <= 0) v.Add($"{fieldPrefix}.totalQuantityPcs", "Total quantity must be greater than 0.");
+        if (total <= 0) v.Add($"{fieldPrefix}.totalQuantity", "Total quantity must be greater than 0.");
 
-        decimal perPcs;
+        // Prices are per base unit; the per-box price is derived from the box size.
+        decimal perUnit;
         decimal? perBox = null;
-        if (input.PerPcsPrice is { } p) perPcs = p;
-        else if (input.QuantityType == QuantityType.Box && input.PerBoxPrice is { } pb && pcsPerBox is > 0) perPcs = pb / pcsPerBox.Value;
-        else perPcs = defaultPerPcsPrice;
-        perPcs = Money.Round(perPcs);
+        if (input.PerUnitPrice is { } p) perUnit = p;
+        else if (input.QuantityType == QuantityType.Box && input.PerBoxPrice is { } pb && unitPerBox is > 0) perUnit = pb / unitPerBox.Value;
+        else perUnit = defaultPerUnitPrice;
+        perUnit = Money.Round(perUnit);
 
         if (input.QuantityType == QuantityType.Box)
-            perBox = Money.Round(input.PerBoxPrice ?? perPcs * (pcsPerBox ?? 0));
+            perBox = Money.Round(input.PerBoxPrice ?? perUnit * (unitPerBox ?? 0));
 
-        var totalPrice = Money.Round(input.TotalPrice ?? total * perPcs);
+        var totalPrice = Money.Round(input.TotalPrice ?? total * perUnit);
 
-        if (perPcs < 0) v.Add($"{fieldPrefix}.perPcsPrice", "Per pcs price cannot be negative.");
+        if (perUnit < 0) v.Add($"{fieldPrefix}.perUnitPrice", $"Per {baseLabel} price cannot be negative.");
         if (perBox < 0) v.Add($"{fieldPrefix}.perBoxPrice", "Per box price cannot be negative.");
         if (totalPrice < 0) v.Add($"{fieldPrefix}.totalPrice", "Total price cannot be negative.");
 
-        return new LineValues(input.QuantityType, box, pcs, pcsPerBox, total, perPcs, perBox, totalPrice);
+        return new LineValues(input.QuantityType, box, units, unitPerBox, total, perUnit, perBox, totalPrice);
     }
 
     public static void Apply(OrderLine line, LineValues values)
     {
         line.QuantityType = values.QuantityType;
         line.BoxQuantity = values.BoxQuantity;
-        line.PcsQuantity = values.PcsQuantity;
-        line.PcsPerBoxSnapshot = values.PcsPerBoxSnapshot;
-        line.TotalQuantityPcs = values.TotalQuantityPcs;
-        line.PerPcsPrice = values.PerPcsPrice;
+        line.UnitQuantity = values.UnitQuantity;
+        line.UnitPerBoxSnapshot = values.UnitPerBoxSnapshot;
+        line.TotalQuantity = values.TotalQuantity;
+        line.PerUnitPrice = values.PerUnitPrice;
         line.PerBoxPrice = values.PerBoxPrice;
         line.TotalPrice = values.TotalPrice;
     }
@@ -257,7 +277,7 @@ public static class LineCalculator
     public static Dictionary<Guid, decimal> QuantityByProduct(IEnumerable<OrderLine> lines) =>
         lines.Where(l => l.IsActive)
              .GroupBy(l => l.ProductUuid)
-             .ToDictionary(g => g.Key, g => g.Sum(l => l.TotalQuantityPcs));
+             .ToDictionary(g => g.Key, g => g.Sum(l => l.TotalQuantity));
 }
 
 public static class SmsTemplates

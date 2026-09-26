@@ -101,7 +101,7 @@
                 </div>
                 @if (productMeta(i); as p) {
                   <div class="product-info">
-                    @if (p.pcsPerBox) { {{ p.pcsPerBox }} pcs/box · }
+                    @if (boxSizeFor(i); as b) { {{ b }} · }
                     @if (p.currentStock !== null) { stock {{ p.currentStock | qty }} {{ stockUnitFor(i) }} }
                   </div>
                 }
@@ -124,18 +124,18 @@
                   } @else {
                     <mat-form-field subscriptSizing="dynamic">
                       <mat-label>{{ quantityLabelFor(i) }}</mat-label>
-                      <input matInput type="number" [attr.inputmode]="quantityModeFor(i)" min="0" [step]="quantityStepFor(i)" formControlName="pcsQuantity" (input)="recalcQuantity(i)" />
+                      <input matInput type="number" [attr.inputmode]="quantityModeFor(i)" min="0" [step]="quantityStepFor(i)" formControlName="unitQuantity" (input)="recalcQuantity(i)" />
                     </mat-form-field>
                   }
 
                   <mat-form-field subscriptSizing="dynamic">
                     <mat-label>Total {{ unitFor(i) }}</mat-label>
-                    <input matInput type="number" [attr.inputmode]="quantityModeFor(i)" min="0" [step]="quantityStepFor(i)" formControlName="totalQuantityPcs" (input)="recalcFromTotalQty(i)" />
+                    <input matInput type="number" [attr.inputmode]="quantityModeFor(i)" min="0" [step]="quantityStepFor(i)" formControlName="totalQuantity" (input)="recalcFromTotalQty(i)" />
                   </mat-form-field>
 
                   <mat-form-field subscriptSizing="dynamic">
                     <mat-label>Price / pcs</mat-label>
-                    <input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="perPcsPrice" (input)="recalcFromPerPcs(i)" />
+                    <input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="perUnitPrice" (input)="recalcFromPerUnit(i)" />
                   </mat-form-field>
 
                   @if (line.controls.quantityType.value === 'BOX') {
@@ -154,7 +154,7 @@
 
                 @if (line.touched && line.invalid) {
                   <div class="line-error negative">
-                    @for (name of ['productUuid', 'boxQuantity', 'pcsQuantity', 'totalQuantityPcs', 'perPcsPrice', 'perBoxPrice', 'totalPrice']; track name) {
+                    @for (name of ['productUuid', 'boxQuantity', 'unitQuantity', 'totalQuantity', 'perUnitPrice', 'perBoxPrice', 'totalPrice']; track name) {
                       @if (line.get(name)?.invalid) { <span>{{ err($any(line.get(name)), name === 'productUuid' ? 'Product' : 'Value') }}</span> }
                     }
                   </div>
@@ -176,7 +176,7 @@
                     (selected)="onProductSelected(i, $event)" />
                   @if (productMeta(i); as p) {
                     <div class="product-info">
-                      @if (p.pcsPerBox) { {{ p.pcsPerBox }} pcs/box · }
+                      @if (boxSizeFor(i); as b) { {{ b }} · }
                       @if (p.currentStock !== null) { stock {{ p.currentStock | qty }} {{ stockUnitFor(i) }} }
                     </div>
                   }
@@ -199,18 +199,18 @@
                 } @else {
                   <mat-form-field class="cell" subscriptSizing="dynamic">
                     <mat-label>{{ quantityLabelFor(i) }}</mat-label>
-                    <input matInput type="number" min="0" [step]="quantityStepFor(i)" formControlName="pcsQuantity" (input)="recalcQuantity(i)" />
+                    <input matInput type="number" min="0" [step]="quantityStepFor(i)" formControlName="unitQuantity" (input)="recalcQuantity(i)" />
                   </mat-form-field>
                 }
 
                 <mat-form-field class="cell" subscriptSizing="dynamic">
                   <mat-label>Total {{ unitFor(i) }}</mat-label>
-                  <input matInput type="number" min="0" [step]="quantityStepFor(i)" formControlName="totalQuantityPcs" (input)="recalcFromTotalQty(i)" />
+                  <input matInput type="number" min="0" [step]="quantityStepFor(i)" formControlName="totalQuantity" (input)="recalcFromTotalQty(i)" />
                 </mat-form-field>
 
                 <mat-form-field class="cell" subscriptSizing="dynamic">
                   <mat-label>Per {{ unitFor(i) }}</mat-label>
-                  <input matInput type="number" min="0" step="0.01" formControlName="perPcsPrice" (input)="recalcFromPerPcs(i)" />
+                  <input matInput type="number" min="0" step="0.01" formControlName="perUnitPrice" (input)="recalcFromPerUnit(i)" />
                 </mat-form-field>
 
                 <mat-form-field class="cell" subscriptSizing="dynamic">
@@ -230,7 +230,7 @@
 
                 @if (line.touched && line.invalid) {
                   <div class="line-error negative">
-                    @for (name of ['productUuid', 'boxQuantity', 'pcsQuantity', 'totalQuantityPcs', 'perPcsPrice', 'perBoxPrice', 'totalPrice']; track name) {
+                    @for (name of ['productUuid', 'boxQuantity', 'unitQuantity', 'totalQuantity', 'perUnitPrice', 'perBoxPrice', 'totalPrice']; track name) {
                       @if (line.get(name)?.invalid) { <span>{{ err($any(line.get(name)), name === 'productUuid' ? 'Product' : 'Value') }}</span> }
                     }
                   </div>

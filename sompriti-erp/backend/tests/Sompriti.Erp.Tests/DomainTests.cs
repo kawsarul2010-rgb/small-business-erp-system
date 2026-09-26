@@ -92,7 +92,7 @@ public class LineCalculatorTests
 {
     private static readonly Product BoxProduct = new()
     {
-        Uuid = Guid.NewGuid(), ProductCode = "P-BOX", ProductName = "Box product", Uom = Uom.Box, PcsPerBox = 5,
+        Uuid = Guid.NewGuid(), ProductCode = "P-BOX", ProductName = "Box product", Uom = Uom.Box, SecondaryUom = Uom.Pcs, UnitPerBox = 5,
         ProductPurchasePrice = 10m, ProductSalesPrice = 12.5m
     };
 
@@ -113,11 +113,11 @@ public class LineCalculatorTests
     {
         var r = Calc(new LineInput(null, BoxProduct.Uuid, QuantityType.Box, 3, null, null, null, null, null), BoxProduct, 10m, out var v);
         Assert.False(v.HasErrors);
-        Assert.Equal(15, r.TotalQuantityPcs);
-        Assert.Equal(10m, r.PerPcsPrice);
+        Assert.Equal(15, r.TotalQuantity);
+        Assert.Equal(10m, r.PerUnitPrice);
         Assert.Equal(50m, r.PerBoxPrice);
         Assert.Equal(150m, r.TotalPrice);
-        Assert.Equal(5, r.PcsPerBoxSnapshot);
+        Assert.Equal(5, r.UnitPerBoxSnapshot);
     }
 
     [Fact]
@@ -125,8 +125,8 @@ public class LineCalculatorTests
     {
         var r = Calc(new LineInput(null, PcsProduct.Uuid, QuantityType.Pcs, null, 3, null, null, null, null), PcsProduct, 3.335m, out var v);
         Assert.False(v.HasErrors);
-        Assert.Equal(3, r.TotalQuantityPcs);
-        Assert.Equal(3.34m, r.PerPcsPrice);
+        Assert.Equal(3, r.TotalQuantity);
+        Assert.Equal(3.34m, r.PerUnitPrice);
         Assert.Null(r.PerBoxPrice);
         Assert.Equal(10.02m, r.TotalPrice);
     }
@@ -137,8 +137,8 @@ public class LineCalculatorTests
         // 3 boxes plus 2 loose pcs, custom box price, custom total
         var r = Calc(new LineInput(null, BoxProduct.Uuid, QuantityType.Box, 3, null, 17, 9.5m, 47.5m, 160m), BoxProduct, 10m, out var v);
         Assert.False(v.HasErrors);
-        Assert.Equal(17, r.TotalQuantityPcs);
-        Assert.Equal(9.5m, r.PerPcsPrice);
+        Assert.Equal(17, r.TotalQuantity);
+        Assert.Equal(9.5m, r.PerUnitPrice);
         Assert.Equal(47.5m, r.PerBoxPrice);
         Assert.Equal(160m, r.TotalPrice);
     }
@@ -148,7 +148,7 @@ public class LineCalculatorTests
     {
         var r = Calc(new LineInput(null, BoxProduct.Uuid, QuantityType.Box, 2, null, null, null, 60m, null), BoxProduct, 10m, out var v);
         Assert.False(v.HasErrors);
-        Assert.Equal(12m, r.PerPcsPrice);
+        Assert.Equal(12m, r.PerUnitPrice);
         Assert.Equal(60m, r.PerBoxPrice);
         Assert.Equal(120m, r.TotalPrice);
     }
@@ -167,9 +167,9 @@ public class LineCalculatorTests
     {
         Calc(new LineInput(null, PcsProduct.Uuid, QuantityType.Pcs, null, 0, null, -1m, null, null), PcsProduct, 4m, out var v);
         var ex = Assert.Throws<DomainException>(() => v.ThrowIfInvalid());
-        Assert.Contains("lines[0].pcsQuantity", ex.Errors.Keys);
-        Assert.Contains("lines[0].totalQuantityPcs", ex.Errors.Keys);
-        Assert.Contains("lines[0].perPcsPrice", ex.Errors.Keys);
+        Assert.Contains("lines[0].unitQuantity", ex.Errors.Keys);
+        Assert.Contains("lines[0].totalQuantity", ex.Errors.Keys);
+        Assert.Contains("lines[0].perUnitPrice", ex.Errors.Keys);
     }
 
     [Fact]
@@ -178,9 +178,9 @@ public class LineCalculatorTests
         var p = Guid.NewGuid();
         var lines = new List<OrderLine>
         {
-            new SalesOrderLineItem { ProductUuid = p, TotalQuantityPcs = 5 },
-            new SalesOrderLineItem { ProductUuid = p, TotalQuantityPcs = 7 },
-            new SalesOrderLineItem { ProductUuid = p, TotalQuantityPcs = 100, Status = RecordStatus.Deleted },
+            new SalesOrderLineItem { ProductUuid = p, TotalQuantity = 5 },
+            new SalesOrderLineItem { ProductUuid = p, TotalQuantity = 7 },
+            new SalesOrderLineItem { ProductUuid = p, TotalQuantity = 100, Status = RecordStatus.Deleted },
         };
         var result = LineCalculator.QuantityByProduct(lines);
         Assert.Equal(12, result[p]);
@@ -219,8 +219,8 @@ public class MeasuredUnitTests
         var r = Calc(new LineInput(null, KgProduct.Uuid, QuantityType.Kg, null, 2.5m, null, null, null, null),
             KgProduct, 85m, out var v);
         Assert.False(v.HasErrors);
-        Assert.Equal(2.5m, r.TotalQuantityPcs);
-        Assert.Equal(85m, r.PerPcsPrice);
+        Assert.Equal(2.5m, r.TotalQuantity);
+        Assert.Equal(85m, r.PerUnitPrice);
         Assert.Equal(212.5m, r.TotalPrice);
         Assert.Null(r.PerBoxPrice);
     }
@@ -231,7 +231,7 @@ public class MeasuredUnitTests
         var r = Calc(new LineInput(null, LitreProduct.Uuid, QuantityType.Litre, null, 1.23456m, null, 100m, null, null),
             LitreProduct, 175m, out var v);
         Assert.False(v.HasErrors);
-        Assert.Equal(1.235m, r.TotalQuantityPcs);
+        Assert.Equal(1.235m, r.TotalQuantity);
         Assert.Equal(123.5m, r.TotalPrice);
     }
 
@@ -254,13 +254,17 @@ public class MeasuredUnitTests
     [Fact]
     public void Entry_types_follow_the_products_unit()
     {
-        static string Types(Uom uom) => string.Join(",", Units.EntryTypesFor(uom));
-        Assert.Equal("Box,Pcs", Types(Uom.Box));
-        Assert.Equal("Pcs", Types(Uom.Pcs));
-        Assert.Equal("Kg", Types(Uom.Kg));
-        Assert.Equal("Litre", Types(Uom.Litre));
-        Assert.True(Units.IsValidFor(Uom.Box, QuantityType.Pcs));
-        Assert.False(Units.IsValidFor(Uom.Kg, QuantityType.Pcs));
+        static string Types(Product p) => string.Join(",", Units.EntryTypesFor(p));
+        var carton = new Product { Uom = Uom.Box, SecondaryUom = Uom.Pcs, UnitPerBox = 12 };
+        var sack = new Product { Uom = Uom.Box, SecondaryUom = Uom.Kg, UnitPerBox = 25 };
+        var loose = new Product { Uom = Uom.Kg };
+        Assert.Equal("Box,Pcs", Types(carton));
+        Assert.Equal("Box,Kg", Types(sack));
+        Assert.Equal("Kg", Types(loose));
+        Assert.Equal(Uom.Kg, Units.BaseUnit(sack));
+        Assert.Equal(Uom.Pcs, Units.BaseUnit(carton));
+        Assert.True(Units.IsValidFor(carton, QuantityType.Pcs));
+        Assert.False(Units.IsValidFor(loose, QuantityType.Pcs));
         Assert.True(Units.AllowsFractions(Uom.Kg));
         Assert.False(Units.AllowsFractions(Uom.Box));
     }
@@ -273,6 +277,70 @@ public class MeasuredUnitTests
         Assert.Equal("0.75", Qty.Format(0.750m));
         Assert.Equal("2.5 kg", Qty.Format(2.5m, QuantityType.Kg));
         Assert.Equal("12 pcs", Qty.Format(12m, QuantityType.Pcs));
+    }
+
+    [Fact]
+    public void A_sack_of_25_kg_ordered_by_the_box_becomes_kilos()
+    {
+        var sack = new Product
+        {
+            Uuid = Guid.NewGuid(), ProductCode = "P-SACK", ProductName = "Rice sack",
+            Uom = Uom.Box, SecondaryUom = Uom.Kg, UnitPerBox = 25,
+            ProductPurchasePrice = 78m, ProductSalesPrice = 85m
+        };
+        var r = Calc(new LineInput(null, sack.Uuid, QuantityType.Box, 2, null, null, null, null, null), sack, 85m, out var v);
+        Assert.False(v.HasErrors);
+        Assert.Equal(50m, r.TotalQuantity);          // 2 boxes x 25 kg
+        Assert.Equal(85m, r.PerUnitPrice);           // per kg
+        Assert.Equal(2125m, r.PerBoxPrice);          // 25 kg x 85
+        Assert.Equal(4250m, r.TotalPrice);
+        Assert.Equal(25m, r.UnitPerBoxSnapshot);
+    }
+
+    [Fact]
+    public void The_same_sack_can_be_sold_loose_by_the_kilo()
+    {
+        var sack = new Product
+        {
+            Uuid = Guid.NewGuid(), ProductCode = "P-SACK", ProductName = "Rice sack",
+            Uom = Uom.Box, SecondaryUom = Uom.Kg, UnitPerBox = 25,
+            ProductPurchasePrice = 78m, ProductSalesPrice = 85m
+        };
+        var r = Calc(new LineInput(null, sack.Uuid, QuantityType.Kg, null, 3.5m, null, null, null, null), sack, 85m, out var v);
+        Assert.False(v.HasErrors);
+        Assert.Equal(3.5m, r.TotalQuantity);
+        Assert.Equal(297.5m, r.TotalPrice);
+        Assert.Null(r.PerBoxPrice);
+    }
+
+    [Fact]
+    public void A_five_litre_tin_prices_per_litre()
+    {
+        var tin = new Product
+        {
+            Uuid = Guid.NewGuid(), ProductCode = "P-TIN", ProductName = "Oil tin",
+            Uom = Uom.Box, SecondaryUom = Uom.Litre, UnitPerBox = 5,
+            ProductPurchasePrice = 165m, ProductSalesPrice = 175m
+        };
+        // The user types the box price; the per-litre price follows from the box size.
+        var r = Calc(new LineInput(null, tin.Uuid, QuantityType.Box, 3, null, null, null, 900m, null), tin, 175m, out var v);
+        Assert.False(v.HasErrors);
+        Assert.Equal(15m, r.TotalQuantity);
+        Assert.Equal(180m, r.PerUnitPrice);          // 900 / 5
+        Assert.Equal(2700m, r.TotalPrice);
+    }
+
+    [Fact]
+    public void A_box_of_pieces_still_rejects_a_fractional_total()
+    {
+        var carton = new Product
+        {
+            Uuid = Guid.NewGuid(), ProductCode = "P-CTN", ProductName = "Soap carton",
+            Uom = Uom.Box, SecondaryUom = Uom.Pcs, UnitPerBox = 12,
+            ProductPurchasePrice = 48m, ProductSalesPrice = 55m
+        };
+        Calc(new LineInput(null, carton.Uuid, QuantityType.Pcs, null, 2.5m, null, null, null, null), carton, 55m, out var v);
+        Assert.True(v.HasErrors);
     }
 
     [Fact]

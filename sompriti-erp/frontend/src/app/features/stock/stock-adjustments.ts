@@ -14,7 +14,7 @@ import { MatTableModule } from '@angular/material/table';
 import { ApiService, dateToIso } from '../../core/api.service';
 import { LayoutService } from '../../core/layout.service';
 import { AdjustmentReason, AdjustmentType, Paged, ProductDropdownItem, StockAdjustment } from '../../core/models';
-import { allowsFractions, stockLabel } from '../../shared/units';
+import { allowsFractions, baseUnit, stockLabel } from '../../shared/units';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
 import { ListFooter } from '../../shared/list-footer';
@@ -61,7 +61,7 @@ import { StatusChip } from '../../shared/status-chip';
                   </div>
                   <div class="m-right">
                     <span class="m-amount" [class.positive]="a.adjustmentType === 'INCREASE'" [class.negative]="a.adjustmentType === 'DECREASE'">
-                      {{ a.adjustmentType === 'INCREASE' ? '+' : '-' }}{{ a.quantityPcs | qty }}
+                      {{ a.adjustmentType === 'INCREASE' ? '+' : '-' }}{{ a.quantity | qty }}
                     </span>
                     <app-status [value]="a.adjustmentType" />
                   </div>
@@ -81,7 +81,7 @@ import { StatusChip } from '../../shared/status-chip';
               <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let a" class="nowrap">{{ a.adjustmentDate | date: 'dd MMM yyyy' }}</td></ng-container>
               <ng-container matColumnDef="product"><th mat-header-cell *matHeaderCellDef>Product</th><td mat-cell *matCellDef="let a">{{ a.productName }} <span class="code">{{ a.productCode }}</span></td></ng-container>
               <ng-container matColumnDef="type"><th mat-header-cell *matHeaderCellDef>Type</th><td mat-cell *matCellDef="let a"><app-status [value]="a.adjustmentType" /></td></ng-container>
-              <ng-container matColumnDef="qty"><th mat-header-cell *matHeaderCellDef class="num">Qty (pcs)</th><td mat-cell *matCellDef="let a" class="num">{{ a.quantityPcs | qty }}</td></ng-container>
+              <ng-container matColumnDef="qty"><th mat-header-cell *matHeaderCellDef class="num">Qty (pcs)</th><td mat-cell *matCellDef="let a" class="num">{{ a.quantity | qty }}</td></ng-container>
               <ng-container matColumnDef="reason"><th mat-header-cell *matHeaderCellDef>Reason</th><td mat-cell *matCellDef="let a">{{ a.reason | label }}@if (a.note) { <div class="muted">{{ a.note }}</div> }</td></ng-container>
               <ng-container matColumnDef="user"><th mat-header-cell *matHeaderCellDef>By</th><td mat-cell *matCellDef="let a" class="muted">{{ a.createdByUserName }}</td></ng-container>
               <tr mat-header-row *matHeaderRowDef="columns"></tr>
@@ -131,7 +131,7 @@ export class StockAdjustmentsPage implements OnInit {
           <mat-button-toggle value="DECREASE">Decrease</mat-button-toggle>
         </mat-button-toggle-group>
         <div class="form-grid">
-          <mat-form-field><mat-label>Quantity ({{ unit() }})</mat-label><input matInput type="number" [attr.inputmode]="measured() ? 'decimal' : 'numeric'" min="0" [step]="measured() ? 0.001 : 1" formControlName="quantityPcs" /><mat-error>{{ err('quantityPcs', 'Quantity') }}</mat-error></mat-form-field>
+          <mat-form-field><mat-label>Quantity ({{ unit() }})</mat-label><input matInput type="number" [attr.inputmode]="measured() ? 'decimal' : 'numeric'" min="0" [step]="measured() ? 0.001 : 1" formControlName="quantity" /><mat-error>{{ err('quantity', 'Quantity') }}</mat-error></mat-form-field>
           <mat-form-field>
             <mat-label>Reason</mat-label>
             <mat-select formControlName="reason">
@@ -170,16 +170,16 @@ export class AdjustmentDialog {
     { value: 'OTHER', label: 'Other' },
   ];
   readonly fetchProducts = (term: string) => this.api.get<ProductDropdownItem[]>('/products/dropdown', { search: term });
-  readonly stockHint = (p: ProductDropdownItem) => `${p.currentStock} ${stockLabel(p.uom)}`;
+  readonly stockHint = (p: ProductDropdownItem) => `${p.currentStock} ${stockLabel(p)}`;
 
   /** The unit of the product picked for this adjustment. */
-  readonly unit = computed(() => stockLabel(this.selected()?.uom));
+  readonly unit = computed(() => stockLabel(this.selected()));
   /** Measured products accept fractional adjustments. */
-  readonly measured = computed(() => allowsFractions(this.selected()?.uom));
+  readonly measured = computed(() => allowsFractions(baseUnit(this.selected())));
   readonly form = inject(FormBuilder).group({
     productUuid: [null as string | null, Validators.required],
     adjustmentType: ['INCREASE' as AdjustmentType, Validators.required],
-    quantityPcs: [null as number | null, [Validators.required, Validators.min(0.001)]],
+    quantity: [null as number | null, [Validators.required, Validators.min(0.001)]],
     reason: ['OPENING_STOCK' as AdjustmentReason, Validators.required],
     adjustmentDate: [new Date() as Date | null],
     note: [''],

@@ -108,9 +108,9 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
                 EnumText.ToText(line.QuantityType),
                 line.BoxQuantity?.ToString("#,##0", Inv) ?? "-",
                 // KG and LITRE lines carry fractions, so the quantity is not always whole.
-                Qty.Format(line.TotalQuantityPcs),
+                Qty.Format(line.TotalQuantity),
                 line.PerBoxPrice is { } pb ? Money.FormatPlain(pb) : "-",
-                Money.FormatPlain(line.PerPcsPrice),
+                Money.FormatPlain(line.PerUnitPrice),
                 Money.FormatPlain(line.TotalPrice),
             };
             Row(pdf, columns, cells, y, bold: false);
