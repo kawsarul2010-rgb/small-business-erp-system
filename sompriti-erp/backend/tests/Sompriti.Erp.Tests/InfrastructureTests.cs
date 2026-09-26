@@ -125,7 +125,7 @@ public class PdfTests
         var lines = Enumerable.Range(1, lineCount).Select(i => new OrderLineDto(Guid.NewGuid(), i, Guid.NewGuid(), $"P-{i:000}",
             $"Product number {i} with a fairly long descriptive name (500ml)", i % 2 == 0 ? QuantityType.Box : QuantityType.Pcs,
             i % 2 == 0 ? 3 : null, i % 2 == 0 ? null : 7, i % 2 == 0 ? 12 : null, i % 2 == 0 ? 36 : 7,
-            12.5m, i % 2 == 0 ? 150m : null, i % 2 == 0 ? 450m : 87.5m)).ToList();
+            12.5m, i % 2 == 0 ? 150m : null, i % 2 == 0 ? 450m : 87.5m, Uom.Pcs)).ToList();
         var total = lines.Sum(l => l.TotalPrice);
         var payments = new List<OrderPaymentDto>
         {

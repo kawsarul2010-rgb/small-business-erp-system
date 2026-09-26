@@ -203,6 +203,8 @@ export interface OrderLine {
   unitQuantity: number | null;
   unitPerBoxSnapshot: number | null;
   totalQuantity: number;
+  /** The unit totalQuantity and perUnitPrice are in - pieces, kilos or litres. */
+  baseUom: Uom;
   perUnitPrice: number;
   perBoxPrice: number | null;
   totalPrice: number;

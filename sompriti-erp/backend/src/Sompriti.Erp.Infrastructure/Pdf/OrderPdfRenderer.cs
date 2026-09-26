@@ -82,9 +82,9 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
             new("Product", 0, Align.Left),
             new("Type", 30, Align.Left),
             new("Boxes", 36, Align.Right),
-            new("Pcs", 44, Align.Right),
+            new("Qty", 44, Align.Right),
             new("Box Price", 58, Align.Right),
-            new("Pcs Price", 56, Align.Right),
+            new("Unit Price", 56, Align.Right),
             new("Total", 70, Align.Right),
         };
         var fixedWidth = columns.Sum(c => c.Width);

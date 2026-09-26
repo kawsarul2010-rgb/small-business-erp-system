@@ -26,7 +26,9 @@ public sealed record OrderCompanyDto(Guid Uuid, string CompanyName, string Compa
 public sealed record OrderLineDto(
     Guid Uuid, int LineNumber, Guid ProductUuid, string ProductCode, string ProductName,
     QuantityType QuantityType, int? BoxQuantity, decimal? UnitQuantity, decimal? UnitPerBoxSnapshot, decimal TotalQuantity,
-    decimal PerUnitPrice, decimal? PerBoxPrice, decimal TotalPrice);
+    decimal PerUnitPrice, decimal? PerBoxPrice, decimal TotalPrice,
+    /// <summary>The unit TotalQuantity and PerUnitPrice are in - pieces, kilos or litres.</summary>
+    Uom BaseUom);
 
 public sealed record OrderPaymentDto(
     Guid Uuid, DateOnly PaymentDate, decimal PaymentAmount, PaymentMethod PaymentMethod, string? PaymentNote,

@@ -192,7 +192,7 @@ export class OrderEditorPage implements OnInit {
       productUuid: this.fb.control<string | null>(v?.productUuid ?? null, Validators.required),
       quantityType: this.fb.control<QuantityType>(v?.quantityType ?? 'PCS', { nonNullable: true }),
       boxQuantity: this.fb.control<number | null>(v?.boxQuantity ?? null, Validators.min(1)),
-      unitQuantity: this.fb.control<number | null>(v?.unitQuantity ?? null, Validators.min(1)),
+      unitQuantity: this.fb.control<number | null>(v?.unitQuantity ?? null, Validators.min(0.001)),
       totalQuantity: this.fb.control<number | null>(v?.totalQuantity ?? null, [Validators.required, Validators.min(1)]),
       perUnitPrice: this.fb.control<number | null>(v?.perUnitPrice ?? null, [Validators.required, Validators.min(0)]),
       perBoxPrice: this.fb.control<number | null>(v?.perBoxPrice ?? null, Validators.min(0)),
@@ -373,7 +373,7 @@ export class OrderEditorPage implements OnInit {
       if (!l.productUuid || !meta || meta.currentStock === null || seen.has(l.productUuid)) return;
       seen.add(l.productUuid);
       const qty = needed.get(l.productUuid) ?? 0;
-      if (qty > meta.currentStock) warnings.push(`${meta.label}: requested ${qty} pcs, only ${meta.currentStock} in stock.`);
+      if (qty > meta.currentStock) warnings.push(`${meta.label}: requested ${qty} ${stockLabel(meta)}, only ${meta.currentStock} in stock.`);
     });
     this.stockWarnings.set(warnings);
   }
@@ -408,7 +408,8 @@ export class OrderEditorPage implements OnInit {
       lines: v.lines.map((l) => ({
         ...l,
         boxQuantity: l.quantityType === 'BOX' ? l.boxQuantity : null,
-        unitQuantity: l.quantityType === 'PCS' ? l.unitQuantity : null,
+        // Any line not entered by the box carries a quantity - pcs, kg or litre alike.
+        unitQuantity: l.quantityType === 'BOX' ? null : l.unitQuantity,
         perBoxPrice: l.quantityType === 'BOX' ? l.perBoxPrice : null,
       })),
     };

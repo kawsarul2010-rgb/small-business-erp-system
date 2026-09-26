@@ -105,7 +105,7 @@
                 <div class="row-sub">
                   {{ l.productCode }} ·
                   @if (l.quantityType === 'BOX') { {{ l.boxQuantity }} box × {{ l.unitPerBoxSnapshot }} = }
-                  {{ l.totalQuantity | qty }} pcs × {{ l.perUnitPrice | money: false }}
+                  {{ l.totalQuantity | qty: l.baseUom }} × {{ l.perUnitPrice | money: false }}
                 </div>
               </div>
               <div class="row-amount">{{ l.totalPrice | money: false }}</div>
@@ -127,9 +127,9 @@
             <ng-container matColumnDef="product"><th mat-header-cell *matHeaderCellDef>Product</th><td mat-cell *matCellDef="let l">{{ l.productName }} <span class="code">{{ l.productCode }}</span></td></ng-container>
             <ng-container matColumnDef="type"><th mat-header-cell *matHeaderCellDef>Type</th><td mat-cell *matCellDef="let l">{{ l.quantityType }}</td></ng-container>
             <ng-container matColumnDef="boxes"><th mat-header-cell *matHeaderCellDef class="num">Boxes</th><td mat-cell *matCellDef="let l" class="num">{{ l.boxQuantity | qty }}@if (l.unitPerBoxSnapshot) { <span class="muted"> ×{{ l.unitPerBoxSnapshot }}</span> }</td></ng-container>
-            <ng-container matColumnDef="pcs"><th mat-header-cell *matHeaderCellDef class="num">Total pcs</th><td mat-cell *matCellDef="let l" class="num">{{ l.totalQuantity | qty }}</td></ng-container>
+            <ng-container matColumnDef="pcs"><th mat-header-cell *matHeaderCellDef class="num">Quantity</th><td mat-cell *matCellDef="let l" class="num nowrap">{{ l.totalQuantity | qty: l.baseUom }}</td></ng-container>
             <ng-container matColumnDef="perBox"><th mat-header-cell *matHeaderCellDef class="num">Per box</th><td mat-cell *matCellDef="let l" class="num nowrap">{{ l.perBoxPrice === null ? '-' : (l.perBoxPrice | money: false) }}</td></ng-container>
-            <ng-container matColumnDef="perPcs"><th mat-header-cell *matHeaderCellDef class="num">Per pcs</th><td mat-cell *matCellDef="let l" class="num nowrap">{{ l.perUnitPrice | money: false }}</td></ng-container>
+            <ng-container matColumnDef="perPcs"><th mat-header-cell *matHeaderCellDef class="num">Unit price</th><td mat-cell *matCellDef="let l" class="num nowrap">{{ l.perUnitPrice | money: false }}</td></ng-container>
             <ng-container matColumnDef="total"><th mat-header-cell *matHeaderCellDef class="num">Total</th><td mat-cell *matCellDef="let l" class="num nowrap"><strong>{{ l.totalPrice | money }}</strong></td></ng-container>
             <tr mat-header-row *matHeaderRowDef="lineColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: lineColumns"></tr>

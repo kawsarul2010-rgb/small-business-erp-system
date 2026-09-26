@@ -122,6 +122,6 @@ export class StockBalancesPage implements OnInit {
   boxes(s: StockBalance): string {
     const full = Math.floor(s.currentStockBalance / (s.unitPerBox ?? 1));
     const loose = s.currentStockBalance % (s.unitPerBox ?? 1);
-    return loose ? `${full} + ${loose} pcs` : `${full}`;
+    return loose ? `${full} + ${loose} ${stockLabel(s)}` : `${full}`;
   }
 }

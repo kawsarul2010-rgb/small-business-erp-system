@@ -105,7 +105,9 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
                            orderby l.LineNumber
                            select new OrderLineDto(l.Uuid, l.LineNumber, l.ProductUuid, p.ProductCode, p.ProductName, l.QuantityType,
                                l.BoxQuantity, l.UnitQuantity, l.UnitPerBoxSnapshot, l.TotalQuantity, l.PerUnitPrice, l.PerBoxPrice,
-                               l.TotalPrice)).ToListAsync(ct);
+                               l.TotalPrice,
+                               // A box line's total is in whatever the box holds, so the unit comes from the product.
+                               p.Uom == Uom.Box ? (p.SecondaryUom ?? Uom.Pcs) : p.Uom)).ToListAsync(ct);
 
         var payments = await Payments.AsNoTracking()
             .Where(p => p.OrderUuid == id && p.Status == RecordStatus.Active)
