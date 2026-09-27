@@ -80,9 +80,11 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
             new("SL", 22, Align.Left),
             new("Code", 62, Align.Left),
             new("Product", 0, Align.Left),
-            new("Type", 30, Align.Left),
-            new("Boxes", 36, Align.Right),
-            new("Qty", 44, Align.Right),
+            // Both quantity columns carry their own unit, so there is no separate "Type" column:
+            // "1 BOX" and "20 L" together say everything it used to, and the product name gets the space.
+            new("Boxes", 52, Align.Right),
+            // Wide enough for a measured quantity with its unit, e.g. "1,250.5 KG".
+            new("Qty", 64, Align.Right),
             new("Box Price", 58, Align.Right),
             new("Unit Price", 56, Align.Right),
             new("Total", 70, Align.Right),
@@ -105,10 +107,12 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
                 (++sl).ToString(Inv),
                 line.ProductCode,
                 line.ProductName,
-                EnumText.ToText(line.QuantityType),
-                line.BoxQuantity?.ToString("#,##0", Inv) ?? "-",
-                // KG and LITRE lines carry fractions, so the quantity is not always whole.
-                Qty.Format(line.TotalQuantity),
+                // A box count only exists on a line entered by the box, so its unit is always BOX.
+                line.BoxQuantity is { } boxes ? $"{boxes.ToString("#,##0", Inv)} {Units.PrintLabel(Uom.Box)}" : "-",
+                // The unit belongs next to the number: 20 on its own could be pieces, kilos or
+                // litres. BaseUom is what a box holds, so a case of oil reads "20 L", not "20 BOX".
+                // KG and LITRE also carry fractions, so the quantity is not always whole.
+                $"{Qty.Format(line.TotalQuantity)} {Units.PrintLabel(line.BaseUom)}",
                 line.PerBoxPrice is { } pb ? Money.FormatPlain(pb) : "-",
                 Money.FormatPlain(line.PerUnitPrice),
                 Money.FormatPlain(line.TotalPrice),

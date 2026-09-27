@@ -94,6 +94,26 @@ public static class Units
         _ => "pcs",
     };
 
+    /// <summary>
+    /// The unit as printed after a number on a document: "20 KG", "10 L", "12 PCS".
+    /// Uppercase and short, because it sits inside a narrow table column - "LITRE" does not fit.
+    /// </summary>
+    public static string PrintLabel(Uom uom) => uom switch
+    {
+        Uom.Box => "BOX",
+        Uom.Kg => "KG",
+        Uom.Litre => "L",
+        _ => "PCS",
+    };
+
+    public static string PrintLabel(QuantityType type) => type switch
+    {
+        QuantityType.Box => "BOX",
+        QuantityType.Kg => "KG",
+        QuantityType.Litre => "L",
+        _ => "PCS",
+    };
+
     /// <summary>The unit stock is counted in, as a label: "pcs", "kg" or "litre".</summary>
     public static string StockLabel(Product product) => ShortLabel(BaseUnit(product));
 

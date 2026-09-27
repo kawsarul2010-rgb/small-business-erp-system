@@ -365,6 +365,50 @@ public class PdfTests
         Assert.DoesNotContain("DRAFT", text);
     }
 
+    /// <summary>
+    /// A bare "20" in the quantity column is ambiguous once products can be measured in kilos or
+    /// litres, so every line prints its unit - and for a box, the unit the box holds.
+    /// </summary>
+    [Fact]
+    public void Quantities_are_printed_with_their_unit()
+    {
+        var order = SampleOrder(1, PostingStatus.Final) with
+        {
+            TotalAmount = 8892.50m,
+            TotalPaidAmount = 1500m,
+            DueAmount = 7392.50m,
+            Lines = new[]
+            {
+                // One box of 20 litres: entered by the box, measured in litres.
+                new OrderLineDto(Guid.NewGuid(), 1, Guid.NewGuid(), "20c", "Tamim oil",
+                    QuantityType.Box, 1, null, 20m, 20m, 195m, 3900m, 3900m, Uom.Litre),
+                // Loose oil, sold by the litre.
+                new OrderLineDto(Guid.NewGuid(), 2, Guid.NewGuid(), "10c", "No-1 oil",
+                    QuantityType.Litre, null, 10m, null, 10m, 195m, null, 1950m, Uom.Litre),
+                // A sack of rice, measured in kilos, with a fraction.
+                new OrderLineDto(Guid.NewGuid(), 3, Guid.NewGuid(), "RICE", "Miniket rice",
+                    QuantityType.Kg, null, 12.5m, null, 12.5m, 85m, null, 1062.5m, Uom.Kg),
+                // Pieces stay pieces.
+                new OrderLineDto(Guid.NewGuid(), 4, Guid.NewGuid(), "SOAP", "Lux soap",
+                    QuantityType.Box, 3, null, 12m, 36m, 55m, 660m, 1980m, Uom.Pcs),
+            },
+        };
+
+        var renderer = new OrderPdfRenderer(new FakeUser(), new FakeClock(DateTimeOffset.UtcNow));
+        var bytes = renderer.Render(order, SampleCompany());
+        var text = Encoding.Latin1.GetString(bytes);
+        File.WriteAllBytes(Path.Combine(Path.GetTempPath(), "order-units.pdf"), bytes);
+
+        Assert.Contains("(20 L) Tj", text);
+        Assert.Contains("(10 L) Tj", text);
+        Assert.Contains("(12.5 KG) Tj", text);
+        Assert.Contains("(36 PCS) Tj", text);
+        // Box counts carry their unit too, which is what replaced the old "Type" column.
+        Assert.Contains("(1 BOX) Tj", text);
+        Assert.Contains("(3 BOX) Tj", text);
+        Assert.DoesNotContain("(Type) Tj", text);
+    }
+
     [Fact]
     public void Long_orders_span_multiple_pages_with_watermark()
     {
