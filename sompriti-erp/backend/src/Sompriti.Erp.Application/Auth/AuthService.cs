@@ -189,7 +189,7 @@ public sealed class AuthService(
             """;
         try
         {
-            await email.SendAsync(user.Email, user.UserName, $"{appOptions.Value.BusinessName}: reset your password", html, ct);
+            await email.SendAsync(user.Email, user.UserName, $"{appOptions.Value.BusinessName}: reset your password", html, ct: ct);
         }
         catch (Exception ex)
         {
@@ -226,7 +226,7 @@ public sealed class AuthService(
         try
         {
             await email.SendAsync(user.Email, user.UserName, $"{appOptions.Value.BusinessName}: your password was changed",
-                $"<p>Hello {WebUtility.HtmlEncode(user.UserName)},</p><p>Your password was changed. If this was not you, contact your administrator immediately.</p>", ct);
+                $"<p>Hello {WebUtility.HtmlEncode(user.UserName)},</p><p>Your password was changed. If this was not you, contact your administrator immediately.</p>", ct: ct);
         }
         catch (Exception ex)
         {
@@ -287,12 +287,7 @@ public sealed class AuthService(
         return normalized!;
     }
 
-    private static bool IsEmail(string value)
-    {
-        var s = value.Trim();
-        var at = s.IndexOf('@');
-        return at > 0 && at == s.LastIndexOf('@') && s.IndexOf('.', at) > at + 1 && !s.EndsWith('.') && !s.Contains(' ');
-    }
+    private static bool IsEmail(string value) => Validator.IsEmail(value);
 
     private static string NewToken() => Base64Url(RandomNumberGenerator.GetBytes(48));
 

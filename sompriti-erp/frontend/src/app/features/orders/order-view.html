@@ -36,6 +36,9 @@
           @if (layout.isHandset()) {
             <button mat-menu-item (click)="pdf(false)"><mat-icon>print</mat-icon>Open PDF</button>
             <button mat-menu-item (click)="pdf(true)"><mat-icon>download</mat-icon>Download PDF</button>
+            @if (!platform.isNative) {
+              <button mat-menu-item (click)="share()"><mat-icon>ios_share</mat-icon>Share (WhatsApp, email)</button>
+            }
             @if (canWrite() && isDraft()) {
               <a mat-menu-item [routerLink]="[meta().route, o.uuid, 'edit']"><mat-icon>edit</mat-icon>Edit order</a>
             }
@@ -46,6 +49,10 @@
         <mat-menu #printMenu="matMenu">
           <button mat-menu-item (click)="pdf(false)"><mat-icon>open_in_new</mat-icon>Open PDF</button>
           <button mat-menu-item (click)="pdf(true)"><mat-icon>download</mat-icon>Download PDF</button>
+          <!-- The Android app shares through the system sheet behind "Open PDF". -->
+          @if (!platform.isNative) {
+            <button mat-menu-item (click)="share()"><mat-icon>ios_share</mat-icon>Share (WhatsApp, email)</button>
+          }
         </mat-menu>
       </div>
     </div>

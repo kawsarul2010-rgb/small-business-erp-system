@@ -20,13 +20,14 @@ import { DropdownItem, PartyReport, PartyReportRow } from '../../core/models';
 import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { MoneyPipe, QtyPipe } from '../../shared/pipes';
+import { ReportExport } from '../../shared/report-export';
 
 type PartyKind = 'customer' | 'supplier';
 
 /** Customer and supplier reports: order totals, payments made and current due (FINAL orders only). */
 @Component({
   selector: 'app-party-report',
-  imports: [RouterLink, ReactiveFormsModule, MatTableModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatCheckboxModule, MatProgressBarModule, MatTooltipModule, ListFooter, MoneyPipe, QtyPipe],
+  imports: [RouterLink, ReactiveFormsModule, MatTableModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatCheckboxModule, MatProgressBarModule, MatTooltipModule, ListFooter, MoneyPipe, QtyPipe, ReportExport],
   template: `
     <div class="page">
       <div class="page-header">
@@ -35,6 +36,10 @@ type PartyKind = 'customer' | 'supplier';
           @if (!layout.isHandset()) {
             <div class="subtitle">Totals include finalized orders only. Due = order total − payments.</div>
           }
+        </div>
+        <div class="actions">
+          <app-report-export [path]="pdfPath()" [filters]="pdfFilters()"
+            [label]="kind() === 'customer' ? 'Customer report' : 'Supplier report'" />
         </div>
       </div>
 
@@ -149,6 +154,24 @@ export class PartyReportPage implements OnInit {
   readonly dueOnly = new FormControl(false, { nonNullable: true });
   readonly companies = signal<DropdownItem[]>([]);
   readonly totals = signal({ orderCount: 0, totalAmount: 0, totalPaid: 0, due: 0 });
+
+  /** The endpoint that prints whichever report is on screen. */
+  pdfPath(): string {
+    return this.kind() === 'customer' ? '/reports/customers/pdf' : '/reports/suppliers/pdf';
+  }
+
+  /**
+   * The filters the screen is showing, handed to the printable version unchanged.
+   * A method rather than a computed: form control values are not signals.
+   */
+  pdfFilters(): Record<string, string | boolean | null> {
+    return {
+      companyUuid: this.company.value,
+      fromDate: dateToIso(this.from.value),
+      toDate: dateToIso(this.to.value),
+      dueOnly: this.dueOnly.value,
+    };
+  }
 
   readonly list = new ListState<PartyReportRow>((q) =>
     this.api

@@ -7,7 +7,7 @@ import { OrderKind, ProblemDetails } from './models';
 /** Same-origin in the browser; the full server address in the Android app. */
 export const API_BASE = `${environment.apiBaseUrl}/api/v1`;
 
-type QueryValue = string | number | boolean | null | undefined;
+export type QueryValue = string | number | boolean | null | undefined;
 
 /** Thin wrapper around HttpClient that prefixes the API base path and drops empty query values. */
 @Injectable({ providedIn: 'root' })
@@ -18,8 +18,8 @@ export class ApiService {
     return this.http.get<T>(API_BASE + path, { params: toParams(query) });
   }
 
-  post<T>(path: string, body: unknown = {}): Observable<T> {
-    return this.http.post<T>(API_BASE + path, body);
+  post<T>(path: string, body: unknown = {}, query?: Record<string, QueryValue>): Observable<T> {
+    return this.http.post<T>(API_BASE + path, body, { params: toParams(query) });
   }
 
   put<T>(path: string, body: unknown): Observable<T> {

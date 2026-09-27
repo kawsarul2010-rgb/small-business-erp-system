@@ -137,8 +137,11 @@ Notes on the ones that matter:
   password-reset links.
 - **`Cors__AllowedOrigins`** — only the Android app needs this; the website is served from the same
   origin as the API. Leave the three values as they are.
-- **`Email__Provider=Log`** — password-reset emails are written to the logs instead of being sent.
+- **`Email__Provider=Log`** — emails are written to the logs instead of being sent.
   To send them for real, set `Email__Provider=Brevo` (or `Resend`) and add `Email__ApiKey`.
+  Two features depend on this: password-reset links, and "Send with the PDF attached" in the
+  share dialog. Until a provider is configured, that button refuses with a message saying so
+  rather than pretending the email went out — everything else in the share dialog still works.
 
 Saving the variables triggers a fresh deploy.
 

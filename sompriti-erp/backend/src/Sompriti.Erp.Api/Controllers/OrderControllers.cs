@@ -13,7 +13,7 @@ namespace Sompriti.Erp.Api.Controllers;
 [ApiController]
 [Route("api/v1/purchase-orders")]
 [Authorize] // roles are set per action: action-level role lists cannot widen a class-level list
-public sealed class PurchaseOrdersController(PurchaseOrderService service) : ControllerBase
+public sealed class PurchaseOrdersController(PurchaseOrderService service, PdfMailer mailer) : ControllerBase
 {
     [HttpGet, Authorize(Roles = "ADMIN,USER")]
     public Task<PagedResult<OrderListItemDto>> List([FromQuery] OrderListQuery q, CancellationToken ct) => service.ListAsync(q, ct);
@@ -24,8 +24,17 @@ public sealed class PurchaseOrdersController(PurchaseOrderService service) : Con
     [HttpGet("{id:guid}/pdf"), Authorize(Roles = "ADMIN,USER")]
     public async Task<IActionResult> Pdf(Guid id, [FromQuery] bool download, CancellationToken ct)
     {
-        var (bytes, name) = await service.PdfAsync(id, ct);
+        var (bytes, name, _) = await service.PdfAsync(id, ct);
         return this.PdfFile(bytes, name, download);
+    }
+
+    /// <summary>Emails the same PDF as an attachment. A browser cannot attach a file itself.</summary>
+    [HttpPost("{id:guid}/pdf/email"), Authorize(Roles = "ADMIN,USER")]
+    public async Task<IActionResult> EmailPdf(Guid id, EmailPdfRequest r, CancellationToken ct)
+    {
+        var (bytes, name, description) = await service.PdfAsync(id, ct);
+        await mailer.SendAsync(r, description, name, bytes, ct);
+        return NoContent();
     }
 
     [HttpPost, Authorize(Roles = Roles.Admin)]
@@ -70,7 +79,7 @@ public sealed class PurchaseOrdersController(PurchaseOrderService service) : Con
 [ApiController]
 [Route("api/v1/sales-orders")]
 [Authorize] // roles are set per action
-public sealed class SalesOrdersController(SalesOrderService service) : ControllerBase
+public sealed class SalesOrdersController(SalesOrderService service, PdfMailer mailer) : ControllerBase
 {
     [HttpGet, Authorize(Roles = "ADMIN,MANAGER,USER")]
     public Task<PagedResult<OrderListItemDto>> List([FromQuery] OrderListQuery q, CancellationToken ct) => service.ListAsync(q, ct);
@@ -81,8 +90,17 @@ public sealed class SalesOrdersController(SalesOrderService service) : Controlle
     [HttpGet("{id:guid}/pdf"), Authorize(Roles = "ADMIN,MANAGER,USER")]
     public async Task<IActionResult> Pdf(Guid id, [FromQuery] bool download, CancellationToken ct)
     {
-        var (bytes, name) = await service.PdfAsync(id, ct);
+        var (bytes, name, _) = await service.PdfAsync(id, ct);
         return this.PdfFile(bytes, name, download);
+    }
+
+    /// <summary>Emails the same PDF as an attachment. A browser cannot attach a file itself.</summary>
+    [HttpPost("{id:guid}/pdf/email"), Authorize(Roles = "ADMIN,MANAGER,USER")]
+    public async Task<IActionResult> EmailPdf(Guid id, EmailPdfRequest r, CancellationToken ct)
+    {
+        var (bytes, name, description) = await service.PdfAsync(id, ct);
+        await mailer.SendAsync(r, description, name, bytes, ct);
+        return NoContent();
     }
 
     [HttpPost, Authorize(Roles = Roles.AdminOrManager)]

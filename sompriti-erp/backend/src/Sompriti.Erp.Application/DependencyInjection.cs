@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.Configure<AppOptions>(config.GetSection(AppOptions.Section));
         services.AddSingleton(TimeProvider.System);
 
+        services.AddScoped<PdfMailer>();
         services.AddScoped<AuthService>();
         services.AddScoped<UserService>();
         services.AddScoped<CompanyService>();

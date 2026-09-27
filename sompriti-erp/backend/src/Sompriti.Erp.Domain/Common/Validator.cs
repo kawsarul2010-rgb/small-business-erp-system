@@ -48,4 +48,16 @@ public sealed class Validator
     }
 
     public static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    /// <summary>
+    /// A deliberately loose check: exactly one @, a dot in the domain, no spaces. Anything
+    /// stricter rejects addresses that really work, and only a delivery attempt proves an address.
+    /// </summary>
+    public static bool IsEmail(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var s = value.Trim();
+        var at = s.IndexOf('@');
+        return at > 0 && at == s.LastIndexOf('@') && s.IndexOf('.', at) > at + 1 && !s.EndsWith('.') && !s.Contains(' ');
+    }
 }

@@ -10,10 +10,11 @@ import { AuthService } from '../../core/auth.service';
 import { LayoutService } from '../../core/layout.service';
 import { CompanyReportRow } from '../../core/models';
 import { MoneyPipe } from '../../shared/pipes';
+import { ReportExport } from '../../shared/report-export';
 
 @Component({
   selector: 'app-company-report',
-  imports: [ReactiveFormsModule, MatTableModule, MatFormFieldModule, MatDatepickerModule, MatButtonModule, MatProgressBarModule, MoneyPipe],
+  imports: [ReactiveFormsModule, MatTableModule, MatFormFieldModule, MatDatepickerModule, MatButtonModule, MatProgressBarModule, MoneyPipe, ReportExport],
   styles: `
     .block { margin-top: 10px; }
     .block-title { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--erp-faint); }
@@ -25,6 +26,9 @@ import { MoneyPipe } from '../../shared/pipes';
         <div>
           <h1>Company report</h1>
           <div class="subtitle">Sales{{ auth.isAdmin() ? ' and purchases' : '' }} per company: totals, payments and due (finalized orders).</div>
+        </div>
+        <div class="actions">
+          <app-report-export path="/reports/companies/pdf" [filters]="pdfFilters()" label="Company report" />
         </div>
       </div>
       <div class="card">
@@ -116,6 +120,15 @@ export class CompanyReportPage implements OnInit {
 
   ngOnInit(): void {
     this.load();
+  }
+
+  /**
+   * The filters the screen is showing, handed to the printable version unchanged.
+   * A method rather than a computed: form control values are not signals, so a computed
+   * would cache the first value and print a stale date range.
+   */
+  pdfFilters(): Record<string, string | null> {
+    return { fromDate: dateToIso(this.from.value), toDate: dateToIso(this.to.value) };
   }
 
   load(): void {

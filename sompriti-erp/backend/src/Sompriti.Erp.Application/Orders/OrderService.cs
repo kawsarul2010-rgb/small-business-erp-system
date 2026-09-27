@@ -123,13 +123,16 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
             o.Revision, o.CreatedDate, o.UpdatedDate, o.CreatedByUserName, o.UpdatedByUserName, lines, payments);
     }
 
-    public async Task<(byte[] Content, string FileName)> PdfAsync(Guid id, CancellationToken ct)
+    /// <param name="Description">A one-line name for the document, used as an email subject.</param>
+    public async Task<(byte[] Content, string FileName, string Description)> PdfAsync(Guid id, CancellationToken ct)
     {
         var detail = await GetAsync(id, ct);
         var company = await Db.Companies.AsNoTracking().FirstAsync(c => c.Uuid == detail.Company.Uuid, ct);
         var bytes = pdf.Render(detail, CompanyService.ToDto(company));
-        var prefix = Type == TransactionType.Sales ? "sales-invoice" : "purchase-order";
-        return (bytes, $"{prefix}-{detail.OrderNumber}.pdf");
+        var sales = Type == TransactionType.Sales;
+        var prefix = sales ? "sales-invoice" : "purchase-order";
+        return (bytes, $"{prefix}-{detail.OrderNumber}.pdf",
+            $"{(sales ? "Sales invoice" : "Purchase order")} {detail.OrderNumber}");
     }
 
     // ================================================================== draft editing

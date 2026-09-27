@@ -5,10 +5,13 @@ using Sompriti.Erp.Application.MasterData;
 using Sompriti.Erp.Application.Orders;
 using Sompriti.Erp.Domain.Entities;
 using Sompriti.Erp.Domain.Enums;
+using Sompriti.Erp.Domain.Common;
 using Sompriti.Erp.Infrastructure;
+using Sompriti.Erp.Infrastructure.Notifications;
 using Sompriti.Erp.Infrastructure.Pdf;
 using Sompriti.Erp.Infrastructure.Persistence;
 using Sompriti.Erp.Infrastructure.Security;
+using Sompriti.Erp.Domain.Rules;
 
 namespace Sompriti.Erp.Tests;
 
@@ -26,6 +29,14 @@ internal sealed class FakeUser : ICurrentUser
     public Role Role => Role.Admin;
     public Guid? SupplierUuid => null;
     public Guid? CustomerUuid => null;
+}
+
+internal sealed class SilentLogger<T> : Microsoft.Extensions.Logging.ILogger<T>
+{
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+    public bool IsEnabled(Microsoft.Extensions.Logging.LogLevel logLevel) => false;
+    public void Log<TState>(Microsoft.Extensions.Logging.LogLevel logLevel, Microsoft.Extensions.Logging.EventId eventId,
+        TState state, Exception? exception, Func<TState, Exception?, string> formatter) { }
 }
 
 public class JwtTests
@@ -116,6 +127,204 @@ public class ConnectionStringTests
     [Fact]
     public void Snake_case_column_names() =>
         Assert.Equal("created_by_user_uuid", AppDbContext.ToSnakeCase("CreatedByUserUuid"));
+}
+
+public class ReportPdfTests
+{
+    private static ReportDocument Sample(int rows) => new(
+        Title: "Customer report",
+        BusinessName: "Sompriti Enterprise",
+        Filters: new[] { ("Period", "01 Jan 2026 to 31 Dec 2026"), ("Company", "All companies"), ("Filter", "With due only") },
+        Columns: new[]
+        {
+            new ReportColumn("Code", 60),
+            new ReportColumn("Customer name"),
+            new ReportColumn("Mobile", 90),
+            new ReportColumn("Orders", 50, RightAligned: true),
+            new ReportColumn("Total", 80, RightAligned: true),
+            new ReportColumn("Paid", 80, RightAligned: true),
+            new ReportColumn("Due", 80, RightAligned: true),
+        },
+        Rows: Enumerable.Range(1, rows).Select(i => new ReportRow(new[]
+        {
+            $"1000{i:00}",
+            $"Customer number {i} with a reasonably long trading name",
+            "01751055901",
+            (i % 7 + 1).ToString(),
+            Money.FormatPlain(i * 1250.50m),
+            Money.FormatPlain(i * 900m),
+            Money.FormatPlain(i * 350.50m),
+        })).ToList(),
+        Totals: new[] { "TOTAL", "", "", "28", "50,020.00", "36,000.00", "14,020.00" },
+        FileName: "customer-report-2026-01-01_2026-12-31.pdf");
+
+    [Fact]
+    public void Report_pdf_is_a_valid_document_and_paginates()
+    {
+        var renderer = new ReportPdfRenderer(new FakeUser(), TimeProvider.System);
+        var bytes = renderer.Render(Sample(60));
+        var text = System.Text.Encoding.Latin1.GetString(bytes);
+
+        Assert.StartsWith("%PDF-1.4", text);
+        Assert.True(text.TrimEnd().EndsWith("%%EOF"), "the document should be terminated");
+        // 60 rows will not fit on one page.
+        Assert.True(text.Contains("/Count 2") || text.Contains("/Count 3"), "expected the rows to spill onto more pages");
+        Assert.Contains("Page 1 of", text);
+
+        var path = Path.Combine(Path.GetTempPath(), "report-sample.pdf");
+        File.WriteAllBytes(path, bytes);
+    }
+
+    [Fact]
+    public void An_empty_report_still_renders_its_filters()
+    {
+        var renderer = new ReportPdfRenderer(new FakeUser(), TimeProvider.System);
+        var bytes = renderer.Render(Sample(0));
+        var text = System.Text.Encoding.Latin1.GetString(bytes);
+        Assert.StartsWith("%PDF-1.4", text);
+        Assert.True(bytes.Length > 800, $"suspiciously small: {bytes.Length} bytes");
+        File.WriteAllBytes(Path.Combine(Path.GetTempPath(), "report-empty.pdf"), bytes);
+    }
+}
+
+/// <summary>
+/// Sharing a PDF by email. A browser cannot attach a file, so the server does it; these tests
+/// cover the two things that silently break that: a wrong provider payload and a "sent"
+/// message that was only written to a log.
+/// </summary>
+public class EmailAttachmentTests
+{
+    private sealed class CapturingHandler : HttpMessageHandler
+    {
+        public string Body { get; private set; } = "";
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            Body = request.Content is null ? "" : await request.Content.ReadAsStringAsync(ct);
+            return new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent("{}") };
+        }
+    }
+
+    private static EmailAttachment Pdf() => new("customer-report.pdf", "application/pdf", "%PDF-1.4 tiny"u8.ToArray());
+
+    [Fact]
+    public async Task Brevo_sends_the_file_base64_encoded()
+    {
+        var handler = new CapturingHandler();
+        var sender = new BrevoEmailSender(new HttpClient(handler),
+            Options.Create(new EmailOptions { Provider = "Brevo", ApiKey = "key", FromAddress = "erp@example.com" }));
+        Assert.True(sender.Enabled);
+
+        await sender.SendAsync("to@example.com", "Karim", "Report", "<p>hi</p>", new[] { Pdf() });
+
+        Assert.Contains("\"name\":\"customer-report.pdf\"", handler.Body);
+        Assert.Contains(Convert.ToBase64String(Pdf().Content), handler.Body);
+    }
+
+    [Fact]
+    public async Task Resend_sends_the_file_and_omits_the_key_when_there_is_none()
+    {
+        var handler = new CapturingHandler();
+        var sender = new ResendEmailSender(new HttpClient(handler),
+            Options.Create(new EmailOptions { Provider = "Resend", ApiKey = "key", FromAddress = "erp@example.com" }));
+
+        await sender.SendAsync("to@example.com", "Karim", "Report", "<p>hi</p>", new[] { Pdf() });
+        Assert.Contains("\"filename\":\"customer-report.pdf\"", handler.Body);
+
+        // Brevo and Resend both reject an explicit null here, so it has to be absent, not null.
+        var plain = new CapturingHandler();
+        await new ResendEmailSender(new HttpClient(plain), Options.Create(new EmailOptions { ApiKey = "key" }))
+            .SendAsync("to@example.com", "Karim", "Report", "<p>hi</p>");
+        Assert.DoesNotContain("attachments", plain.Body);
+    }
+
+    [Fact]
+    public void An_unconfigured_provider_reports_itself_as_disabled()
+    {
+        Assert.False(new LogEmailSender(new SilentLogger<LogEmailSender>()).Enabled);
+        // A provider is only usable once it has a key.
+        Assert.False(new BrevoEmailSender(new HttpClient(), Options.Create(new EmailOptions { Provider = "Brevo" })).Enabled);
+    }
+}
+
+public class PdfMailerTests
+{
+    private sealed class SpyEmail(bool enabled) : IEmailSender
+    {
+        public bool Enabled => enabled;
+        public string? To { get; private set; }
+        public string? Subject { get; private set; }
+        public string? Body { get; private set; }
+        public IReadOnlyList<EmailAttachment>? Attachments { get; private set; }
+
+        public Task SendAsync(string toEmail, string toName, string subject, string htmlBody,
+            IReadOnlyList<EmailAttachment>? attachments = null, CancellationToken ct = default)
+        {
+            (To, Subject, Body, Attachments) = (toEmail, subject, htmlBody, attachments);
+            return Task.CompletedTask;
+        }
+    }
+
+    private static PdfMailer Create(SpyEmail email) =>
+        new(email, Options.Create(new AppOptions { BusinessName = "Sompriti Enterprise" }), new FakeUser());
+
+    private static readonly byte[] Bytes = "%PDF-1.4"u8.ToArray();
+
+    [Fact]
+    public async Task Attaches_the_pdf_and_titles_the_mail()
+    {
+        var email = new SpyEmail(enabled: true);
+        await Create(email).SendAsync(new EmailPdfRequest("karim@example.com", null, null, "Please check the highlighted row."),
+            "Customer report for 01 Jan 2026 to 31 Dec 2026", "customer-report.pdf", Bytes, default);
+
+        Assert.Equal("karim@example.com", email.To);
+        Assert.Equal("Sompriti Enterprise: Customer report for 01 Jan 2026 to 31 Dec 2026", email.Subject);
+        Assert.Contains("Please check the highlighted row.", email.Body);
+        Assert.Contains("Test Admin", email.Body); // who sent it
+        var file = Assert.Single(email.Attachments!);
+        Assert.Equal("customer-report.pdf", file.FileName);
+        Assert.Equal("application/pdf", file.ContentType);
+        Assert.Equal(Bytes, file.Content);
+    }
+
+    [Fact]
+    public async Task A_supplied_subject_wins_and_the_message_is_escaped()
+    {
+        var email = new SpyEmail(enabled: true);
+        await Create(email).SendAsync(new EmailPdfRequest("karim@example.com", "Karim", "  Your invoice  ", "<script>x</script>"),
+            "Sales invoice 100042", "sales-invoice-100042.pdf", Bytes, default);
+
+        Assert.Equal("Your invoice", email.Subject);
+        Assert.DoesNotContain("<script>", email.Body);
+        Assert.Contains("&lt;script&gt;", email.Body);
+    }
+
+    [Fact]
+    public async Task A_bad_recipient_is_rejected_before_anything_is_sent()
+    {
+        var email = new SpyEmail(enabled: true);
+        var mailer = Create(email);
+        foreach (var bad in new string?[] { null, "", "   ", "karim", "karim@example", "a@b.c d" })
+        {
+            var ex = await Assert.ThrowsAsync<DomainException>(() =>
+                mailer.SendAsync(new EmailPdfRequest(bad, null, null, null), "Sales invoice 1", "x.pdf", Bytes, default));
+            Assert.Equal(ErrorKind.Validation, ex.Kind);
+            Assert.True(ex.Errors.ContainsKey("to"), $"'{bad}' should be reported against the recipient field");
+        }
+        Assert.Null(email.To);
+    }
+
+    [Fact]
+    public async Task Refuses_rather_than_claiming_to_have_sent_when_no_provider_is_configured()
+    {
+        var email = new SpyEmail(enabled: false);
+        var ex = await Assert.ThrowsAsync<DomainException>(() =>
+            Create(email).SendAsync(new EmailPdfRequest("karim@example.com", null, null, null),
+                "Sales invoice 100042", "sales-invoice-100042.pdf", Bytes, default));
+
+        Assert.Contains("Email:Provider", ex.Message);
+        Assert.Contains("download", ex.Message); // tells the user what they can do instead
+        Assert.Null(email.To);
+    }
 }
 
 public class PdfTests

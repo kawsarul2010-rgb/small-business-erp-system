@@ -42,22 +42,94 @@ export class PlatformService {
    */
   async openPdf(blob: Blob, fileName: string, download: boolean): Promise<void> {
     if (!this.isNative) {
-      const url = URL.createObjectURL(blob);
-      if (download) {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.click();
-      } else {
+      if (download) this.savePdf(blob, fileName);
+      else {
+        const url = URL.createObjectURL(blob);
         window.open(url, '_blank', 'noopener');
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
       }
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
       return;
     }
 
     const base64 = await blobToBase64(blob);
     const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
     await Share.share({ title: fileName, url: written.uri, dialogTitle: 'Open or share the PDF' });
+  }
+
+  /** Saves the PDF to the browser's downloads folder. */
+  savePdf(blob: Blob, fileName: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.rel = 'noopener';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  }
+
+  /**
+   * Whether this platform can hand the file itself to a share sheet.
+   *
+   * On Android that is always true. In a browser it needs the Web Share API with file support,
+   * which Safari has on macOS and iOS and Chrome has on Android and Windows - but not Chrome on
+   * macOS or Firefox. Callers must offer another route when this is false, because there is no
+   * way for a web page to attach a file to WhatsApp or an email on its own.
+   */
+  canShareFile(fileName = 'report.pdf'): boolean {
+    if (this.isNative) return true;
+    const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+    if (typeof nav.share !== 'function' || typeof nav.canShare !== 'function') return false;
+    try {
+      return nav.canShare({ files: [new File([new Blob()], fileName, { type: 'application/pdf' })] });
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Hands the PDF to the system share sheet, where the user picks WhatsApp, email or anything
+   * else installed. Returns false when the user dismissed the sheet without choosing.
+   */
+  async sharePdf(blob: Blob, fileName: string, title: string, text?: string): Promise<boolean> {
+    if (this.isNative) {
+      const base64 = await blobToBase64(blob);
+      const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
+      await Share.share({ title, text, url: written.uri, dialogTitle: 'Share the PDF' });
+      return true;
+    }
+
+    const file = new File([blob], fileName, { type: 'application/pdf' });
+    try {
+      await navigator.share({ files: [file], title, text });
+      return true;
+    } catch (e) {
+      // Dismissing the sheet is not a failure worth reporting.
+      if (e instanceof DOMException && e.name === 'AbortError') return false;
+      // Some browsers reject files combined with a title or text; the file alone is what matters.
+      if (e instanceof TypeError) {
+        try {
+          await navigator.share({ files: [file] });
+          return true;
+        } catch (inner) {
+          if (inner instanceof DOMException && inner.name === 'AbortError') return false;
+          throw inner;
+        }
+      }
+      throw e;
+    }
+  }
+
+  /** Opens an external address (WhatsApp Web, for instance) without keeping a handle on it. */
+  openExternal(url: string): void {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  /**
+   * Hands a mailto: link to whatever mail client the computer uses. Assigning to location is
+   * deliberate: window.open on a mailto: leaves an empty tab behind in several browsers.
+   */
+  openMailClient(url: string): void {
+    window.location.href = url;
   }
 }
 

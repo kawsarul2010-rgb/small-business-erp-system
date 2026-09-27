@@ -1,22 +1,28 @@
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatTableModule } from '@angular/material/table';
 import { Router, RouterLink } from '@angular/router';
-import { ApiService } from '../../core/api.service';
+import { ApiService, dateToIso } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { LayoutService } from '../../core/layout.service';
 import { OrderKind, OrderListItem, Paged } from '../../core/models';
 import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { MoneyPipe } from '../../shared/pipes';
+import { ReportExport } from '../../shared/report-export';
 import { orderMeta } from '../orders/order-kind';
 
 /** Finalized orders that still have a due amount, oldest first (SRS 11.1). */
 @Component({
   selector: 'app-due-report',
-  imports: [RouterLink, DatePipe, MatTableModule, MatProgressBarModule, MatButtonToggleModule, ListFooter, MoneyPipe],
+  imports: [RouterLink, DatePipe, MatTableModule, MatProgressBarModule, MatButtonToggleModule, MatButtonModule, MatDatepickerModule, MatFormFieldModule, MatInputModule, ReactiveFormsModule, ListFooter, MoneyPipe, ReportExport],
   template: `
     <div class="page">
       <div class="page-header">
@@ -24,13 +30,31 @@ import { orderMeta } from '../orders/order-kind';
           <h1>Due report</h1>
           <div class="subtitle">Finalized orders with an outstanding balance, oldest first</div>
         </div>
-        @if (kinds().length > 1) {
-          <mat-button-toggle-group [value]="kind()" (change)="switchKind($event.value)" hideSingleSelectionIndicator>
-            @for (k of kinds(); track k) { <mat-button-toggle [value]="k">{{ k === 'sales' ? 'Customer dues' : 'Supplier dues' }}</mat-button-toggle> }
-          </mat-button-toggle-group>
-        }
+        <div class="actions">
+          @if (kinds().length > 1) {
+            <mat-button-toggle-group [value]="kind()" (change)="switchKind($event.value)" hideSingleSelectionIndicator>
+              @for (k of kinds(); track k) { <mat-button-toggle [value]="k">{{ k === 'sales' ? 'Customer dues' : 'Supplier dues' }}</mat-button-toggle> }
+            </mat-button-toggle-group>
+          }
+          <app-report-export [path]="pdfPath()" [filters]="pdfFilters()"
+            [label]="kind() === 'sales' ? 'Customer due report' : 'Supplier due report'" />
+        </div>
       </div>
       <div class="card">
+        <div class="toolbar">
+          <mat-form-field subscriptSizing="dynamic">
+            <mat-label>Order date</mat-label>
+            <mat-date-range-input [rangePicker]="picker">
+              <input matStartDate [formControl]="from" placeholder="From" />
+              <input matEndDate [formControl]="to" placeholder="To" (dateChange)="list.resetToFirstPage()" />
+            </mat-date-range-input>
+            <mat-datepicker-toggle matIconSuffix [for]="picker" />
+            <mat-date-range-picker #picker />
+          </mat-form-field>
+          @if (from.value || to.value) {
+            <button mat-button (click)="clearDates()">Clear</button>
+          }
+        </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
 
         @if (layout.isHandset()) {
@@ -94,8 +118,30 @@ export class DueReportPage implements OnInit {
   readonly kind = signal<OrderKind>(this.kinds()[0] ?? 'sales');
   readonly meta = computed(() => orderMeta(this.kind()));
   readonly columns = ['orderNumber', 'orderDate', 'age', 'party', 'company', 'total', 'paid', 'due'];
+  readonly from = new FormControl<Date | null>(null);
+  readonly to = new FormControl<Date | null>(null);
+
   readonly list = new ListState<OrderListItem>((q) =>
-    this.api.get<Paged<OrderListItem>>(this.meta().api, { page: q.page, pageSize: q.pageSize, dueOnly: true, postingStatus: 'FINAL', sort: 'orderDate' }), 50);
+    this.api.get<Paged<OrderListItem>>(this.meta().api, {
+      page: q.page, pageSize: q.pageSize, dueOnly: true, postingStatus: 'FINAL', sort: 'orderDate',
+      fromDate: dateToIso(this.from.value), toDate: dateToIso(this.to.value),
+    }), 50);
+
+  clearDates(): void {
+    this.from.setValue(null);
+    this.to.setValue(null);
+    this.list.resetToFirstPage();
+  }
+
+  /** The endpoint that prints whichever side of the report is on screen. */
+  pdfPath(): string {
+    return this.kind() === 'sales' ? '/reports/due/sales/pdf' : '/reports/due/purchase/pdf';
+  }
+
+  /** The date range the screen is showing; a method because form values are not signals. */
+  pdfFilters(): Record<string, string | null> {
+    return { fromDate: dateToIso(this.from.value), toDate: dateToIso(this.to.value) };
+  }
 
   ngOnInit(): void {
     if (this.kinds().length > 0) this.list.reload();

@@ -1,9 +1,11 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Sompriti.Erp.Application.Common;
 using Sompriti.Erp.Application.Orders;
 using Sompriti.Erp.Domain.Common;
 using Sompriti.Erp.Domain.Entities;
 using Sompriti.Erp.Domain.Enums;
+using Sompriti.Erp.Domain.Rules;
 
 namespace Sompriti.Erp.Application.Reports;
 
@@ -42,7 +44,7 @@ public sealed record LinkedSummary(Guid PartyUuid, string PartyName, int OrderCo
 public sealed record DailyTotal(DateOnly Date, decimal Total);
 
 public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvider clock,
-    SalesOrderService salesOrders, PurchaseOrderService purchaseOrders)
+    SalesOrderService salesOrders, PurchaseOrderService purchaseOrders, IOptions<AppOptions> appOptions)
 {
     // ------------------------------------------------------------------ party reports
 
@@ -156,6 +158,213 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
             c.SalesCount, c.SalesTotal, c.SalesPaid, c.SalesTotal - c.SalesPaid,
             includePurchases ? c.PurchaseCount : null, includePurchases ? c.PurchaseTotal : null,
             includePurchases ? c.PurchasePaid : null, includePurchases ? c.PurchaseTotal - c.PurchasePaid : null)).ToList();
+    }
+
+    // ------------------------------------------------------------------ printable reports
+
+    /// <summary>Customer or supplier report as a printable document, every matching row.</summary>
+    public async Task<ReportDocument> PartyReportDocumentAsync(bool customers, ReportQuery q, CancellationToken ct)
+    {
+        // A printed report covers the whole selection, not whichever page happened to be open.
+        var all = q with { Page = 1, PageSize = int.MaxValue };
+        var report = customers ? await CustomerReportAsync(all, ct) : await SupplierReportAsync(all, ct);
+        var party = customers ? "Customer" : "Supplier";
+
+        var rows = report.Rows.Items.Select(r => new ReportRow(new[]
+        {
+            r.PartyCode,
+            r.PartyName,
+            BdMobile.ToDisplay(r.MobileNumber),
+            r.OrderCount.ToString(Invariant),
+            Money.FormatPlain(r.TotalAmount),
+            Money.FormatPlain(r.TotalPaid),
+            Money.FormatPlain(r.Due),
+        })).ToList();
+
+        return new ReportDocument(
+            Title: $"{party} report",
+            BusinessName: appOptions.Value.BusinessName,
+            Filters: await FiltersAsync(q, extra: q.DueOnly ? "With due only" : null, ct),
+            Columns: new[]
+            {
+                new ReportColumn("Code", 54),
+                new ReportColumn($"{party} name"),
+                new ReportColumn("Mobile", 74),
+                new ReportColumn("Orders", 42, RightAligned: true),
+                new ReportColumn("Total", 72, RightAligned: true),
+                new ReportColumn("Paid", 72, RightAligned: true),
+                new ReportColumn("Due", 72, RightAligned: true),
+            },
+            Rows: rows,
+            Totals: new[]
+            {
+                "TOTAL", "", "",
+                report.Totals.OrderCount.ToString(Invariant),
+                Money.FormatPlain(report.Totals.TotalAmount),
+                Money.FormatPlain(report.Totals.TotalPaid),
+                Money.FormatPlain(report.Totals.Due),
+            },
+            FileName: FileName(customers ? "customer-report" : "supplier-report", q.FromDate, q.ToDate));
+    }
+
+    /// <summary>Company report as a printable document. Purchases are admin-only, as on screen.</summary>
+    public async Task<ReportDocument> CompanyReportDocumentAsync(ReportQuery q, CancellationToken ct)
+    {
+        var rows = await CompanyReportAsync(q, ct);
+        var withPurchases = rows.Count > 0 && rows[0].PurchaseCount is not null;
+
+        var columns = new List<ReportColumn>
+        {
+            new("Code", 60),
+            new("Company"),
+            new("Sales", 46, RightAligned: true),
+            new("Sales total", 78, RightAligned: true),
+            new("Sales due", 78, RightAligned: true),
+        };
+        if (withPurchases)
+        {
+            columns.Add(new ReportColumn("Purchases", 58, RightAligned: true));
+            columns.Add(new ReportColumn("Purchase total", 82, RightAligned: true));
+            columns.Add(new ReportColumn("Purchase due", 78, RightAligned: true));
+        }
+
+        var body = rows.Select(r =>
+        {
+            var cells = new List<string>
+            {
+                r.CompanyCode, r.CompanyName,
+                r.SalesCount.ToString(Invariant), Money.FormatPlain(r.SalesTotal), Money.FormatPlain(r.SalesDue),
+            };
+            if (withPurchases)
+            {
+                cells.Add((r.PurchaseCount ?? 0).ToString(Invariant));
+                cells.Add(Money.FormatPlain(r.PurchaseTotal ?? 0));
+                cells.Add(Money.FormatPlain(r.PurchaseDue ?? 0));
+            }
+            return new ReportRow(cells);
+        }).ToList();
+
+        var totals = new List<string>
+        {
+            "TOTAL", "",
+            rows.Sum(r => r.SalesCount).ToString(Invariant),
+            Money.FormatPlain(rows.Sum(r => r.SalesTotal)),
+            Money.FormatPlain(rows.Sum(r => r.SalesDue)),
+        };
+        if (withPurchases)
+        {
+            totals.Add(rows.Sum(r => r.PurchaseCount ?? 0).ToString(Invariant));
+            totals.Add(Money.FormatPlain(rows.Sum(r => r.PurchaseTotal ?? 0)));
+            totals.Add(Money.FormatPlain(rows.Sum(r => r.PurchaseDue ?? 0)));
+        }
+
+        return new ReportDocument("Company report", appOptions.Value.BusinessName,
+            await FiltersAsync(q, extra: null, ct), columns, body, totals,
+            FileName("company-report", q.FromDate, q.ToDate));
+    }
+
+    /// <summary>Finalized orders still carrying a due, oldest first.</summary>
+    public async Task<ReportDocument> DueReportDocumentAsync(TransactionType type, ReportQuery q, CancellationToken ct)
+    {
+        var sales = type == TransactionType.Sales;
+        var listQuery = new OrderListQuery
+        {
+            Page = 1,
+            PageSize = int.MaxValue,
+            PostingStatus = Domain.Enums.PostingStatus.Final,
+            DueOnly = true,
+            Sort = "orderDate",
+            FromDate = q.FromDate,
+            ToDate = q.ToDate,
+            CompanyUuid = q.CompanyUuid,
+        };
+        var paged = sales
+            ? await salesOrders.ListAsync(listQuery, ct)
+            : await purchaseOrders.ListAsync(listQuery, ct);
+
+        var today = BusinessClock.Today(clock.GetUtcNow());
+        var rows = paged.Items.Select(o => new ReportRow(new[]
+        {
+            o.OrderNumber,
+            o.OrderDate.ToString("dd MMM yyyy", Invariant),
+            Math.Max(0, today.DayNumber - o.OrderDate.DayNumber).ToString(Invariant),
+            o.PartyName,
+            o.CompanyName,
+            Money.FormatPlain(o.TotalAmount),
+            Money.FormatPlain(o.TotalPaidAmount),
+            Money.FormatPlain(o.DueAmount),
+        })).ToList();
+
+        return new ReportDocument(
+            Title: sales ? "Customer due report" : "Supplier due report",
+            BusinessName: appOptions.Value.BusinessName,
+            Filters: await FiltersAsync(q, extra: "Finalized orders with an outstanding balance", ct),
+            Columns: new[]
+            {
+                new ReportColumn("Order no.", 62),
+                new ReportColumn("Date", 68),
+                new ReportColumn("Days", 34, RightAligned: true),
+                new ReportColumn(sales ? "Customer" : "Supplier"),
+                new ReportColumn("Company", 92),
+                new ReportColumn("Total", 70, RightAligned: true),
+                new ReportColumn("Paid", 70, RightAligned: true),
+                new ReportColumn("Due", 70, RightAligned: true),
+            },
+            Rows: rows,
+            Totals: new[]
+            {
+                "TOTAL", "", "", "", "",
+                Money.FormatPlain(paged.Items.Sum(o => o.TotalAmount)),
+                Money.FormatPlain(paged.Items.Sum(o => o.TotalPaidAmount)),
+                Money.FormatPlain(paged.Items.Sum(o => o.DueAmount)),
+            },
+            FileName: FileName(sales ? "customer-due-report" : "supplier-due-report", q.FromDate, q.ToDate));
+    }
+
+    // ------------------------------------------------------------------ printable report helpers
+
+    private static readonly System.Globalization.CultureInfo Invariant = System.Globalization.CultureInfo.InvariantCulture;
+
+    /// <summary>The filter lines printed under the title, so a paper copy explains itself.</summary>
+    private async Task<IReadOnlyList<(string, string)>> FiltersAsync(ReportQuery q, string? extra, CancellationToken ct)
+    {
+        var lines = new List<(string, string)> { ("Period", Period(q.FromDate, q.ToDate)) };
+
+        if (q.CompanyUuid is { } id)
+        {
+            var name = await db.Companies.AsNoTracking().Where(c => c.Uuid == id)
+                .Select(c => c.CompanyName).FirstOrDefaultAsync(ct);
+            lines.Add(("Company", name ?? "-"));
+        }
+        else
+        {
+            lines.Add(("Company", "All companies"));
+        }
+
+        if (extra is not null) lines.Add(("Filter", extra));
+        return lines;
+    }
+
+    private static string Period(DateOnly? from, DateOnly? to) => (from, to) switch
+    {
+        (null, null) => "All dates",
+        ({ } f, null) => $"{Day(f)} onwards",
+        (null, { } t) => $"Up to {Day(t)}",
+        ({ } f, { } t) => $"{Day(f)} to {Day(t)}",
+    };
+
+    private static string Day(DateOnly d) => d.ToString("dd MMM yyyy", Invariant);
+
+    private static string FileName(string prefix, DateOnly? from, DateOnly? to)
+    {
+        var span = (from, to) switch
+        {
+            (null, null) => "all",
+            ({ } f, null) => $"from-{f:yyyy-MM-dd}",
+            (null, { } t) => $"to-{t:yyyy-MM-dd}",
+            ({ } f, { } t) => $"{f:yyyy-MM-dd}_{t:yyyy-MM-dd}",
+        };
+        return $"{prefix}-{span}.pdf";
     }
 
     // ------------------------------------------------------------------ dashboard

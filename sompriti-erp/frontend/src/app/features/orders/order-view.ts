@@ -22,6 +22,7 @@ import { OrderDetail, OrderKind, PaymentMethod } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
 import { LabelPipe, MoneyPipe, QtyPipe, formatMoney } from '../../shared/pipes';
+import { openSharePdfDialog } from '../../shared/share-pdf-dialog';
 import { StatusChip } from '../../shared/status-chip';
 import { orderMeta } from './order-kind';
 
@@ -37,7 +38,7 @@ export class OrderViewPage implements OnInit {
 
   readonly auth = inject(AuthService);
   readonly layout = inject(LayoutService);
-  private readonly platform = inject(PlatformService);
+  readonly platform = inject(PlatformService);
   private readonly api = inject(ApiService);
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
@@ -140,6 +141,29 @@ export class OrderViewPage implements OnInit {
       },
       error: (e) => { this.notify.error(e); this.busy.set(false); },
     });
+  }
+
+  /**
+   * Browser sharing. The Android app has the system share sheet already, so this offers the
+   * routes a desktop browser actually has: the Web Share API where it exists, WhatsApp with the
+   * file saved alongside, or an email sent from the server with the PDF attached.
+   */
+  share(): void {
+    const o = this.order()!;
+    const title = `${this.kind() === 'sales' ? 'Sales invoice' : 'Purchase order'} #${o.orderNumber}`;
+    this.busy.set(true);
+    openSharePdfDialog(
+      { api: this.api, dialog: this.dialog, layout: this.layout, notify: this.notify },
+      `${this.meta().api}/${o.uuid}/pdf`,
+      {},
+      {
+        title,
+        fileName: `${this.kind() === 'sales' ? 'sales-invoice' : 'purchase-order'}-${o.orderNumber}.pdf`,
+        mobileNumber: o.party.mobileNumber,
+        message: `${title} for ${o.party.name}. Total ${formatMoney(o.totalAmount)}, due ${formatMoney(o.dueAmount)}.`,
+      },
+      () => this.busy.set(false),
+    );
   }
 
   private run(req: Observable<OrderDetail>, message: string): void {

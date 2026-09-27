@@ -61,9 +61,19 @@ public interface ITokenService
     (string Token, DateTimeOffset ExpiresAt) CreateAccessToken(AppUser user);
 }
 
+/// <summary>A file sent with an email. The content is the raw bytes; providers want it base64-encoded.</summary>
+public sealed record EmailAttachment(string FileName, string ContentType, byte[] Content);
+
 public interface IEmailSender
 {
-    Task SendAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct = default);
+    /// <summary>
+    /// False when no provider is configured (Email:Provider=Log): messages are written to the log
+    /// and never delivered. Callers that promise the user an email should check this first.
+    /// </summary>
+    bool Enabled { get; }
+
+    Task SendAsync(string toEmail, string toName, string subject, string htmlBody,
+        IReadOnlyList<EmailAttachment>? attachments = null, CancellationToken ct = default);
 }
 
 public interface ISmsSender
@@ -76,6 +86,29 @@ public interface ISmsSender
 public interface IOrderPdfRenderer
 {
     byte[] Render(Orders.OrderDetailDto order, MasterData.CompanyDto company);
+}
+
+/// <summary>One column of a printed report. A width of 0 shares out the leftover space.</summary>
+public sealed record ReportColumn(string Title, float Width = 0, bool RightAligned = false);
+
+public sealed record ReportRow(IReadOnlyList<string> Cells);
+
+/// <summary>
+/// A report ready to print: what it is, which filters produced it, and the table itself.
+/// The filters are part of the document so a printed copy can be checked months later.
+/// </summary>
+public sealed record ReportDocument(
+    string Title,
+    string BusinessName,
+    IReadOnlyList<(string Label, string Value)> Filters,
+    IReadOnlyList<ReportColumn> Columns,
+    IReadOnlyList<ReportRow> Rows,
+    IReadOnlyList<string> Totals,
+    string FileName);
+
+public interface IReportPdfRenderer
+{
+    byte[] Render(ReportDocument document);
 }
 
 public sealed class AppOptions

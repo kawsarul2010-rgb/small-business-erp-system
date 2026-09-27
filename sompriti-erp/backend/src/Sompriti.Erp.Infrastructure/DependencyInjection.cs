@@ -28,6 +28,7 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
 
         services.AddScoped<IOrderPdfRenderer, OrderPdfRenderer>();
+        services.AddScoped<IReportPdfRenderer, ReportPdfRenderer>();
 
         // SMS
         services.Configure<SmsOptions>(config.GetSection(SmsOptions.Section));

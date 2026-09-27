@@ -129,11 +129,30 @@ public sealed class EmailOptions
     public string FromName { get; set; } = "Enterprise Resource Planning";
 }
 
+/// <summary>
+/// Provider payloads are written with null properties omitted: Brevo and Resend both reject
+/// an explicit "attachment": null, and most messages carry no attachment.
+/// </summary>
+internal static class EmailJson
+{
+    public static readonly JsonSerializerOptions Options = new()
+    {
+        DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+    };
+}
+
 public sealed class LogEmailSender(ILogger<LogEmailSender> logger) : IEmailSender
 {
-    public Task SendAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct = default)
+    /// <summary>Nothing is delivered, so callers must not tell the user the mail was sent.</summary>
+    public bool Enabled => false;
+
+    public Task SendAsync(string toEmail, string toName, string subject, string htmlBody,
+        IReadOnlyList<EmailAttachment>? attachments = null, CancellationToken ct = default)
     {
-        logger.LogInformation("[Email:Log] To {Email} | {Subject}\n{Body}", toEmail, subject, htmlBody);
+        var files = attachments is { Count: > 0 }
+            ? " | attachments: " + string.Join(", ", attachments.Select(a => $"{a.FileName} ({a.Content.Length} bytes)"))
+            : "";
+        logger.LogInformation("[Email:Log] To {Email} | {Subject}{Files}\n{Body}", toEmail, subject, files, htmlBody);
         return Task.CompletedTask;
     }
 }
@@ -141,7 +160,10 @@ public sealed class LogEmailSender(ILogger<LogEmailSender> logger) : IEmailSende
 /// <summary>Brevo transactional email API (https://api.brevo.com/v3/smtp/email).</summary>
 public sealed class BrevoEmailSender(HttpClient http, IOptions<EmailOptions> options) : IEmailSender
 {
-    public async Task SendAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct = default)
+    public bool Enabled => !string.IsNullOrWhiteSpace(options.Value.ApiKey);
+
+    public async Task SendAsync(string toEmail, string toName, string subject, string htmlBody,
+        IReadOnlyList<EmailAttachment>? attachments = null, CancellationToken ct = default)
     {
         var o = options.Value;
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.brevo.com/v3/smtp/email");
@@ -153,7 +175,11 @@ public sealed class BrevoEmailSender(HttpClient http, IOptions<EmailOptions> opt
             to = new[] { new { email = toEmail, name = toName } },
             subject,
             htmlContent = htmlBody,
-        });
+            // Brevo takes files as { name, content } with content base64-encoded.
+            attachment = attachments is { Count: > 0 }
+                ? attachments.Select(a => new { name = a.FileName, content = Convert.ToBase64String(a.Content) }).ToArray()
+                : null,
+        }, options: EmailJson.Options);
         using var response = await http.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException($"Brevo HTTP {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync(ct)}");
@@ -163,7 +189,10 @@ public sealed class BrevoEmailSender(HttpClient http, IOptions<EmailOptions> opt
 /// <summary>Resend email API (https://api.resend.com/emails).</summary>
 public sealed class ResendEmailSender(HttpClient http, IOptions<EmailOptions> options) : IEmailSender
 {
-    public async Task SendAsync(string toEmail, string toName, string subject, string htmlBody, CancellationToken ct = default)
+    public bool Enabled => !string.IsNullOrWhiteSpace(options.Value.ApiKey);
+
+    public async Task SendAsync(string toEmail, string toName, string subject, string htmlBody,
+        IReadOnlyList<EmailAttachment>? attachments = null, CancellationToken ct = default)
     {
         var o = options.Value;
         using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails");
@@ -174,7 +203,11 @@ public sealed class ResendEmailSender(HttpClient http, IOptions<EmailOptions> op
             to = new[] { toEmail },
             subject,
             html = htmlBody,
-        });
+            // Resend takes files as { filename, content } with content base64-encoded.
+            attachments = attachments is { Count: > 0 }
+                ? attachments.Select(a => new { filename = a.FileName, content = Convert.ToBase64String(a.Content) }).ToArray()
+                : null,
+        }, options: EmailJson.Options);
         using var response = await http.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException($"Resend HTTP {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync(ct)}");

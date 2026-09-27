@@ -32,7 +32,7 @@ public sealed class StockController(StockService service) : ControllerBase
 [ApiController]
 [Route("api/v1/reports")]
 [Authorize] // role and linked-entity scoping is enforced in ReportService
-public sealed class ReportsController(ReportService service) : ControllerBase
+public sealed class ReportsController(ReportService service, IReportPdfRenderer renderer, PdfMailer mailer) : ControllerBase
 {
     [HttpGet("customers")]
     public Task<PartyReport> Customers([FromQuery] ReportQuery q, CancellationToken ct) => service.CustomerReportAsync(q, ct);
@@ -42,6 +42,70 @@ public sealed class ReportsController(ReportService service) : ControllerBase
 
     [HttpGet("companies"), Authorize(Roles = Roles.AdminOrManager)]
     public Task<IReadOnlyList<CompanyReportRow>> Companies([FromQuery] ReportQuery q, CancellationToken ct) => service.CompanyReportAsync(q, ct);
+
+    // ---------------------------------------------------------------- printable versions
+    // Each returns every row matching the filters, not just the page on screen. Role checks
+    // mirror the data endpoint above, and ReportService scopes rows for linked users.
+
+    [HttpGet("customers/pdf")]
+    public Task<IActionResult> CustomersPdf([FromQuery] ReportQuery q, [FromQuery] bool download, CancellationToken ct) =>
+        Pdf(service.PartyReportDocumentAsync(customers: true, q, ct), download);
+
+    [HttpGet("suppliers/pdf"), Authorize(Roles = "ADMIN,USER")]
+    public Task<IActionResult> SuppliersPdf([FromQuery] ReportQuery q, [FromQuery] bool download, CancellationToken ct) =>
+        Pdf(service.PartyReportDocumentAsync(customers: false, q, ct), download);
+
+    [HttpGet("companies/pdf"), Authorize(Roles = Roles.AdminOrManager)]
+    public Task<IActionResult> CompaniesPdf([FromQuery] ReportQuery q, [FromQuery] bool download, CancellationToken ct) =>
+        Pdf(service.CompanyReportDocumentAsync(q, ct), download);
+
+    [HttpGet("due/sales/pdf")]
+    public Task<IActionResult> SalesDuePdf([FromQuery] ReportQuery q, [FromQuery] bool download, CancellationToken ct) =>
+        Pdf(service.DueReportDocumentAsync(Domain.Enums.TransactionType.Sales, q, ct), download);
+
+    [HttpGet("due/purchase/pdf"), Authorize(Roles = "ADMIN,USER")]
+    public Task<IActionResult> PurchaseDuePdf([FromQuery] ReportQuery q, [FromQuery] bool download, CancellationToken ct) =>
+        Pdf(service.DueReportDocumentAsync(Domain.Enums.TransactionType.Purchase, q, ct), download);
+
+    // ---------------------------------------------------------------- email the printable version
+    // Sharing a report from a desktop browser: the browser cannot attach a file to an email, so
+    // the server renders the same document and sends it. Filters and roles are exactly as above.
+
+    [HttpPost("customers/pdf/email")]
+    public Task<IActionResult> EmailCustomersPdf([FromQuery] ReportQuery q, EmailPdfRequest r, CancellationToken ct) =>
+        EmailPdf(service.PartyReportDocumentAsync(customers: true, q, ct), r, ct);
+
+    [HttpPost("suppliers/pdf/email"), Authorize(Roles = "ADMIN,USER")]
+    public Task<IActionResult> EmailSuppliersPdf([FromQuery] ReportQuery q, EmailPdfRequest r, CancellationToken ct) =>
+        EmailPdf(service.PartyReportDocumentAsync(customers: false, q, ct), r, ct);
+
+    [HttpPost("companies/pdf/email"), Authorize(Roles = Roles.AdminOrManager)]
+    public Task<IActionResult> EmailCompaniesPdf([FromQuery] ReportQuery q, EmailPdfRequest r, CancellationToken ct) =>
+        EmailPdf(service.CompanyReportDocumentAsync(q, ct), r, ct);
+
+    [HttpPost("due/sales/pdf/email")]
+    public Task<IActionResult> EmailSalesDuePdf([FromQuery] ReportQuery q, EmailPdfRequest r, CancellationToken ct) =>
+        EmailPdf(service.DueReportDocumentAsync(Domain.Enums.TransactionType.Sales, q, ct), r, ct);
+
+    [HttpPost("due/purchase/pdf/email"), Authorize(Roles = "ADMIN,USER")]
+    public Task<IActionResult> EmailPurchaseDuePdf([FromQuery] ReportQuery q, EmailPdfRequest r, CancellationToken ct) =>
+        EmailPdf(service.DueReportDocumentAsync(Domain.Enums.TransactionType.Purchase, q, ct), r, ct);
+
+    private async Task<IActionResult> Pdf(Task<ReportDocument> build, bool download)
+    {
+        var doc = await build;
+        return this.PdfFile(renderer.Render(doc), doc.FileName, download);
+    }
+
+    private async Task<IActionResult> EmailPdf(Task<ReportDocument> build, EmailPdfRequest r, CancellationToken ct)
+    {
+        var doc = await build;
+        // The date range belongs in the subject: "Customer report" alone says nothing about which months.
+        var period = doc.Filters.FirstOrDefault(f => f.Label == "Period").Value;
+        var description = string.IsNullOrWhiteSpace(period) ? doc.Title : $"{doc.Title} for {period}";
+        await mailer.SendAsync(r, description, doc.FileName, renderer.Render(doc), ct);
+        return NoContent();
+    }
 }
 
 [ApiController]
