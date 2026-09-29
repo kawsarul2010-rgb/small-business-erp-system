@@ -215,3 +215,5 @@ Base path `/api/v1`, JSON (camelCase, enums as `UPPER_SNAKE_CASE`), errors as RF
 | Orders | `purchase-orders`, `sales-orders`: list, get, create, update (draft), delete (draft), `DELETE {id}/lines/{lineId}`, `POST {id}/finalize`, `POST {id}/void`, `POST {id}/payments`, `DELETE {id}/payments/{paymentId}`, `GET {id}/pdf` |
 | Reports | `GET reports/customers`, `reports/suppliers`, `reports/companies`, `GET dashboard` |
 | SMS | `GET sms`, `POST sms/{id}/retry` (ADMIN) |
+
+
