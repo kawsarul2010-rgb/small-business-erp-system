@@ -1,0 +1,217 @@
+# Tasif Matrix ERP
+
+Purchase, sales, stock and payments for small businesses in Bangladesh — **one deployment serving many
+businesses**, each completely separate from the others. A product of Tasif Matrix Limited.
+
+| Layer | Technology |
+|---|---|
+| API | ASP.NET Core Web API, .NET 10, C# |
+| Data | PostgreSQL + EF Core (Npgsql); schema created by versioned SQL scripts |
+| Web | Angular 22 + Angular Material (responsive: tables on desktop, cards and bottom tabs on phones) |
+| Android app | Capacitor 8 (the same Angular app packaged as an APK) |
+| Hosting | Railway (one Docker service for API + web, one PostgreSQL service) |
+
+## Many businesses, one system
+
+Each business that buys the system (a *tenant*) gets its own users, companies, customers, suppliers,
+products, stock, orders, payments, SMS log and reports. Its codes and numbers start at 100001 and
+count independently. Nothing crosses between businesses, and that is enforced three separate ways,
+each of which would stop a leak on its own:
+
+1. **The application** filters every query by the signed-in business (EF Core global query filters on
+   every `ITenantOwned` entity). Reading across businesses takes an explicit `IgnoreQueryFilters()`,
+   used only in sign-in, the SMS worker and the super admin's platform screens.
+2. **PostgreSQL row-level security.** Requests for a business run as the database role `erp_tenant`;
+   the database hides every other business's rows whatever the query says (see
+   `0004_multi_business.sql`, `TenantConnectionInterceptor`).
+3. **Composite foreign keys.** A row can only reference rows of its own business, so an order line
+   cannot point at another business's product even if its id is known.
+
+The app refuses to start if a table holding business data has no row-level security, and a unit test
+fails if a business entity is added without it.
+
+**Roles**
+
+| Role | Belongs to | Can |
+|---|---|---|
+| `SUPER_ADMIN` | no business | Create, edit, suspend and reactivate businesses; add a business admin or reset one's password; see each business's usage (user and order counts). **Cannot** see any business's customers, prices, sales or payments. |
+| `ADMIN` | one business | Everything inside that business, including its users. |
+| `MANAGER` | one business | Sales, customers, products, stock. |
+| `USER` | one business | Their own orders and reports, once linked to a customer or supplier. |
+
+**Onboarding a business:** super admin → **Businesses → New business** (name, code, first admin). The
+admin's temporary password is shown once; they change it at first sign-in. Staff then register at
+`/register?business=<code>` and the business admin assigns their role. Suspending a business signs its
+users out on their next request; reactivating restores everything as it was.
+
+## Features
+
+- Login, self-registration with a business code, refresh tokens, lockout after 5 failed logins, password reset by email, forced password change for new accounts
+- Roles enforced on the server; USER sees only orders and reports of the linked buyer (customer) and/or supplier
+- Companies, customers, suppliers (auto codes from 100001 per business), products in PCS, BOX (of PCS, KG or LITRE), KG or LITRE
+- Purchase and sales orders: DRAFT → FINAL → VOID, line calculations, stock checks, row-locked atomic finalize/void, revision-based concurrency (HTTP 409)
+- Stock balance, stock ledger, stock adjustments (opening stock, damage, loss, correction)
+- Payments on FINAL orders with overpayment protection; SMS to Bangladesh numbers via an outbox + retry worker
+- PDF invoices, purchase orders and reports under each business's own name; share by WhatsApp or email
+- Dashboard, customer / supplier / company / due reports
+- Soft delete everywhere, full audit columns
+
+## Android app (APK)
+
+The Angular app is packaged for Android with [Capacitor](https://capacitorjs.com). The APK contains the web app and
+talks to the same API over the network, so the server must be reachable from the phone (deploy it to Railway first,
+or use your computer's LAN address while testing).
+
+**One-time setup**
+
+1. Install [Android Studio](https://developer.android.com/studio) (it brings the Android SDK) and a JDK 21
+   (`brew install --cask temurin@21` on macOS). Open Android Studio once and let it finish installing the SDK.
+2. Point the build at your API: edit `frontend/src/environments/environment.mobile.ts` and set
+   `apiBaseUrl` to your server, e.g. `https://tasifmatrix-erp.up.railway.app` (the build refuses to run while it says `CHANGE-ME`).
+3. Allow the app's origin on the API: set `Cors__AllowedOrigins=https://localhost,capacitor://localhost,http://localhost`
+   (Railway → Variables, or `appsettings.Development.json` locally). Without this the app cannot log in.
+4. Create the Android project once:
+
+   ```bash
+   cd frontend
+   npm install
+   npm run build:mobile
+   npx cap add android
+   npx @capacitor/assets generate --android   # app icon and splash screen from resources/
+   ```
+
+**Build the APK**
+
+```bash
+cd frontend
+npm run android:apk       # build + sync + ./gradlew assembleDebug
+# APK: frontend/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Copy that file to an Android phone and open it (allow "install unknown apps"). For Play Store or a signed release build:
+
+```bash
+keytool -genkey -v -keystore tasifmatrix.keystore -alias tasifmatrix -keyalg RSA -keysize 2048 -validity 10000
+cd android && ./gradlew assembleRelease   # configure signing in android/app/build.gradle first
+```
+
+`npm run android:open` opens the project in Android Studio, where you can run it on an emulator or a connected phone.
+
+**Testing against your Mac instead of Railway**
+
+Set `apiBaseUrl` to `http://<your-mac-ip>:5080` (find it with `ipconfig getifaddr en0`), run the API with
+`ASPNETCORE_URLS=http://0.0.0.0:5080`, and allow plain http in `android/app/src/main/AndroidManifest.xml`
+by adding `android:usesCleartextTraffic="true"` to the `<application>` tag. Use https in production.
+
+## Repository layout
+
+```
+backend/
+  src/Sompriti.Erp.Domain          entities, enums, business rules (calculations, status rules, BD mobile)
+  src/Sompriti.Erp.Application     services (auth, users, master data, stock, orders, reports, SMS)
+  src/Sompriti.Erp.Infrastructure  EF Core context, SQL migrations, JWT, password hashing, SMS/email providers, PDF
+  src/Sompriti.Erp.Api             controllers, authentication handler, error handling, Program.cs
+  tests/Sompriti.Erp.Tests         xUnit tests (rules, business separation, JWT, PDF, email, platform boundary)
+backend/tools/isolation/          cross-business isolation checks run against a real PostgreSQL
+frontend/
+  src/app/core                     API client, auth, layout (phone vs desktop), Capacitor bridge
+  src/app/shared                   reusable pieces: search select, list state, list footer, pipes
+  src/app/layout                   app shell: sidebar on desktop, top bar + bottom tabs on phones
+  src/app/features                 screens (auth, dashboard, master data, stock, orders, reports, users, SMS, platform)
+  public/fonts                     bundled Inter + Material Symbols subset (works offline)
+  tools/build-icon-font.py         regenerates the icon font subset after adding new icons
+  capacitor.config.ts              Android app settings
+Dockerfile                         builds web + API into one image
+railway.json                       Railway build/deploy settings
+docker-compose.yml                 local PostgreSQL (and optional full app)
+.env.example                       all configuration variables
+```
+
+## Run locally
+
+Prerequisites: .NET 10 SDK, Node.js 22.22+ (or 24), Docker (for PostgreSQL).
+
+```bash
+# 1. database
+docker compose up -d postgres
+
+# 2. API  (http://localhost:5080) – applies migrations and seeds the super admin owner@tasifmatrix.local / Owner@12345
+cd backend
+dotnet run --project src/Sompriti.Erp.Api
+
+# 3. web  (http://localhost:4200)
+cd frontend
+npm install
+npm start
+```
+
+Log in with `owner@tasifmatrix.local` / `Owner@12345` (the super admin); you will be asked to change the
+password. Create a business from **Businesses**, then sign in as its admin in a private window.
+Development settings live in `backend/src/Sompriti.Erp.Api/appsettings.Development.json`.
+SMS and email use the `Log` provider locally (messages are written to the API console).
+
+Run the tests:
+
+```bash
+cd backend
+dotnet test
+```
+
+Or run everything in containers: `docker compose --profile app up --build` → http://localhost:8080
+
+## Suggested first steps in a new business (as its admin)
+
+1. Companies → add your company (name, code, address, phone – printed on PDFs)
+2. Products → add products (prices are per piece; set pcs per box for box items)
+3. Stock adjustments → enter opening stock (reason: Opening stock)
+4. Customers / Suppliers → add parties with valid Bangladesh mobile numbers
+5. Create a purchase or sales order, finalize it, add payments, print the PDF
+
+## Deploy to Railway
+
+**[DEPLOY.md](DEPLOY.md) has the full walkthrough** — dashboard steps, the complete variable block,
+post-deploy checks and troubleshooting. The short version:
+
+1. Push this repository to GitHub.
+2. In Railway: **New Project → Deploy from GitHub repo** and select the repository.
+   Then **Settings → Root Directory → `tasifmatrix-erp-system`**, so Railway finds `railway.json` and the `Dockerfile`.
+3. **+ Create → Database → PostgreSQL** in the same project.
+4. Open the app service → **Variables** and add (see `.env.example`):
+   - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (variable reference to the database service)
+   - `Jwt__SigningKey` = a long random secret (`openssl rand -base64 48`)
+   - `SEED_SUPERADMIN_EMAIL`, `SEED_SUPERADMIN_PASSWORD` (your platform-owner account; min. 8 chars with a letter and a number)
+   - `App__PublicBaseUrl` = your Railway URL, e.g. `https://tasifmatrix-erp.up.railway.app`
+   - SMS: `Sms__Enabled=true`, `Sms__Provider=BulkSmsBd`, `Sms__ApiKey`, `Sms__SenderId` (or `GenericHttp` settings)
+   - Email: `Email__Provider=Brevo` (or `Resend`), `Email__ApiKey`, `Email__FromAddress`
+5. **Settings → Networking → Generate Domain**.
+6. Deploy. On start the app applies database migrations, checks row-level security, creates the super admin and serves the web app. Health check: `/health`.
+
+Backups: enable Railway PostgreSQL backups (or schedule `pg_dump`) with at least 7 days of retention.
+
+## Database migrations
+
+The schema is managed by plain SQL files in `backend/src/Sompriti.Erp.Infrastructure/Persistence/Migrations`
+(`0001_initial.sql`, `0002_...sql`). They run in order at startup inside a PostgreSQL advisory lock and are recorded in
+`schema_migrations`. To change the schema, add a new numbered file – never edit an applied one – and update the EF mapping
+in `AppDbContext` if needed.
+
+**A new table that holds business data** needs a `tenant_uuid` column, `ENABLE ROW LEVEL SECURITY` and a
+`tenant_isolation` policy (copy the pattern in `0004_multi_business.sql`), and its entity must implement
+`ITenantOwned`. The app will not start otherwise. Run `backend/tools/isolation/run.sh` after schema changes: it builds a scratch database from all the
+migrations and runs the cross-business isolation checks against it.
+
+## API
+
+Base path `/api/v1`, JSON (camelCase, enums as `UPPER_SNAKE_CASE`), errors as RFC 7807 problem details with a `code`
+(`REVISION_CONFLICT`, `INSUFFICIENT_STOCK`, `OVERPAYMENT`, …). Every update/delete/status change must send the record's `revision`.
+
+| Area | Endpoints |
+|---|---|
+| Auth | `POST auth/register` (needs `businessCode`), `POST auth/login, refresh, logout, forgot-password, reset-password, change-password` · `GET auth/me` |
+| Platform (SUPER_ADMIN) | `GET platform/summary` · `platform/businesses`: list, get, create (returns the first admin's temporary password once), update, `POST {id}/suspend`, `POST {id}/activate`, `POST {id}/admins`, `POST {id}/admins/{userId}/reset-password` |
+| Master data | `companies`, `customers`, `suppliers`, `products` (list, `dropdown`, get, create, update, delete) |
+| Users | `users` (ADMIN) + `POST users/{id}/unlock` |
+| Stock | `GET stock/balances`, `GET stock/ledger`, `GET/POST stock/adjustments` |
+| Orders | `purchase-orders`, `sales-orders`: list, get, create, update (draft), delete (draft), `DELETE {id}/lines/{lineId}`, `POST {id}/finalize`, `POST {id}/void`, `POST {id}/payments`, `DELETE {id}/payments/{paymentId}`, `GET {id}/pdf` |
+| Reports | `GET reports/customers`, `reports/suppliers`, `reports/companies`, `GET dashboard` |
+| SMS | `GET sms`, `POST sms/{id}/retry` (ADMIN) |
