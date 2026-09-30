@@ -1,3 +1,4 @@
+import { PasswordToggle } from '../../shared/password-toggle';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -12,7 +13,7 @@ import { AuthLayout } from '../../shared/auth-layout';
 
 @Component({
   selector: 'app-register',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule, AuthLayout],
+  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule, AuthLayout, PasswordToggle],
   template: `
     <app-auth-layout>
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
@@ -41,7 +42,8 @@ import { AuthLayout } from '../../shared/auth-layout';
         </mat-form-field>
         <mat-form-field subscriptSizing="dynamic">
           <mat-label>Password</mat-label>
-          <input matInput type="password" formControlName="password" autocomplete="new-password" />
+          <input matInput #pwPassword type="password" formControlName="password" autocomplete="new-password" />
+          <app-password-toggle matSuffix [for]="pwPassword" />
           <mat-hint>At least 8 characters with a letter and a number</mat-hint>
           <mat-error>{{ err('password', 'Password') }}</mat-error>
         </mat-form-field>

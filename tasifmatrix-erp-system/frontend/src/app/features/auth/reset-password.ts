@@ -1,3 +1,4 @@
+import { PasswordToggle } from '../../shared/password-toggle';
 import { Component, inject, signal } from '@angular/core';
 import { AbstractControl, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -18,7 +19,7 @@ export function matchValidator(group: AbstractControl) {
 
 @Component({
   selector: 'app-reset-password',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, AuthLayout],
+  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, AuthLayout, PasswordToggle],
   template: `
     <app-auth-layout>
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
@@ -32,13 +33,15 @@ export function matchValidator(group: AbstractControl) {
         } @else {
           <mat-form-field subscriptSizing="dynamic">
             <mat-label>New password</mat-label>
-            <input matInput type="password" formControlName="newPassword" autocomplete="new-password" />
+            <input matInput #pwNewPassword type="password" formControlName="newPassword" autocomplete="new-password" />
+          <app-password-toggle matSuffix [for]="pwNewPassword" />
             <mat-hint>At least 8 characters with a letter and a number</mat-hint>
             <mat-error>{{ err('newPassword') }}</mat-error>
           </mat-form-field>
           <mat-form-field>
             <mat-label>Confirm new password</mat-label>
-            <input matInput type="password" formControlName="confirmPassword" autocomplete="new-password" />
+            <input matInput #pwConfirmPassword type="password" formControlName="confirmPassword" autocomplete="new-password" />
+          <app-password-toggle matSuffix [for]="pwConfirmPassword" />
             <mat-error>{{ err('confirmPassword') }}</mat-error>
           </mat-form-field>
           @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() }}</span></div> }

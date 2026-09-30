@@ -555,7 +555,7 @@ html.dark button.danger.mat-mdc-unelevated-button:not(:disabled) { color: #2a061
 }
 /* Fields sized to their message (long hints) keep a gap below it too. */
 :where(.mat-mdc-form-field-subscript-dynamic-size:has(.mat-mdc-form-field-hint, .mat-mdc-form-field-error)) {
-  padding-bottom: 10px;
+  padding-bottom: 18px;
 }
 .mat-mdc-form-field-hint, .mat-mdc-form-field-error { line-height: 1.35; }
 .mat-mdc-form-field-subscript-wrapper { font-size: 12px; letter-spacing: 0; }

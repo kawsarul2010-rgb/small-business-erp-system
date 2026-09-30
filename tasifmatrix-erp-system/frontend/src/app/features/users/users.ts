@@ -1,3 +1,4 @@
+import { PasswordToggle } from '../../shared/password-toggle';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -171,7 +172,7 @@ export class UsersPage implements OnInit {
 
 @Component({
   selector: 'app-user-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, SearchSelect],
+  imports: [ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, SearchSelect, PasswordToggle],
   template: `
     <h2 mat-dialog-title>{{ data ? 'Edit user' : 'New user' }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
@@ -199,7 +200,8 @@ export class UsersPage implements OnInit {
           </div>
           <mat-form-field subscriptSizing="dynamic" class="span-2">
             <mat-label>{{ data ? 'New password (leave empty to keep)' : 'Temporary password' }}</mat-label>
-            <input matInput type="password" formControlName="password" autocomplete="new-password" />
+            <input matInput #pwPassword type="password" formControlName="password" autocomplete="new-password" />
+          <app-password-toggle matSuffix [for]="pwPassword" />
             <mat-hint>The user must change it at next login.</mat-hint>
             <mat-error>{{ err('password', 'Password') }}</mat-error>
           </mat-form-field>

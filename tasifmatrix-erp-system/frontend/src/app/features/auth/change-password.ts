@@ -1,3 +1,4 @@
+import { PasswordToggle } from '../../shared/password-toggle';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,7 +12,7 @@ import { matchValidator } from './reset-password';
 
 @Component({
   selector: 'app-change-password',
-  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, PasswordToggle],
   template: `
     <div class="page">
       <div class="page-header">
@@ -25,18 +26,21 @@ import { matchValidator } from './reset-password';
       <form class="card card-pad" style="max-width: 460px" [formGroup]="form" (ngSubmit)="submit()">
         <mat-form-field class="full-width">
           <mat-label>Current password</mat-label>
-          <input matInput type="password" formControlName="currentPassword" autocomplete="current-password" />
+          <input matInput #pwCurrentPassword type="password" formControlName="currentPassword" autocomplete="current-password" />
+          <app-password-toggle matSuffix [for]="pwCurrentPassword" />
           <mat-error>{{ err('currentPassword', 'Current password') }}</mat-error>
         </mat-form-field>
         <mat-form-field subscriptSizing="dynamic" class="full-width">
           <mat-label>New password</mat-label>
-          <input matInput type="password" formControlName="newPassword" autocomplete="new-password" />
+          <input matInput #pwNewPassword type="password" formControlName="newPassword" autocomplete="new-password" />
+          <app-password-toggle matSuffix [for]="pwNewPassword" />
           <mat-hint>At least 8 characters with a letter and a number</mat-hint>
           <mat-error>{{ err('newPassword', 'New password') }}</mat-error>
         </mat-form-field>
         <mat-form-field class="full-width">
           <mat-label>Confirm new password</mat-label>
-          <input matInput type="password" formControlName="confirmPassword" autocomplete="new-password" />
+          <input matInput #pwConfirmPassword type="password" formControlName="confirmPassword" autocomplete="new-password" />
+          <app-password-toggle matSuffix [for]="pwConfirmPassword" />
           <mat-error>{{ err('confirmPassword', 'Password') }}</mat-error>
         </mat-form-field>
         @if (error()) { <p class="negative">{{ error() }}</p> }
