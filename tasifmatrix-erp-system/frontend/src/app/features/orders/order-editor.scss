@@ -1,3 +1,5 @@
+@use '@angular/material' as mat;
+
 .header-card { margin-bottom: 16px; }
 .header-grid {
   display: grid;
@@ -12,17 +14,27 @@
 
 .line-grid {
   display: grid;
-  grid-template-columns: 28px minmax(220px, 3fr) 92px 96px 96px 110px 110px 120px 40px;
-  gap: 8px;
+  grid-template-columns: 28px minmax(200px, 2.6fr) minmax(100px, .85fr) minmax(100px, .85fr) minmax(108px, .9fr) minmax(112px, .95fr) minmax(108px, .9fr) minmax(124px, 1fr) 40px;
+  gap: 10px;
   align-items: start;
 }
-.line-labels { font-size: 12px; color: var(--erp-muted); padding: 4px 0; border-bottom: 1px solid var(--erp-border); span:first-child { text-align: center; } }
-.line-row { padding: 10px 0 6px; border-bottom: 1px dashed var(--erp-border); }
+/* Compact figures in the line grid, so labels such as "Total pcs" fit their boxes. */
+.line-row, .line-card {
+  @include mat.form-field-overrides((container-text-size: 14px, outlined-label-text-size: 14px));
+  @include mat.select-overrides((trigger-text-size: 14px));
+}
+.line-labels { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--erp-muted); padding: 8px 0; border-bottom: 1px solid var(--erp-border); span:first-child { text-align: center; } }
+.line-row { padding: 14px 0 10px; border-bottom: 1px dashed var(--erp-border); }
 .line-no { padding-top: 16px; text-align: center; color: var(--erp-muted); font-variant-numeric: tabular-nums; }
 .cell { width: 100%; min-width: 0; }
 .product-info { font-size: 12px; color: var(--erp-muted); margin: 2px 4px 0; }
 .remove { margin-top: 6px; }
-.line-error { grid-column: 2 / -1; font-size: 12px; display: flex; gap: 12px; flex-wrap: wrap; }
+.line-error {
+  grid-column: 2 / -1;
+  display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap;
+  margin-top: 2px; font-size: 12.5px;
+  mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}
 
 .lines-foot { display: flex; justify-content: space-between; align-items: center; padding: 12px 0 8px; flex-wrap: wrap; gap: 12px; }
 .order-total { display: flex; align-items: baseline; gap: 12px; font-size: 20px; }
@@ -51,7 +63,7 @@
   border-radius: 12px;
   padding: 10px 12px 12px;
   margin-bottom: 12px;
-  background: #fcfdff;
+  background: var(--erp-card-2);
 }
 .line-card-head { display: flex; align-items: center; gap: 6px; }
 .line-card-head app-search-select { flex: 1; min-width: 0; }
@@ -74,8 +86,8 @@
   z-index: 20;
   display: flex; align-items: center; gap: 12px;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, .96);
-  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--erp-card) 90%, transparent);
+  backdrop-filter: blur(12px);
   border-top: 1px solid var(--erp-border);
   .bar-total { display: flex; flex-direction: column; line-height: 1.2; flex: 1; }
   .bar-total .muted { font-size: 11px; }
@@ -86,3 +98,4 @@
   .lines-card { padding: 12px 12px 4px; }
   .page { padding-bottom: calc(86px + var(--erp-bottom-nav) + var(--erp-safe-bottom)); }
 }
+.header-grid .notes { margin-bottom: 0; }

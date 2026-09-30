@@ -6,7 +6,8 @@ import { enumLabel } from './pipes';
   selector: 'app-status',
   template: `<span class="chip" [class]="'chip chip-' + tone()">{{ text() }}</span>`,
   styles: `
-    .chip { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 20px; white-space: nowrap; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; padding: 1px 10px 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 20px; white-space: nowrap; }
+    .chip::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .85; }
     .chip-neutral { background: var(--erp-chip-neutral-bg); color: var(--erp-chip-neutral-fg); }
     .chip-info { background: var(--erp-chip-info-bg); color: var(--erp-chip-info-fg); }
     .chip-success { background: var(--erp-chip-success-bg); color: var(--erp-chip-success-fg); }

@@ -1,4 +1,13 @@
 @use '@angular/material' as mat;
+@use './styles/palette' as brand;
+
+/*
+ * Tasif Matrix ERP design system.
+ *
+ * Everything visual reads from the --erp-* tokens below, so light and dark mode are one
+ * stylesheet: `html.dark` (set by ThemeService, and before start-up by a tiny script in
+ * index.html so there is no flash) swaps the tokens and the Material colour theme.
+ */
 
 /* Fonts are bundled with the app so it also works offline (important inside the Android app). */
 @each $weight in (400, 500, 600, 700) {
@@ -19,49 +28,193 @@
   src: url('/fonts/material-symbols-subset.woff2') format('woff2');
 }
 
+$font: 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
+
+/* ============================== tokens: light ============================== */
 html {
   color-scheme: light;
   @include mat.theme((
-    color: (
-      primary: mat.$azure-palette,
-      tertiary: mat.$blue-palette,
-    ),
-    typography: (plain-family: 'Inter, system-ui, sans-serif', brand-family: 'Inter, system-ui, sans-serif'),
+    color: (primary: brand.$primary-palette, tertiary: brand.$tertiary-palette, theme-type: light),
+    typography: (plain-family: $font, brand-family: $font),
     density: -1,
   ));
 
-  --erp-bg: #f4f6fa;
+  --erp-bg: #f4f5fb;
   --erp-card: #ffffff;
-  --erp-border: #e4e8ef;
-  --erp-muted: #5c6878;
-  --erp-faint: #8a94a3;
-  --erp-positive: #16794a;
-  --erp-negative: #b3261e;
-  --erp-shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .04);
-  --erp-shadow-lg: 0 8px 24px rgba(16, 24, 40, .12);
+  --erp-card-2: #f8f9fd;
+  --erp-border: #e6e8f1;
+  --erp-border-strong: #d3d7e4;
+  --erp-text: #141a2e;
+  --erp-muted: #586078;
+  --erp-faint: #8a91a6;
+  --erp-hover: rgba(79, 70, 229, .045);
+  --erp-pressed: rgba(79, 70, 229, .09);
 
-  --erp-chip-neutral-bg: #eef1f5; --erp-chip-neutral-fg: #37414d;
-  --erp-chip-info-bg: #e5edfd;    --erp-chip-info-fg: #1a4fa0;
-  --erp-chip-success-bg: #e2f4ea; --erp-chip-success-fg: #146c41;
-  --erp-chip-warn-bg: #fdf0d9;    --erp-chip-warn-fg: #8a5300;
-  --erp-chip-danger-bg: #fbe5e3;  --erp-chip-danger-fg: #a1261d;
+  --erp-brand: #4f46e5;
+  --erp-brand-strong: #4338ca;
+  --erp-brand-soft: #eef0ff;
+  --erp-brand-fg: #3730a3;
+  --erp-accent: #0d9488;
+  --erp-accent-soft: #e3f6f3;
+  --erp-accent-fg: #0f766e;
+
+  --erp-positive: #0f8a5f;
+  --erp-negative: #c8334f;
+  --erp-warning: #b45309;
+
+  --erp-shadow-sm: 0 1px 2px rgba(20, 26, 46, .05);
+  --erp-shadow: 0 1px 2px rgba(20, 26, 46, .04), 0 2px 8px rgba(20, 26, 46, .04);
+  --erp-shadow-hover: 0 2px 4px rgba(20, 26, 46, .04), 0 10px 24px rgba(20, 26, 46, .08);
+  --erp-shadow-lg: 0 12px 32px rgba(20, 26, 46, .14);
+  --erp-radius: 16px;
+  --erp-radius-sm: 12px;
+
+  /* brand surfaces: navigation rail, phone app bar, hero banners */
+  --erp-rail-bg: linear-gradient(180deg, #1c1a4a 0%, #25226a 58%, #1d2155 100%);
+  --erp-rail-fg: #d3d4f7;
+  --erp-rail-muted: #8e91c9;
+  --erp-rail-active: rgba(255, 255, 255, .12);
+  --erp-rail-hover: rgba(255, 255, 255, .06);
+  --erp-rail-border: rgba(255, 255, 255, .08);
+  --erp-appbar-bg: linear-gradient(115deg, #2b2775 0%, #4338ca 100%);
+  --erp-hero-bg: radial-gradient(120% 140% at 100% 0%, rgba(45, 212, 191, .45) 0%, rgba(45, 212, 191, 0) 45%),
+    linear-gradient(120deg, #2b2775 0%, #4338ca 55%, #5b52f0 100%);
+  --erp-logo-bg: linear-gradient(135deg, #6366f1 0%, #4f46e5 45%, #14b8a6 100%);
+
+  /* tinted icon badges */
+  --erp-tint-indigo-bg: #eef0ff;  --erp-tint-indigo-fg: #4338ca;
+  --erp-tint-violet-bg: #f3edff;  --erp-tint-violet-fg: #6d28d9;
+  --erp-tint-teal-bg: #e3f6f3;    --erp-tint-teal-fg: #0f766e;
+  --erp-tint-amber-bg: #fff4e0;   --erp-tint-amber-fg: #b45309;
+  --erp-tint-rose-bg: #ffe9ee;    --erp-tint-rose-fg: #be123c;
+  --erp-tint-slate-bg: #eef1f6;   --erp-tint-slate-fg: #475069;
+
+  --erp-chip-neutral-bg: #eef1f6; --erp-chip-neutral-fg: #3a4459;
+  --erp-chip-info-bg: #eaedff;    --erp-chip-info-fg: #3730a3;
+  --erp-chip-success-bg: #e1f5ec; --erp-chip-success-fg: #0b6b49;
+  --erp-chip-warn-bg: #fdf1dc;    --erp-chip-warn-fg: #8a5300;
+  --erp-chip-danger-bg: #fde6ea;  --erp-chip-danger-fg: #a61b3a;
+
+  --erp-chart-grid: rgba(20, 26, 46, .06);
+  --erp-chart-tick: #8a91a6;
 
   /* Mobile chrome heights, used for page padding so nothing hides behind the bars. */
-  --erp-bottom-nav: 62px;
+  --erp-bottom-nav: 64px;
   --erp-safe-bottom: env(safe-area-inset-bottom, 0px);
   --erp-safe-top: env(safe-area-inset-top, 0px);
+  --erp-rail-width: 264px;
 }
 
+/* ============================== tokens: dark ============================== */
+html.dark {
+  color-scheme: dark;
+  @include mat.theme((
+    color: (primary: brand.$primary-palette, tertiary: brand.$tertiary-palette, theme-type: dark),
+  ));
+
+  --erp-bg: #0b0d19;
+  --erp-card: #141729;
+  --erp-card-2: #181c31;
+  --erp-border: #252a44;
+  --erp-border-strong: #343a5c;
+  --erp-text: #e7e9f6;
+  --erp-muted: #a4aac4;
+  --erp-faint: #707795;
+  --erp-hover: rgba(165, 160, 255, .06);
+  --erp-pressed: rgba(165, 160, 255, .12);
+
+  --erp-brand: #9d99ff;
+  --erp-brand-strong: #b3b0ff;
+  --erp-brand-soft: rgba(129, 122, 255, .16);
+  --erp-brand-fg: #c9c6ff;
+  --erp-accent: #2dd4bf;
+  --erp-accent-soft: rgba(45, 212, 191, .14);
+  --erp-accent-fg: #5eead4;
+
+  --erp-positive: #34d399;
+  --erp-negative: #fb7190;
+  --erp-warning: #fbbf24;
+
+  --erp-shadow-sm: 0 1px 2px rgba(0, 0, 0, .3);
+  --erp-shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 2px 10px rgba(0, 0, 0, .18);
+  --erp-shadow-hover: 0 2px 6px rgba(0, 0, 0, .35), 0 12px 28px rgba(0, 0, 0, .3);
+  --erp-shadow-lg: 0 16px 40px rgba(0, 0, 0, .5);
+
+  --erp-rail-bg: linear-gradient(180deg, #100e2e 0%, #15133d 60%, #111436 100%);
+  --erp-appbar-bg: linear-gradient(115deg, #1b1850 0%, #2f2a8f 100%);
+  --erp-hero-bg: radial-gradient(120% 140% at 100% 0%, rgba(45, 212, 191, .28) 0%, rgba(45, 212, 191, 0) 45%),
+    linear-gradient(120deg, #1b1850 0%, #2f2a8f 60%, #3d36b8 100%);
+
+  --erp-tint-indigo-bg: rgba(129, 122, 255, .16); --erp-tint-indigo-fg: #b3b0ff;
+  --erp-tint-violet-bg: rgba(167, 139, 250, .16); --erp-tint-violet-fg: #c4b5fd;
+  --erp-tint-teal-bg: rgba(45, 212, 191, .14);    --erp-tint-teal-fg: #5eead4;
+  --erp-tint-amber-bg: rgba(251, 191, 36, .14);   --erp-tint-amber-fg: #fcd34d;
+  --erp-tint-rose-bg: rgba(251, 113, 144, .15);   --erp-tint-rose-fg: #fda4b8;
+  --erp-tint-slate-bg: rgba(148, 163, 184, .14);  --erp-tint-slate-fg: #cbd5e1;
+
+  --erp-chip-neutral-bg: rgba(148, 163, 184, .16); --erp-chip-neutral-fg: #cbd3e1;
+  --erp-chip-info-bg: rgba(129, 122, 255, .2);     --erp-chip-info-fg: #c9c6ff;
+  --erp-chip-success-bg: rgba(52, 211, 153, .16);  --erp-chip-success-fg: #6ee7b7;
+  --erp-chip-warn-bg: rgba(251, 191, 36, .16);     --erp-chip-warn-fg: #fcd34d;
+  --erp-chip-danger-bg: rgba(251, 113, 144, .17);  --erp-chip-danger-fg: #fda4b8;
+
+  --erp-chart-grid: rgba(255, 255, 255, .06);
+  --erp-chart-tick: #707795;
+}
+
+/* ============================== Material component shape & colour ============================== */
+html {
+  @include mat.button-overrides((
+    filled-container-shape: 10px,
+    outlined-container-shape: 10px,
+    protected-container-shape: 10px,
+    tonal-container-shape: 10px,
+    text-container-shape: 10px,
+    outlined-outline-color: var(--erp-border-strong),
+  ));
+  @include mat.fab-overrides((container-shape: 18px, extended-container-shape: 18px, small-container-shape: 14px));
+  @include mat.form-field-overrides((
+    outlined-container-shape: 10px,
+    outlined-outline-color: var(--erp-border-strong),
+    outlined-hover-outline-color: var(--erp-faint),
+  ));
+  @include mat.dialog-overrides((container-shape: 20px, container-color: var(--erp-card)));
+  @include mat.menu-overrides((container-shape: 14px, container-color: var(--erp-card), divider-color: var(--erp-border)));
+  @include mat.table-overrides((
+    background-color: transparent,
+    row-item-outline-color: var(--erp-border),
+    header-headline-color: var(--erp-muted),
+  ));
+  @include mat.button-toggle-overrides((
+    shape: 10px,
+    divider-color: var(--erp-border-strong),
+    selected-state-background-color: var(--erp-brand-soft),
+    selected-state-text-color: var(--erp-brand-fg),
+    background-color: var(--erp-card),
+    text-color: var(--erp-muted),
+  ));
+  @include mat.paginator-overrides((container-background-color: transparent));
+  @include mat.sidenav-overrides((content-background-color: var(--erp-bg), container-shape: 0));
+  @include mat.select-overrides((panel-background-color: var(--erp-card)));
+  @include mat.autocomplete-overrides((background-color: var(--erp-card)));
+  @include mat.datepicker-overrides((calendar-container-background-color: var(--erp-card), calendar-container-shape: 16px));
+}
+
+/* ============================== base ============================== */
 html, body { height: 100%; }
 body {
   margin: 0;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
   background: var(--erp-bg);
-  color: var(--mat-sys-on-surface);
+  color: var(--erp-text);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
+  font-feature-settings: 'cv11', 'ss01';
 }
+/* the switch between themes glides instead of flashing */
+body, .card, .m-card { transition: background-color .2s ease, border-color .2s ease; }
 
 .mat-icon, mat-icon {
   font-family: 'Material Symbols Outlined';
@@ -80,31 +233,75 @@ body {
 }
 /* An icon name the bundled subset does not carry: keep the space, hide the raw text. */
 mat-icon.icon-unmapped { visibility: hidden; }
-a { color: var(--mat-sys-primary); }
+a { color: var(--erp-brand); }
 .num, .money { font-variant-numeric: tabular-nums; }
+::selection { background: color-mix(in srgb, var(--erp-brand) 26%, transparent); }
+
+/* thin, quiet scrollbars on desktop */
+@media (hover: hover) {
+  * { scrollbar-width: thin; scrollbar-color: var(--erp-border-strong) transparent; }
+}
 
 /* ============================== page scaffolding ============================== */
-.page { padding: 20px 24px 40px; max-width: 1400px; margin: 0 auto; box-sizing: border-box; }
-.page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-.page-header h1 { font-size: 22px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
-.page-header .subtitle { color: var(--erp-muted); font-size: 13px; margin-top: 3px; max-width: 70ch; }
-.page-header .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.page { padding: 24px 28px 48px; max-width: 1440px; margin: 0 auto; box-sizing: border-box; animation: erp-page-in .22s ease-out; }
+@keyframes erp-page-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .page { animation: none; } }
 
-.card { background: var(--erp-card); border: 1px solid var(--erp-border); border-radius: 14px; box-shadow: var(--erp-shadow); }
-.card-pad { padding: 16px; }
-.card-title { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
+.page-header { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.page-header h1 { font-size: 24px; font-weight: 700; margin: 0; letter-spacing: -0.022em; line-height: 1.25; }
+.page-header .subtitle { color: var(--erp-muted); font-size: 13.5px; margin-top: 4px; max-width: 72ch; line-height: 1.45; }
+.page-header .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
-.toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 12px 16px 0; }
-.toolbar .search { flex: 1 1 260px; max-width: 420px; }
+.card {
+  background: var(--erp-card);
+  border: 1px solid var(--erp-border);
+  border-radius: var(--erp-radius);
+  box-shadow: var(--erp-shadow);
+}
+.card-pad { padding: 18px 20px; }
+.card-title { font-size: 15px; font-weight: 650; margin: 0 0 12px; letter-spacing: -0.01em; }
+
+/* Section heading with an icon badge, e.g. inside detail pages. */
+.icon-badge {
+  display: inline-grid; place-items: center; flex: none;
+  width: 36px; height: 36px; border-radius: 11px;
+  background: var(--erp-tint-indigo-bg); color: var(--erp-tint-indigo-fg);
+  mat-icon { font-size: 20px; width: 20px; height: 20px; }
+  &.teal { background: var(--erp-tint-teal-bg); color: var(--erp-tint-teal-fg); }
+  &.violet { background: var(--erp-tint-violet-bg); color: var(--erp-tint-violet-fg); }
+  &.amber { background: var(--erp-tint-amber-bg); color: var(--erp-tint-amber-fg); }
+  &.rose { background: var(--erp-tint-rose-bg); color: var(--erp-tint-rose-fg); }
+  &.slate { background: var(--erp-tint-slate-bg); color: var(--erp-tint-slate-fg); }
+}
+
+.toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 16px 18px 4px; }
+.toolbar .search { flex: 1 1 260px; max-width: 440px; }
 .toolbar mat-form-field { margin-bottom: -8px; }
 
+/* ============================== tables ============================== */
 .table-wrap { overflow-x: auto; }
 table.mat-mdc-table { width: 100%; background: transparent; }
-.mat-mdc-row:hover { background: rgba(0, 0, 0, 0.025); }
+.mat-mdc-header-row { background: var(--erp-card-2); }
+.mat-mdc-header-cell {
+  font-weight: 600;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--erp-muted);
+  border-top: 1px solid var(--erp-border);
+}
+.mat-mdc-cell { color: var(--erp-text); }
+.mat-mdc-row { transition: background-color .12s ease; }
+.mat-mdc-row:hover { background: var(--erp-hover); }
 .mat-mdc-row.clickable { cursor: pointer; }
+.mat-mdc-row:last-child .mat-mdc-cell { border-bottom-color: transparent; }
+.mat-mdc-header-cell:first-child, .mat-mdc-cell:first-child { padding-left: 20px; }
+.mat-mdc-header-cell:last-child, .mat-mdc-cell:last-child { padding-right: 20px; }
 td.num, th.num { text-align: right !important; }
-.mat-mdc-header-cell { font-weight: 600; color: var(--erp-muted); }
-.empty { padding: 32px; text-align: center; color: var(--erp-muted); }
+.mat-mdc-footer-row { background: var(--erp-card-2); font-weight: 600; }
+.mat-mdc-paginator { border-top: 1px solid var(--erp-border); border-radius: 0 0 var(--erp-radius) var(--erp-radius); }
+
+.empty { padding: 40px 24px; text-align: center; color: var(--erp-muted); }
 .muted { color: var(--erp-muted); }
 .faint { color: var(--erp-faint); }
 .positive { color: var(--erp-positive); }
@@ -112,25 +309,82 @@ td.num, th.num { text-align: right !important; }
 .nowrap { white-space: nowrap; }
 .code { font-variant-numeric: tabular-nums; color: var(--erp-muted); }
 
+/* ============================== forms ============================== */
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
 .form-grid .span-2 { grid-column: span 2; }
 .form-grid mat-form-field { width: 100%; }
+.mat-mdc-dialog-container .mat-mdc-dialog-title { font-weight: 650; letter-spacing: -0.01em; }
 
-.kv { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; font-size: 14px; }
+
+.kv { display: grid; grid-template-columns: 140px 1fr; gap: 8px 12px; font-size: 14px; }
 .kv dt { color: var(--erp-muted); }
 .kv dd { margin: 0; }
 
 button.danger.mat-mdc-unelevated-button:not(:disabled) { background: var(--erp-negative); color: #fff; }
-.snack-error { --mat-snack-bar-container-color: #5c1a15; }
-.snack-success { --mat-snack-bar-container-color: #14402c; }
-
-.auth-wrap { min-height: 100dvh; display: grid; place-items: center; padding: 16px; box-sizing: border-box; }
-.auth-card { width: 100%; max-width: 420px; padding: 28px; box-sizing: border-box; }
-.auth-card h1 { font-size: 22px; margin: 0 0 4px; }
-.auth-card app-brand .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; font-size: 15.5px; font-weight: 700; color: var(--mat-sys-primary); }
-.auth-card mat-form-field { width: 100%; }
-.auth-card .links { display: flex; justify-content: space-between; margin-top: 12px; font-size: 14px; }
+html.dark button.danger.mat-mdc-unelevated-button:not(:disabled) { color: #2a0610; }
+.snack-error { --mat-snack-bar-container-color: #7a1a2c; --mat-snack-bar-supporting-text-color: #fff; }
+.snack-success { --mat-snack-bar-container-color: #0f5a40; --mat-snack-bar-supporting-text-color: #fff; }
+.mat-mdc-snack-bar-container .mdc-snackbar__surface { border-radius: 12px !important; }
 .full-width { width: 100%; }
+
+/* Primary call-to-action with the brand gradient (the "New ..." buttons). */
+.mat-mdc-unelevated-button.cta:not(:disabled) {
+  background: linear-gradient(135deg, #5b52f0 0%, #4338ca 100%);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(67, 56, 202, .25), 0 4px 12px rgba(67, 56, 202, .22);
+}
+
+/* ============================== sign-in screens ============================== */
+.auth-wrap {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  background: var(--erp-bg);
+}
+.auth-aside {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px 56px;
+  color: #fff;
+  background: var(--erp-hero-bg);
+}
+.auth-main { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; box-sizing: border-box; }
+.auth-card { width: 100%; max-width: 420px; padding: 32px; box-sizing: border-box; }
+.auth-card h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.025em; margin: 0 0 6px; }
+.auth-card .lead { margin: 0 0 22px; color: var(--erp-muted); font-size: 14.5px; line-height: 1.5; }
+.auth-card mat-form-field { width: 100%; }
+.auth-card .submit { height: 48px; font-size: 15px; font-weight: 600; margin-top: 14px; }
+.auth-card .links { display: flex; justify-content: space-between; gap: 12px; margin-top: 18px; font-size: 14px; }
+.auth-card .links a { font-weight: 550; text-decoration: none; }
+.auth-card .links a:hover { text-decoration: underline; }
+.auth-card .alert { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; margin: 0 0 14px; border-radius: 10px; font-size: 13.5px; }
+.auth-card .alert mat-icon { font-size: 18px; width: 18px; height: 18px; margin-top: 1px; }
+.auth-card .alert.error { background: var(--erp-chip-danger-bg); color: var(--erp-chip-danger-fg); }
+.auth-card .alert.info { background: var(--erp-chip-info-bg); color: var(--erp-chip-info-fg); }
+.auth-card .alert.success { background: var(--erp-chip-success-bg); color: var(--erp-chip-success-fg); }
+.auth-mobile-brand { display: none; }
+
+@media (max-width: 960px) {
+  .auth-wrap { grid-template-columns: 1fr; align-content: start; }
+  .auth-aside { display: none; }
+  .auth-main { justify-content: flex-start; padding: 0 16px 24px; }
+  .auth-mobile-brand {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    width: calc(100% + 32px);
+    margin: 0 -16px -44px;
+    padding: calc(40px + var(--erp-safe-top)) 24px 72px;
+    box-sizing: border-box;
+    color: #fff; text-align: center;
+    background: var(--erp-hero-bg);
+    border-radius: 0 0 28px 28px;
+  }
+  .auth-mobile-brand .tagline { font-size: 13px; opacity: .8; }
+  .auth-card { padding: 24px 20px; box-shadow: var(--erp-shadow-lg); }
+  .auth-card h1 { font-size: 22px; }
+}
 
 /* ============================== mobile card lists ============================== */
 /* Used instead of tables below 840px: one card per record, no sideways scrolling. */
@@ -147,28 +401,28 @@ button.danger.mat-mdc-unelevated-button:not(:disabled) { background: var(--erp-n
   background: var(--erp-card);
   border: 1px solid var(--erp-border);
   border-radius: 14px;
-  box-shadow: var(--erp-shadow);
-  padding: 12px 14px;
-  transition: background .12s ease;
+  box-shadow: var(--erp-shadow-sm);
+  padding: 13px 14px;
+  transition: background-color .12s ease, transform .12s ease;
 }
-.m-card:active { background: #eef2f7; }
+.m-card:active { background: var(--erp-pressed); transform: scale(.995); }
 
 .m-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.m-title { font-size: 15.5px; font-weight: 620; line-height: 1.25; }
+.m-title { font-size: 15px; font-weight: 640; line-height: 1.3; letter-spacing: -0.005em; }
 .m-sub { color: var(--erp-muted); font-size: 12.5px; margin-top: 3px; }
-.m-amount { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.m-amount { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -0.01em; }
 .m-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 
-.m-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }
+.m-meta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--erp-border); }
 .m-meta > div { min-width: 0; }
 .m-meta.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.m-meta .k { display: block; color: var(--erp-faint); font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 2px; }
-.m-meta .v { display: block; font-size: 13.5px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m-meta .k { display: block; color: var(--erp-faint); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 2px; }
+.m-meta .v { display: block; font-size: 13.5px; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .m-divider { height: 1px; background: var(--erp-border); margin: 10px -14px 0; }
 .m-actions { display: flex; justify-content: flex-end; gap: 2px; margin: 4px -6px -6px 0; }
 
-.m-load-more { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 12px 16px; }
+.m-load-more { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 12px 16px; }
 .m-count { color: var(--erp-faint); font-size: 12px; }
 
 /*
@@ -183,6 +437,9 @@ button.danger.mat-mdc-unelevated-button:not(:disabled) { background: var(--erp-n
   right: 16px;
   bottom: calc(var(--erp-bottom-nav) + var(--erp-safe-bottom) + 16px);
   z-index: 20;
+  color: #fff;
+  background: linear-gradient(135deg, #5b52f0 0%, #4338ca 60%, #0d9488 140%);
+  box-shadow: 0 6px 18px rgba(67, 56, 202, .38), 0 2px 4px rgba(20, 26, 46, .12);
 }
 
 /* Sticky bar for the primary action on a phone (save, finalize...). */
@@ -194,8 +451,8 @@ button.danger.mat-mdc-unelevated-button:not(:disabled) { background: var(--erp-n
   gap: 12px;
   padding: 10px 12px calc(10px + var(--erp-safe-bottom));
   margin: 12px -12px 0;
-  background: color-mix(in srgb, var(--erp-card) 92%, transparent);
-  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--erp-card) 90%, transparent);
+  backdrop-filter: blur(12px);
   border-top: 1px solid var(--erp-border);
   z-index: 15;
 }
@@ -211,17 +468,17 @@ button.danger.mat-mdc-unelevated-button:not(:disabled) { background: var(--erp-n
    * The trailing space clears the bottom navigation and leaves room for the floating
    * button, so the last card and the "Showing x of y" line are never sitting under it.
    */
-  .page { padding: 12px 12px calc(88px + var(--erp-bottom-nav) + var(--erp-safe-bottom)); }
-  .page-header { margin-bottom: 12px; gap: 8px; }
-  .page-header h1 { font-size: 20px; }
+  .page { padding: 14px 12px calc(88px + var(--erp-bottom-nav) + var(--erp-safe-bottom)); }
+  .page-header { margin-bottom: 14px; gap: 8px; }
+  .page-header h1 { font-size: 21px; }
   .page-header .subtitle { font-size: 12.5px; }
   .form-grid { grid-template-columns: 1fr; }
   .form-grid .span-2 { grid-column: auto; }
   .kv { grid-template-columns: 120px 1fr; }
-  .card { border-radius: 14px; }
-  .toolbar { padding: 10px 12px 0; gap: 8px; }
+  .card-pad { padding: 16px; }
+  .toolbar { padding: 12px 12px 2px; gap: 8px; }
   .toolbar .search { max-width: none; }
-  .empty { padding: 28px 16px; }
+  .empty { padding: 32px 16px; }
 
   /* Comfortable touch targets */
   .mat-mdc-icon-button { --mdc-icon-button-state-layer-size: 44px; }
@@ -229,9 +486,80 @@ button.danger.mat-mdc-unelevated-button:not(:disabled) { background: var(--erp-n
 }
 
 /* Full-screen dialogs on phones. */
-.sheet-dialog .mat-mdc-dialog-surface { border-radius: 0; }
+.sheet-dialog .mat-mdc-dialog-surface { border-radius: 0 !important; }
 .sheet-dialog .mat-mdc-dialog-content { max-height: none; }
 @media (max-width: 840px) {
   .sheet-dialog .mat-mdc-dialog-container { padding-top: var(--erp-safe-top); }
   .sheet-dialog .mat-mdc-dialog-actions { padding-bottom: calc(8px + var(--erp-safe-bottom)); position: sticky; bottom: 0; background: var(--erp-card); border-top: 1px solid var(--erp-border); }
 }
+.cdk-overlay-backdrop.cdk-overlay-dark-backdrop { background: rgba(10, 12, 30, .45); backdrop-filter: blur(2px); }
+.mat-mdc-form-field .field-icon { color: var(--erp-faint); font-size: 20px; width: 20px; height: 20px; padding: 0 6px 0 12px; }
+
+/* ============================== account menu (rendered in the overlay) ============================== */
+.account-menu.mat-mdc-menu-panel { min-width: 260px; }
+.account-menu .menu-user { display: flex; align-items: center; gap: 12px; padding: 14px 16px 12px; cursor: default; }
+.account-menu .menu-user .avatar {
+  display: inline-grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 50%;
+  font-size: 14px; font-weight: 700; color: #fff;
+  background: linear-gradient(135deg, #6d6af8 0%, #4f46e5 50%, #0d9488 130%);
+}
+.account-menu .menu-who { min-width: 0; line-height: 1.3; }
+.account-menu .menu-who .name { font-weight: 650; font-size: 14.5px; }
+.account-menu .menu-who .email { font-size: 12.5px; color: var(--erp-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 190px; }
+.account-menu .role-pill {
+  display: inline-block; margin-top: 5px; padding: 1px 9px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; background: var(--erp-brand-soft); color: var(--erp-brand-fg);
+}
+.account-menu .menu-business {
+  display: flex; align-items: center; gap: 8px; margin: 0 12px 10px; padding: 8px 10px; border-radius: 10px;
+  font-size: 13px; font-weight: 550; background: var(--erp-card-2); border: 1px solid var(--erp-border); cursor: default;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; color: var(--erp-accent); }
+}
+.account-menu .mat-mdc-menu-item .mat-icon { color: var(--erp-muted); }
+.account-menu .mat-mdc-menu-item.selected { color: var(--erp-brand-fg); font-weight: 600; background: var(--erp-brand-soft); }
+.account-menu .mat-mdc-menu-item.selected .mat-icon { color: var(--erp-brand); }
+.account-menu .logout, .account-menu .logout .mat-icon { color: var(--erp-negative); }
+
+/* Filters sit tighter than data-entry forms. */
+.toolbar, .filter-bar, .compact-fields {
+  @include mat.form-field-density(-3);
+  @include mat.button-toggle-density(-2);
+}
+/* record links inside tables: bold, no underline until hovered */
+.mat-mdc-cell a { font-weight: 600; text-decoration: none; }
+.mat-mdc-cell a:hover { text-decoration: underline; }
+
+/* The main action of a page carries the brand gradient. */
+.page-header .actions .mat-mdc-unelevated-button:not(:disabled):not(.danger) {
+  background: linear-gradient(135deg, #5b52f0 0%, #4338ca 100%);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(67, 56, 202, .25), 0 4px 12px rgba(67, 56, 202, .2);
+}
+.crumb a { font-size: 13px; font-weight: 550; text-decoration: none; }
+.crumb a:hover { text-decoration: underline; }
+/* ...and so does the pinned action on phones. */
+.action-bar .mat-mdc-unelevated-button:not(:disabled):not(.danger),
+.save-bar .mat-mdc-unelevated-button:not(:disabled):not(.danger) {
+  background: linear-gradient(135deg, #5b52f0 0%, #4338ca 100%);
+  color: #fff;
+}
+
+/* ============================== form spacing ============================== */
+/*
+ * A hint or error under a field must never touch the next field. Outlined fields float their
+ * label above the border, so a field directly below needs a little more air than Material gives.
+ * :where() keeps these at zero specificity, so tighter layouts (filter bars, order lines) still win.
+ */
+:where(.mat-mdc-form-field:has(> .mat-mdc-form-field-subscript-wrapper:not(.mat-mdc-form-field-subscript-dynamic-size))) {
+  margin-bottom: 18px;
+}
+/* Fields sized to their message (long hints) keep a gap below it too. */
+:where(.mat-mdc-form-field-subscript-dynamic-size:has(.mat-mdc-form-field-hint, .mat-mdc-form-field-error)) {
+  padding-bottom: 10px;
+}
+.mat-mdc-form-field-hint, .mat-mdc-form-field-error { line-height: 1.35; }
+.mat-mdc-form-field-subscript-wrapper { font-size: 12px; letter-spacing: 0; }
+/* a paragraph straight after the fields (current stock, server error) */
+.mat-mdc-dialog-content .form-grid + p, .mat-mdc-dialog-content p.negative { margin: 4px 0 8px; }
+/* room for the first field's floating label under the dialog title */
+.mat-mdc-dialog-container .mat-mdc-dialog-content { padding-top: 8px; }

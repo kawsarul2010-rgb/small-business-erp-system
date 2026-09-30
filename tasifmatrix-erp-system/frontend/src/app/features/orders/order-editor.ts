@@ -1,5 +1,5 @@
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
-import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { AbstractControl, FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -376,6 +376,18 @@ export class OrderEditorPage implements OnInit {
       if (qty > meta.currentStock) warnings.push(`${meta.label}: requested ${qty} ${stockLabel(meta)}, only ${meta.currentStock} in stock.`);
     });
     this.stockWarnings.set(warnings);
+  }
+
+  /** The problems in one order line, each message once ("Value is required." is not repeated per field). */
+  lineErrors(line: AbstractControl): string[] {
+    const messages: string[] = [];
+    for (const name of ['productUuid', 'boxQuantity', 'unitQuantity', 'totalQuantity', 'perUnitPrice', 'perBoxPrice', 'totalPrice']) {
+      const control = line.get(name);
+      if (!control?.invalid) continue;
+      const message = this.err(control as FormControl, name === 'productUuid' ? 'Product' : 'Value');
+      if (message && !messages.includes(message)) messages.push(message);
+    }
+    return messages;
   }
 
   err(control: FormControl | null, label: string): string {

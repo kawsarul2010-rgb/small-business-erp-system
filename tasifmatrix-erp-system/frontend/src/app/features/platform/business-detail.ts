@@ -117,7 +117,7 @@ import { AddAdminDialog, BusinessDialog, SuspendDialog, showCredentials } from '
     </div>
   `,
   styles: `
-    .back-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: var(--mat-sys-primary); text-decoration: none; }
+    .back-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: var(--erp-brand); text-decoration: none; font-weight: 550; }
     .back-link::before { content: '← '; }
     h1 app-status { vertical-align: middle; margin-left: 8px; }
     .code { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }

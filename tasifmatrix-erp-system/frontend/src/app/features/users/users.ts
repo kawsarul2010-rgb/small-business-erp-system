@@ -197,7 +197,7 @@ export class UsersPage implements OnInit {
             <app-search-select label="Linked supplier" [control]="form.controls.supplierUuid" [fetch]="fetchSuppliers"
               [initialLabel]="data?.supplierName ? data!.supplierName + ' (' + data!.supplierCode + ')' : null" />
           </div>
-          <mat-form-field class="span-2">
+          <mat-form-field subscriptSizing="dynamic" class="span-2">
             <mat-label>{{ data ? 'New password (leave empty to keep)' : 'Temporary password' }}</mat-label>
             <input matInput type="password" formControlName="password" autocomplete="new-password" />
             <mat-hint>The user must change it at next login.</mat-hint>

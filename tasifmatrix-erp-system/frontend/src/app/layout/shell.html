@@ -1,30 +1,62 @@
+<!-- Account menu, shared by the desktop top bar and the phone app bar. -->
+<mat-menu #userMenu="matMenu" xPosition="before" class="account-menu">
+  @if (auth.user(); as user) {
+    <div class="menu-user" (click)="$event.stopPropagation()">
+      <span class="avatar lg">{{ initials() }}</span>
+      <div class="menu-who">
+        <div class="name">{{ user.userName }}</div>
+        <div class="email">{{ user.email }}</div>
+        <span class="role-pill">{{ user.role | label }}</span>
+      </div>
+    </div>
+    @if (user.businessName) {
+      <div class="menu-business" (click)="$event.stopPropagation()">
+        <mat-icon>storefront</mat-icon>
+        <span>{{ user.businessName }}</span>
+      </div>
+    }
+  }
+  <mat-divider />
+  <a mat-menu-item routerLink="/profile"><mat-icon>person</mat-icon>My profile</a>
+  <a mat-menu-item routerLink="/change-password"><mat-icon>key</mat-icon>Change password</a>
+  <button mat-menu-item [matMenuTriggerFor]="themeMenu"><mat-icon>{{ theme.isDark() ? 'dark_mode' : 'light_mode' }}</mat-icon>Appearance</button>
+  <button mat-menu-item (click)="about()"><mat-icon>info</mat-icon>About</button>
+  <mat-divider />
+  <button mat-menu-item class="logout" (click)="auth.logout()"><mat-icon>logout</mat-icon>Log out</button>
+</mat-menu>
+
+<mat-menu #themeMenu="matMenu" class="account-menu">
+  @for (option of themeOptions; track option.mode) {
+    <button mat-menu-item (click)="theme.setMode(option.mode)" [class.selected]="theme.mode() === option.mode">
+      <mat-icon>{{ option.icon }}</mat-icon>
+      <span>{{ option.label }}</span>
+    </button>
+  }
+</mat-menu>
+
 @if (layout.isHandset()) {
   <!-- ------------------------------------------------ phone / tablet layout -->
   <div class="mobile-shell">
-    <header class="mobile-bar">
+    <header class="appbar">
       @if (canGoBack()) {
-        <button mat-icon-button aria-label="Back" (click)="back()"><mat-icon>arrow_back</mat-icon></button>
+        <button mat-icon-button class="on-brand" aria-label="Back" (click)="back()"><mat-icon>arrow_back</mat-icon></button>
         <span class="bar-title">{{ pageTitle() }}</span>
       } @else {
-        <mat-icon class="bar-logo">inventory_2</mat-icon>
+        <app-logo [size]="32" class="bar-logo" />
         <!-- People work in their business, so its name leads; the product's name is in About. -->
-        <span class="bar-title bar-brand">{{ workspace() }}</span>
+        <span class="bar-text">
+          <span class="bar-title">{{ workspace() }}</span>
+          <span class="bar-sub">{{ pageTitle() }}</span>
+        </span>
       }
       <span class="spacer"></span>
-      @if (auth.user(); as user) {
-        <button mat-icon-button [matMenuTriggerFor]="userMenu" aria-label="Account"><mat-icon>account_circle</mat-icon></button>
-        <mat-menu #userMenu="matMenu" xPosition="before">
-          <div class="menu-user">
-            <div class="name">{{ user.userName }}</div>
-            <div class="muted">{{ user.role | label }}@if (user.businessName) { · {{ user.businessName }} }</div>
-          </div>
-          <mat-divider />
-          <a mat-menu-item routerLink="/profile"><mat-icon>person</mat-icon>My profile</a>
-          <a mat-menu-item routerLink="/change-password"><mat-icon>key</mat-icon>Change password</a>
-          <button mat-menu-item (click)="about()"><mat-icon>info</mat-icon>About</button>
-          <mat-divider />
-          <button mat-menu-item (click)="auth.logout()"><mat-icon>logout</mat-icon>Log out</button>
-        </mat-menu>
+      <button mat-icon-button class="on-brand" (click)="theme.toggle()" [attr.aria-label]="theme.isDark() ? 'Switch to light mode' : 'Switch to dark mode'">
+        <mat-icon>{{ theme.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+      </button>
+      @if (auth.user()) {
+        <button class="avatar-button" [matMenuTriggerFor]="userMenu" aria-label="Account">
+          <span class="avatar">{{ initials() }}</span>
+        </button>
       }
     </header>
 
@@ -34,64 +66,81 @@
 
     <nav class="bottom-nav" aria-label="Main">
       @for (tab of tabs(); track tab.link + tab.label) {
-        <a [routerLink]="tab.link" class="tab" [class.active]="isTabActive(tab)">
-          <mat-icon>{{ tab.icon }}</mat-icon>
-          <span>{{ tab.short ?? tab.label }}</span>
+        <a [routerLink]="tab.link" class="tab" [class.active]="isTabActive(tab)" [attr.aria-current]="isTabActive(tab) ? 'page' : null">
+          <span class="tab-icon"><mat-icon>{{ tab.icon }}</mat-icon></span>
+          <span class="tab-label">{{ tab.short ?? tab.label }}</span>
         </a>
       }
     </nav>
   </div>
 } @else {
   <!-- ------------------------------------------------ desktop layout -->
-  <mat-sidenav-container class="container">
-    <mat-sidenav mode="side" opened class="sidenav">
-      <div class="brand">
-        <mat-icon>inventory_2</mat-icon>
-        <span class="brand-text">
-          <span>{{ app.name }}</span>
-          <span class="workspace" [title]="workspace()">{{ workspace() }}</span>
+  <div class="desk" [class.collapsed]="collapsed()">
+    <aside class="rail" aria-label="Main navigation">
+      <div class="rail-head">
+        <app-logo [size]="36" />
+        <span class="rail-brand">
+          <span class="name">Tasif Matrix</span>
+          <span class="tag">ERP</span>
         </span>
       </div>
-      @for (group of groups(); track group.title) {
-        <div class="group-title">{{ group.title }}</div>
-        <mat-nav-list>
+
+      <div class="workspace" [matTooltip]="collapsed() ? workspace() : ''" matTooltipPosition="right">
+        <span class="ws-icon"><mat-icon>{{ auth.isSuperAdmin() ? 'admin_panel_settings' : 'storefront' }}</mat-icon></span>
+        <span class="ws-text">
+          <span class="ws-label">{{ auth.isSuperAdmin() ? 'Platform' : 'Business' }}</span>
+          <span class="ws-name" [title]="workspace()">{{ workspace() }}</span>
+        </span>
+      </div>
+
+      <nav class="rail-nav">
+        @for (group of groups(); track group.title) {
+          <div class="group-title">{{ group.title }}</div>
           @for (item of group.items; track item.link + item.label) {
-            <a mat-list-item [routerLink]="item.link" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact ?? false }">
-              <mat-icon matListItemIcon>{{ item.icon }}</mat-icon>
-              <span matListItemTitle>{{ item.label }}</span>
+            <a class="nav-item" [routerLink]="item.link" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
+               [matTooltip]="collapsed() ? item.label : ''" matTooltipPosition="right">
+              <mat-icon>{{ item.icon }}</mat-icon>
+              <span class="label">{{ item.label }}</span>
             </a>
           }
-        </mat-nav-list>
-      }
+        }
+      </nav>
 
-      <!-- Developer credit, pinned to the bottom of the navigation rail. -->
+      <!-- Publisher credit, pinned to the bottom of the navigation rail. -->
       <button type="button" class="credit" (click)="about()" [attr.aria-label]="'About ' + app.name">
         <span class="app">{{ app.name }} <span class="ver">v{{ app.version }}</span></span>
         <span class="by">{{ developedBy }}</span>
       </button>
-    </mat-sidenav>
+    </aside>
 
-    <mat-sidenav-content>
-      <mat-toolbar class="topbar">
+    <div class="desk-main">
+      <header class="topbar">
+        <button mat-icon-button (click)="toggleRail()" [attr.aria-label]="collapsed() ? 'Expand navigation' : 'Collapse navigation'" [matTooltip]="collapsed() ? 'Expand menu' : 'Collapse menu'">
+          <mat-icon>{{ collapsed() ? 'menu' : 'menu_open' }}</mat-icon>
+        </button>
+        <div class="crumb">
+          <span class="crumb-ws">{{ workspace() }}</span>
+          <mat-icon>chevron_right</mat-icon>
+          <span class="crumb-page">{{ pageTitle() }}</span>
+        </div>
         <span class="spacer"></span>
+        <button mat-icon-button (click)="theme.toggle()" [attr.aria-label]="theme.isDark() ? 'Switch to light mode' : 'Switch to dark mode'" [matTooltip]="theme.isDark() ? 'Light mode' : 'Dark mode'">
+          <mat-icon>{{ theme.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+        </button>
         @if (auth.user(); as user) {
-          <button mat-button [matMenuTriggerFor]="deskMenu" class="user-button">
-            <mat-icon>account_circle</mat-icon>
-            <span class="user-name">{{ user.userName }}</span>
-            <span class="role">{{ user.role | label }}</span>
+          <button class="user-chip" [matMenuTriggerFor]="userMenu">
+            <span class="avatar">{{ initials() }}</span>
+            <span class="who">
+              <span class="user-name">{{ user.userName }}</span>
+              <span class="role">{{ user.role | label }}</span>
+            </span>
+            <mat-icon>expand_more</mat-icon>
           </button>
-          <mat-menu #deskMenu="matMenu" xPosition="before">
-            <a mat-menu-item routerLink="/profile"><mat-icon>person</mat-icon>My profile</a>
-            <a mat-menu-item routerLink="/change-password"><mat-icon>key</mat-icon>Change password</a>
-            <button mat-menu-item (click)="about()"><mat-icon>info</mat-icon>About</button>
-            <mat-divider />
-            <button mat-menu-item (click)="auth.logout()"><mat-icon>logout</mat-icon>Log out</button>
-          </mat-menu>
         }
-      </mat-toolbar>
-      <main>
+      </header>
+      <main class="desk-content">
         <router-outlet />
       </main>
-    </mat-sidenav-content>
-  </mat-sidenav-container>
+    </div>
+  </div>
 }

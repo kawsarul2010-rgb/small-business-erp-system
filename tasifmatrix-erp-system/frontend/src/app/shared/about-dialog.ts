@@ -3,6 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { APP_INFO, PUBLISHER_LINE, copyrightLine } from '../core/app-info';
+import { AppLogo } from './app-logo';
 
 /**
  * The standard "About this app" screen: product identity, version and who makes it.
@@ -10,11 +11,11 @@ import { APP_INFO, PUBLISHER_LINE, copyrightLine } from '../core/app-info';
  */
 @Component({
   selector: 'app-about-dialog',
-  imports: [MatDialogModule, MatButtonModule, MatIconModule],
+  imports: [MatDialogModule, MatButtonModule, MatIconModule, AppLogo],
   template: `
     <mat-dialog-content class="about">
       <div class="identity">
-        <div class="mark"><mat-icon>inventory_2</mat-icon></div>
+        <app-logo [size]="64" class="mark" />
         <h2>{{ app.name }}</h2>
         <p class="version">Version {{ app.version }}</p>
       </div>
@@ -33,16 +34,11 @@ import { APP_INFO, PUBLISHER_LINE, copyrightLine } from '../core/app-info';
   `,
   styles: `
     .about { padding-top: 12px; text-align: center; }
-    .identity .mark {
-      width: 60px; height: 60px; margin: 4px auto 10px; border-radius: 16px;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--mat-sys-secondary-container);
-    }
-    .identity .mark mat-icon { font-size: 32px; width: 32px; height: 32px; color: var(--mat-sys-primary); }
+    .identity .mark { margin: 4px auto 12px; filter: drop-shadow(0 6px 14px rgba(79, 70, 229, .3)); }
     .identity h2 { margin: 0; font-size: 20px; font-weight: 650; }
     .version { margin: 2px 0 0; font-size: 13px; color: var(--erp-muted); }
 
-    .credit { margin: 20px 0 0; padding: 16px 12px; border-radius: 12px; background: var(--erp-bg); }
+    .credit { margin: 20px 0 0; padding: 16px 12px; border-radius: 14px; background: var(--erp-card-2); border: 1px solid var(--erp-border); }
     .credit .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--erp-faint); }
     .credit .who { margin-top: 6px; font-size: 16px; font-weight: 650; }
     .credit .role { margin-top: 2px; font-size: 13px; color: var(--erp-muted); }

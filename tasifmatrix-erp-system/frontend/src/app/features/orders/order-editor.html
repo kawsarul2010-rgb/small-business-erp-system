@@ -145,7 +145,7 @@
                     </mat-form-field>
                   }
 
-                  <mat-form-field subscriptSizing="dynamic" class="line-total-field">
+                  <mat-form-field floatLabel="always" subscriptSizing="dynamic" class="line-total-field">
                     <mat-label>Line total</mat-label>
                     <span matTextPrefix>Tk&nbsp;</span>
                     <input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="totalPrice" (input)="refresh()" />
@@ -154,9 +154,8 @@
 
                 @if (line.touched && line.invalid) {
                   <div class="line-error negative">
-                    @for (name of ['productUuid', 'boxQuantity', 'unitQuantity', 'totalQuantity', 'perUnitPrice', 'perBoxPrice', 'totalPrice']; track name) {
-                      @if (line.get(name)?.invalid) { <span>{{ err($any(line.get(name)), name === 'productUuid' ? 'Product' : 'Value') }}</span> }
-                    }
+                    <mat-icon>error</mat-icon>
+                    @for (message of lineErrors($any(line)); track message) { <span>{{ message }}</span> }
                   </div>
                 }
               </div>
@@ -230,9 +229,8 @@
 
                 @if (line.touched && line.invalid) {
                   <div class="line-error negative">
-                    @for (name of ['productUuid', 'boxQuantity', 'unitQuantity', 'totalQuantity', 'perUnitPrice', 'perBoxPrice', 'totalPrice']; track name) {
-                      @if (line.get(name)?.invalid) { <span>{{ err($any(line.get(name)), name === 'productUuid' ? 'Product' : 'Value') }}</span> }
-                    }
+                    <mat-icon>error</mat-icon>
+                    @for (message of lineErrors($any(line)); track message) { <span>{{ message }}</span> }
                   </div>
                 }
               </div>

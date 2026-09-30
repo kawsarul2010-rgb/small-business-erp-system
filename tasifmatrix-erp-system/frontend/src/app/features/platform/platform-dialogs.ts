@@ -45,7 +45,7 @@ export function suggestBusinessCode(name: string): string {
             <input matInput formControlName="name" (input)="nameChanged()" />
             <mat-error>{{ err('name', 'Business name') }}</mat-error>
           </mat-form-field>
-          <mat-form-field class="span-2">
+          <mat-form-field subscriptSizing="dynamic" class="span-2">
             <mat-label>Business code</mat-label>
             <input matInput formControlName="code" autocapitalize="off" spellcheck="false" (input)="codeTouchedByUser = true" />
             <mat-hint>People enter this when they register, e.g. {{ form.controls.code.value || 'rahim-store' }}</mat-hint>

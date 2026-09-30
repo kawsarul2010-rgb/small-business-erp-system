@@ -201,7 +201,7 @@ export class OrderViewPage implements OnInit {
           <strong class="negative">Due {{ data.order.dueAmount | money }}</strong>
         </p>
         <div class="form-grid">
-          <mat-form-field>
+          <mat-form-field floatLabel="always">
             <mat-label>Amount</mat-label>
             <span matTextPrefix>Tk&nbsp;</span>
             <input matInput type="number" min="0.01" step="0.01" [max]="data.order.dueAmount" formControlName="paymentAmount" cdkFocusInitial />

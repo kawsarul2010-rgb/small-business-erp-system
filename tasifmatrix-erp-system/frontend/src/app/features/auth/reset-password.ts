@@ -7,7 +7,7 @@ import { MatInputModule } from '@angular/material/input';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService, errorMessage } from '../../core/api.service';
 import { controlError, passwordValidator } from '../../shared/form-errors';
-import { AppBrand } from '../../shared/app-brand';
+import { AuthLayout } from '../../shared/auth-layout';
 
 export function matchValidator(group: AbstractControl) {
   const a = group.get('newPassword')?.value;
@@ -18,20 +18,19 @@ export function matchValidator(group: AbstractControl) {
 
 @Component({
   selector: 'app-reset-password',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, AppBrand],
+  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, AuthLayout],
   template: `
-    <div class="auth-wrap">
+    <app-auth-layout>
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
-        <app-brand />
         <h1>Set a new password</h1>
         @if (done()) {
           <p>Your password has been reset. You can now log in with the new password.</p>
           <a mat-flat-button class="full-width" routerLink="/login">Log in</a>
         } @else if (!token) {
-          <p class="negative">This reset link is invalid. Request a new one.</p>
+          <div class="alert error"><mat-icon>error</mat-icon><span>This reset link is invalid. Request a new one.</span></div>
           <a mat-button routerLink="/forgot-password">Request a new link</a>
         } @else {
-          <mat-form-field>
+          <mat-form-field subscriptSizing="dynamic">
             <mat-label>New password</mat-label>
             <input matInput type="password" formControlName="newPassword" autocomplete="new-password" />
             <mat-hint>At least 8 characters with a letter and a number</mat-hint>
@@ -42,11 +41,11 @@ export function matchValidator(group: AbstractControl) {
             <input matInput type="password" formControlName="confirmPassword" autocomplete="new-password" />
             <mat-error>{{ err('confirmPassword') }}</mat-error>
           </mat-form-field>
-          @if (error()) { <p class="negative">{{ error() }}</p> }
-          <button mat-flat-button class="full-width" type="submit" [disabled]="busy()">Reset password</button>
+          @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() }}</span></div> }
+          <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">Reset password</button>
         }
       </form>
-    </div>
+    </app-auth-layout>
   `,
 })
 export class ResetPasswordPage {

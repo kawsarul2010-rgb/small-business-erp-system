@@ -8,43 +8,42 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { errorMessage } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
-import { AppCredit } from '../../shared/app-credit';
-import { AppBrand } from '../../shared/app-brand';
+import { AuthLayout } from '../../shared/auth-layout';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule, AppCredit, AppBrand],
+  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule, AuthLayout],
   template: `
-    <div class="auth-wrap">
+    <app-auth-layout>
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
-        <app-brand />
         <h1>Log in</h1>
-        <p class="muted">Welcome back. Enter your email and password.</p>
-        @if (expired) { <p class="negative">Your session expired. Please log in again.</p> }
+        <p class="lead">Welcome back. Sign in to continue to your business.</p>
+        @if (expired) { <div class="alert info"><mat-icon>schedule</mat-icon><span>Your session expired. Please log in again.</span></div> }
 
         <mat-form-field>
           <mat-label>Email</mat-label>
+          <mat-icon matPrefix class="field-icon">mail</mat-icon>
           <input matInput type="email" formControlName="email" autocomplete="username" />
         </mat-form-field>
         <mat-form-field>
           <mat-label>Password</mat-label>
+          <mat-icon matPrefix class="field-icon">lock</mat-icon>
           <input matInput [type]="showPassword() ? 'text' : 'password'" formControlName="password" autocomplete="current-password" />
           <button mat-icon-button matSuffix type="button" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
             <mat-icon>{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
           </button>
         </mat-form-field>
 
-        @if (error()) { <p class="negative">{{ error() }}</p> }
+        @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() }}</span></div> }
         @if (busy()) { <mat-progress-bar mode="indeterminate" /> }
-        <button mat-flat-button class="full-width" type="submit" [disabled]="busy()">Log in</button>
+        <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">{{ busy() ? 'Logging in…' : 'Log in' }}</button>
 
         <div class="links">
           <a routerLink="/forgot-password">Forgot password?</a>
           <a routerLink="/register">Create an account</a>
         </div>
       </form>
-      <app-credit />
-    </div>
+    </app-auth-layout>
   `,
 })
 export class LoginPage {

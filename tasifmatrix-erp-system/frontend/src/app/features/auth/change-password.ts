@@ -28,7 +28,7 @@ import { matchValidator } from './reset-password';
           <input matInput type="password" formControlName="currentPassword" autocomplete="current-password" />
           <mat-error>{{ err('currentPassword', 'Current password') }}</mat-error>
         </mat-form-field>
-        <mat-form-field class="full-width">
+        <mat-form-field subscriptSizing="dynamic" class="full-width">
           <mat-label>New password</mat-label>
           <input matInput type="password" formControlName="newPassword" autocomplete="new-password" />
           <mat-hint>At least 8 characters with a letter and a number</mat-hint>

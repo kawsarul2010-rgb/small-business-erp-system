@@ -8,17 +8,16 @@ import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { applyServerErrors, bdMobileValidator, controlError, passwordValidator } from '../../shared/form-errors';
-import { AppBrand } from '../../shared/app-brand';
+import { AuthLayout } from '../../shared/auth-layout';
 
 @Component({
   selector: 'app-register',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule, AppBrand],
+  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule, AuthLayout],
   template: `
-    <div class="auth-wrap">
+    <app-auth-layout>
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
-        <app-brand />
         <h1>Create account</h1>
-        <p class="muted">Join your business's account. Ask your business for its code; its administrator then gives you access.</p>
+        <p class="lead">Join your business's account. Ask your business for its code; its administrator then gives you access.</p>
 
         <mat-form-field>
           <mat-label>Business code</mat-label>
@@ -40,19 +39,19 @@ import { AppBrand } from '../../shared/app-brand';
           <input matInput formControlName="phoneNumber" placeholder="01712345678" autocomplete="tel" />
           <mat-error>{{ err('phoneNumber', 'Mobile number') }}</mat-error>
         </mat-form-field>
-        <mat-form-field>
+        <mat-form-field subscriptSizing="dynamic">
           <mat-label>Password</mat-label>
           <input matInput type="password" formControlName="password" autocomplete="new-password" />
           <mat-hint>At least 8 characters with a letter and a number</mat-hint>
           <mat-error>{{ err('password', 'Password') }}</mat-error>
         </mat-form-field>
 
-        @if (error()) { <p class="negative">{{ error() }}</p> }
+        @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() }}</span></div> }
         @if (busy()) { <mat-progress-bar mode="indeterminate" /> }
-        <button mat-flat-button class="full-width" type="submit" [disabled]="busy()">Create account</button>
+        <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">Create account</button>
         <div class="links"><span></span><a routerLink="/login">I already have an account</a></div>
       </form>
-    </div>
+    </app-auth-layout>
   `,
 })
 export class RegisterPage {

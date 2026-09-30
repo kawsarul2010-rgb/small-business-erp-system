@@ -22,8 +22,9 @@ export class PlatformService {
   async initialize(): Promise<void> {
     if (!this.isNative) return;
     try {
-      await StatusBar.setStyle({ style: Style.Light });
-      await StatusBar.setBackgroundColor({ color: '#ffffff' });
+      // Light icons on the indigo app bar colour, in both light and dark mode.
+      await StatusBar.setStyle({ style: Style.Dark });
+      await StatusBar.setBackgroundColor({ color: '#2b2775' });
       Keyboard.setResizeMode({ mode: KeyboardResize.Native }).catch(() => undefined);
       await SplashScreen.hide();
       CapacitorApp.addListener('backButton', ({ canGoBack }) => {

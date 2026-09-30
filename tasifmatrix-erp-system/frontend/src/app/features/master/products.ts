@@ -170,7 +170,7 @@ export class ProductsPage implements OnInit {
         <div class="form-grid">
           <mat-form-field class="span-2"><mat-label>Product name</mat-label><input matInput formControlName="productName" /><mat-error>{{ err('productName', 'Product name') }}</mat-error></mat-form-field>
           <mat-form-field><mat-label>Product code</mat-label><input matInput formControlName="productCode" /><mat-error>{{ err('productCode', 'Product code') }}</mat-error></mat-form-field>
-          <mat-form-field>
+          <mat-form-field subscriptSizing="dynamic">
             <mat-label>UOM</mat-label>
             <mat-select formControlName="uom">
               @for (u of uomOptions; track u) { <mat-option [value]="u">{{ u }}</mat-option> }
@@ -190,7 +190,7 @@ export class ProductsPage implements OnInit {
           }
 
           @if (isBox() || form.value.uom === 'PCS') {
-            <mat-form-field>
+            <mat-form-field subscriptSizing="dynamic">
               <mat-label>{{ unitTitle() }} per box</mat-label>
               <input matInput type="number" [attr.inputmode]="measured() ? 'decimal' : 'numeric'" min="0" [step]="measured() ? 0.001 : 1" formControlName="unitPerBox" />
               <mat-hint>{{ isBox() ? 'Required for BOX' : 'Optional — enables BOX entry on orders' }}</mat-hint>
@@ -198,8 +198,8 @@ export class ProductsPage implements OnInit {
             </mat-form-field>
           }
 
-          <mat-form-field><mat-label>Purchase price per {{ unit() }}</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productPurchasePrice" /><mat-error>{{ err('productPurchasePrice', 'Purchase price') }}</mat-error></mat-form-field>
-          <mat-form-field><mat-label>Sales price per {{ unit() }}</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productSalesPrice" /><mat-error>{{ err('productSalesPrice', 'Sales price') }}</mat-error></mat-form-field>
+          <mat-form-field floatLabel="always"><mat-label>Purchase price per {{ unit() }}</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productPurchasePrice" /><mat-error>{{ err('productPurchasePrice', 'Purchase price') }}</mat-error></mat-form-field>
+          <mat-form-field floatLabel="always"><mat-label>Sales price per {{ unit() }}</mat-label><span matTextPrefix>Tk&nbsp;</span><input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="productSalesPrice" /><mat-error>{{ err('productSalesPrice', 'Sales price') }}</mat-error></mat-form-field>
           <mat-form-field>
             <mat-label>Low stock alert at ({{ unit() }})</mat-label>
             <input matInput type="number" [attr.inputmode]="measured() ? 'decimal' : 'numeric'" min="0" [step]="measured() ? 0.001 : 1" formControlName="lowStockThreshold" />

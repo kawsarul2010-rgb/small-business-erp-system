@@ -6,15 +6,15 @@
   color: var(--erp-muted);
   background: var(--erp-chip-neutral-bg);
 }
-.chip.on { background: var(--mat-sys-primary); color: #fff; }
+.chip.on { background: linear-gradient(135deg, #5b52f0, #4338ca); color: #fff; }
 
 .filter-button { position: relative; }
-.filter-button.has-filters { color: var(--mat-sys-primary); }
+.filter-button.has-filters { color: var(--erp-brand); }
 .filter-button .badge {
   position: absolute; top: 4px; right: 2px;
   min-width: 16px; height: 16px; line-height: 16px;
   padding: 0 4px; box-sizing: border-box;
-  border-radius: 999px; background: var(--mat-sys-primary); color: #fff;
+  border-radius: 999px; background: #4f46e5; color: #fff;
   font-size: 10px; font-weight: 700; text-align: center;
 }
 

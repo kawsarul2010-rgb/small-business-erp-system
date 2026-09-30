@@ -40,10 +40,10 @@ import { BusinessDialog, showCredentials } from './platform-dialogs';
 
       @if (summary(); as s) {
         <div class="stats">
-          <div class="card stat"><span class="label">Businesses</span><strong>{{ s.businesses }}</strong></div>
-          <div class="card stat"><span class="label">Active</span><strong class="positive">{{ s.activeBusinesses }}</strong></div>
-          <div class="card stat"><span class="label">Suspended</span><strong [class.negative]="s.suspendedBusinesses > 0">{{ s.suspendedBusinesses }}</strong></div>
-          <div class="card stat"><span class="label">Orders this month</span><strong>{{ s.ordersThisMonth }}</strong><span class="hint">{{ s.activeUsers }} active users</span></div>
+          <div class="card stat"><span class="icon-badge"><mat-icon>storefront</mat-icon></span><span class="body"><span class="label">Businesses</span><strong>{{ s.businesses }}</strong></span></div>
+          <div class="card stat"><span class="icon-badge teal"><mat-icon>check_circle</mat-icon></span><span class="body"><span class="label">Active</span><strong class="positive">{{ s.activeBusinesses }}</strong></span></div>
+          <div class="card stat"><span class="icon-badge rose"><mat-icon>block</mat-icon></span><span class="body"><span class="label">Suspended</span><strong [class.negative]="s.suspendedBusinesses > 0">{{ s.suspendedBusinesses }}</strong></span></div>
+          <div class="card stat"><span class="icon-badge violet"><mat-icon>receipt_long</mat-icon></span><span class="body"><span class="label">Orders this month</span><strong>{{ s.ordersThisMonth }}</strong><span class="hint">{{ s.activeUsers }} active users</span></span></div>
         </div>
       }
 
@@ -117,8 +117,9 @@ import { BusinessDialog, showCredentials } from './platform-dialogs';
     </div>
   `,
   styles: `
-    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 16px; }
-    .stat { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px; }
+    .stat { display: flex; align-items: flex-start; gap: 12px; padding: 16px; }
+    .stat .body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
     .stat .label { color: var(--erp-muted); font-size: 13px; }
     .stat strong { font-size: 22px; font-variant-numeric: tabular-nums; }
     .stat .hint { font-size: 12px; color: var(--erp-muted); }
@@ -127,12 +128,14 @@ import { BusinessDialog, showCredentials } from './platform-dialogs';
     .name-link { font-weight: 600; color: inherit; text-decoration: none; }
     .name-link:hover { text-decoration: underline; }
     .clickable { cursor: pointer; }
-    .clickable:hover { background: rgba(0, 0, 0, .025); }
+    .clickable:hover { background: var(--erp-hover); }
     .usage { margin-top: 8px; }
     a.m-card { display: block; color: inherit; text-decoration: none; }
     @media (max-width: 840px) {
       .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-      .stat { padding: 12px; }
+      .stat { padding: 12px; gap: 10px; }
+      .stat .icon-badge { width: 30px; height: 30px; border-radius: 9px; }
+      .stat .icon-badge mat-icon { font-size: 17px; width: 17px; height: 17px; }
       .stat strong { font-size: 18px; }
     }
   `,

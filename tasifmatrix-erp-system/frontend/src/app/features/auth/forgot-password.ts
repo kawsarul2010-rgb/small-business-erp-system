@@ -6,31 +6,30 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
 import { ApiService, errorMessage } from '../../core/api.service';
-import { AppBrand } from '../../shared/app-brand';
+import { AuthLayout } from '../../shared/auth-layout';
 
 @Component({
   selector: 'app-forgot-password',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, AppBrand],
+  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, AuthLayout],
   template: `
-    <div class="auth-wrap">
+    <app-auth-layout>
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
-        <app-brand />
         <h1>Forgot password</h1>
         @if (sent()) {
           <p>If an account exists for <strong>{{ form.value.email }}</strong>, we have emailed a link to reset your password. The link expires in 30 minutes.</p>
           <a mat-flat-button class="full-width" routerLink="/login">Back to log in</a>
         } @else {
-          <p class="muted">Enter your account email and we will send you a reset link.</p>
+          <p class="lead">Enter your account email and we will send you a reset link.</p>
           <mat-form-field>
             <mat-label>Email</mat-label>
             <input matInput type="email" formControlName="email" autocomplete="email" />
           </mat-form-field>
-          @if (error()) { <p class="negative">{{ error() }}</p> }
-          <button mat-flat-button class="full-width" type="submit" [disabled]="busy()">Send reset link</button>
+          @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() }}</span></div> }
+          <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">Send reset link</button>
           <div class="links"><span></span><a routerLink="/login">Back to log in</a></div>
         }
       </form>
-    </div>
+    </app-auth-layout>
   `,
 })
 export class ForgotPasswordPage {
