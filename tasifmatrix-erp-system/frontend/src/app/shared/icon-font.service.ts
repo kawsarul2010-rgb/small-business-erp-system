@@ -42,7 +42,7 @@ export class IconFontService {
     const name = (el.textContent ?? '').trim();
     const codePoint = ICON_CODEPOINTS[name];
     if (codePoint) {
-      if (el.textContent !== codePoint) el.textContent = codePoint;
+      if (el.textContent !== codePoint) setIconText(el, codePoint);
       el.classList.remove('icon-unmapped');
       return;
     }
@@ -58,4 +58,21 @@ export class IconFontService {
       }
     }
   }
+}
+
+/**
+ * Writes the code point into the text node the template already owns instead of replacing it.
+ * Assigning textContent would swap in a new node, and a binding such as
+ * {{ shown ? 'visibility_off' : 'visibility' }} would keep updating the old, detached node -
+ * the icon would then never change after the first render.
+ */
+function setIconText(el: HTMLElement, value: string): void {
+  const texts = Array.from(el.childNodes).filter((n): n is Text => n.nodeType === Node.TEXT_NODE);
+  const target = texts.find((t) => t.data.trim() !== '') ?? texts[0];
+  if (!target) {
+    el.textContent = value;
+    return;
+  }
+  target.data = value;
+  for (const t of texts) if (t !== target && t.data !== '') t.data = '';
 }
