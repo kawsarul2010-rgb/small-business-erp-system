@@ -18,41 +18,42 @@ import { ListState } from '../../shared/list-state';
 import { MoneyPipe } from '../../shared/pipes';
 import { ReportExport } from '../../shared/report-export';
 import { orderMeta } from '../orders/order-kind';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 /** Finalized orders that still have a due amount, oldest first (SRS 11.1). */
 @Component({
   selector: 'app-due-report',
-  imports: [RouterLink, DatePipe, MatTableModule, MatProgressBarModule, MatButtonToggleModule, MatButtonModule, MatDatepickerModule, MatFormFieldModule, MatInputModule, ReactiveFormsModule, ListFooter, MoneyPipe, ReportExport],
+  imports: [TranslatePipe, RouterLink, DatePipe, MatTableModule, MatProgressBarModule, MatButtonToggleModule, MatButtonModule, MatDatepickerModule, MatFormFieldModule, MatInputModule, ReactiveFormsModule, ListFooter, MoneyPipe, ReportExport],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
-          <h1>Due report</h1>
-          <div class="subtitle">Finalized orders with an outstanding balance, oldest first</div>
+          <h1>{{ 'Due report' | t }}</h1>
+          <div class="subtitle">{{ 'Finalized orders with an outstanding balance, oldest first' | t }}</div>
         </div>
         <div class="actions">
           @if (kinds().length > 1) {
             <mat-button-toggle-group [value]="kind()" (change)="switchKind($event.value)" hideSingleSelectionIndicator>
-              @for (k of kinds(); track k) { <mat-button-toggle [value]="k">{{ k === 'sales' ? 'Customer dues' : 'Supplier dues' }}</mat-button-toggle> }
+              @for (k of kinds(); track k) { <mat-button-toggle [value]="k">{{ (k === 'sales' ? 'Customer dues' : 'Supplier dues') | t }}</mat-button-toggle> }
             </mat-button-toggle-group>
           }
           <app-report-export [path]="pdfPath()" [filters]="pdfFilters()"
-            [label]="kind() === 'sales' ? 'Customer due report' : 'Supplier due report'" />
+            [label]="(kind() === 'sales' ? 'Customer due report' : 'Supplier due report') | t" />
         </div>
       </div>
       <div class="card">
         <div class="toolbar">
           <mat-form-field subscriptSizing="dynamic">
-            <mat-label>Order date</mat-label>
+            <mat-label>{{ 'Order date' | t }}</mat-label>
             <mat-date-range-input [rangePicker]="picker">
-              <input matStartDate [formControl]="from" placeholder="From" />
-              <input matEndDate [formControl]="to" placeholder="To" (dateChange)="list.resetToFirstPage()" />
+              <input matStartDate [formControl]="from" [placeholder]="'From' | t" />
+              <input matEndDate [formControl]="to" [placeholder]="'To' | t" (dateChange)="list.resetToFirstPage()" />
             </mat-date-range-input>
             <mat-datepicker-toggle matIconSuffix [for]="picker" />
             <mat-date-range-picker #picker />
           </mat-form-field>
           @if (from.value || to.value) {
-            <button mat-button (click)="clearDates()">Clear</button>
+            <button mat-button (click)="clearDates()">{{ 'Clear' | t }}</button>
           }
         </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
@@ -64,16 +65,16 @@ import { orderMeta } from '../orders/order-kind';
                 <div class="m-card-head">
                   <div>
                     <div class="m-title">{{ o.partyName }}</div>
-                    <div class="m-sub">#{{ o.orderNumber }} · {{ o.orderDate | date: 'dd MMM yyyy' }} · {{ age(o.orderDate) }} days</div>
+                    <div class="m-sub">#{{ o.orderNumber }} · {{ o.orderDate | date: 'dd MMM yyyy' }} · {{ (age(o.orderDate) === 1 ? '{n} day' : '{n} days') | t: { n: age(o.orderDate) } }}</div>
                   </div>
                   <div class="m-right">
                     <span class="m-amount negative">{{ o.dueAmount | money }}</span>
-                    <span class="m-sub">due</span>
+                    <span class="m-sub">{{ 'due' | t }}</span>
                   </div>
                 </div>
                 <div class="m-meta two">
-                  <div><span class="k">Order total</span><span class="v">{{ o.totalAmount | money: false }}</span></div>
-                  <div><span class="k">Paid</span><span class="v">{{ o.totalPaidAmount | money: false }}</span></div>
+                  <div><span class="k">{{ 'Order total' | t }}</span><span class="v">{{ o.totalAmount | money: false }}</span></div>
+                  <div><span class="k">{{ 'Paid' | t }}</span><span class="v">{{ o.totalPaidAmount | money: false }}</span></div>
                 </div>
               </a>
             }
@@ -82,21 +83,21 @@ import { orderMeta } from '../orders/order-kind';
         <div class="table-wrap">
 
           <table mat-table [dataSource]="list.items()">
-            <ng-container matColumnDef="orderNumber"><th mat-header-cell *matHeaderCellDef>Order</th><td mat-cell *matCellDef="let o"><a [routerLink]="[meta().route, o.uuid]">#{{ o.orderNumber }}</a></td></ng-container>
-            <ng-container matColumnDef="orderDate"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let o" class="nowrap">{{ o.orderDate | date: 'dd MMM yyyy' }}</td></ng-container>
-            <ng-container matColumnDef="age"><th mat-header-cell *matHeaderCellDef class="num">Days</th><td mat-cell *matCellDef="let o" class="num">{{ age(o.orderDate) }}</td></ng-container>
-            <ng-container matColumnDef="party"><th mat-header-cell *matHeaderCellDef>{{ meta().partyLabel }}</th><td mat-cell *matCellDef="let o">{{ o.partyName }} <span class="code">{{ o.partyCode }}</span></td></ng-container>
-            <ng-container matColumnDef="company"><th mat-header-cell *matHeaderCellDef>Company</th><td mat-cell *matCellDef="let o">{{ o.companyName }}</td></ng-container>
-            <ng-container matColumnDef="total"><th mat-header-cell *matHeaderCellDef class="num">Total</th><td mat-cell *matCellDef="let o" class="num nowrap">{{ o.totalAmount | money }}</td></ng-container>
-            <ng-container matColumnDef="paid"><th mat-header-cell *matHeaderCellDef class="num">Paid</th><td mat-cell *matCellDef="let o" class="num nowrap">{{ o.totalPaidAmount | money }}</td></ng-container>
-            <ng-container matColumnDef="due"><th mat-header-cell *matHeaderCellDef class="num">Due</th><td mat-cell *matCellDef="let o" class="num nowrap negative"><strong>{{ o.dueAmount | money }}</strong></td></ng-container>
+            <ng-container matColumnDef="orderNumber"><th mat-header-cell *matHeaderCellDef>{{ 'Order' | t }}</th><td mat-cell *matCellDef="let o"><a [routerLink]="[meta().route, o.uuid]">#{{ o.orderNumber }}</a></td></ng-container>
+            <ng-container matColumnDef="orderDate"><th mat-header-cell *matHeaderCellDef>{{ 'Date' | t }}</th><td mat-cell *matCellDef="let o" class="nowrap">{{ o.orderDate | date: 'dd MMM yyyy' }}</td></ng-container>
+            <ng-container matColumnDef="age"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Days' | t }}</th><td mat-cell *matCellDef="let o" class="num">{{ age(o.orderDate) }}</td></ng-container>
+            <ng-container matColumnDef="party"><th mat-header-cell *matHeaderCellDef>{{ meta().partyLabel | t }}</th><td mat-cell *matCellDef="let o">{{ o.partyName }} <span class="code">{{ o.partyCode }}</span></td></ng-container>
+            <ng-container matColumnDef="company"><th mat-header-cell *matHeaderCellDef>{{ 'Company' | t }}</th><td mat-cell *matCellDef="let o">{{ o.companyName }}</td></ng-container>
+            <ng-container matColumnDef="total"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Total' | t }}</th><td mat-cell *matCellDef="let o" class="num nowrap">{{ o.totalAmount | money }}</td></ng-container>
+            <ng-container matColumnDef="paid"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Paid' | t }}</th><td mat-cell *matCellDef="let o" class="num nowrap">{{ o.totalPaidAmount | money }}</td></ng-container>
+            <ng-container matColumnDef="due"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Due' | t }}</th><td mat-cell *matCellDef="let o" class="num nowrap negative"><strong>{{ o.dueAmount | money }}</strong></td></ng-container>
             <tr mat-header-row *matHeaderRowDef="columns"></tr>
             <tr mat-row class="clickable" *matRowDef="let row; columns: columns" (click)="open(row)"></tr>
           </table>
         </div>
         }
 
-        @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ list.error() ?? 'Nothing is due.' }}</div> }
+        @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ (list.error() ?? 'Nothing is due.') | t }}</div> }
         <app-list-footer [list]="list" />
       </div>
     </div>

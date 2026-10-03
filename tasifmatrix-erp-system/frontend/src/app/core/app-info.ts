@@ -1,3 +1,5 @@
+import { t } from './i18n/i18n';
+
 /**
  * Product identity and publisher credit.
  *
@@ -28,5 +30,5 @@ export const PUBLISHED_BY = `by ${APP_INFO.publisher.name}`;
 export function copyrightLine(now: Date = new Date()): string {
   const year = now.getFullYear();
   const span = year > APP_INFO.since ? `${APP_INFO.since}-${year}` : `${APP_INFO.since}`;
-  return `© ${span} ${APP_INFO.publisher.name}. All rights reserved.`;
+  return t('© {years} {name}. All rights reserved.', { years: span, name: APP_INFO.publisher.name });
 }

@@ -11,6 +11,8 @@ import { LayoutService } from '../core/layout.service';
 import { NotifyService } from '../core/notify.service';
 import { PlatformService } from '../core/platform.service';
 import { applyServerErrors, controlError } from './form-errors';
+import { TranslatePipe } from '../core/i18n/translate.pipe';
+import { t } from '../core/i18n/i18n';
 
 export interface SharePdfData {
   /** What is being shared, e.g. "Sales invoice 100042" or "Customer report". */
@@ -48,7 +50,7 @@ export interface SharePdfData {
  */
 @Component({
   selector: 'app-share-pdf-dialog',
-  imports: [
+  imports: [TranslatePipe, 
     ReactiveFormsModule, MatDialogModule, MatButtonModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatProgressSpinnerModule,
   ],
@@ -65,76 +67,73 @@ export interface SharePdfData {
     mat-spinner { display: inline-block; margin-right: 8px; }
   `,
   template: `
-    <h2 mat-dialog-title>Share {{ data.title }}</h2>
+    <h2 mat-dialog-title>{{ 'Share {title}' | t: { title: data.title } }}</h2>
     <mat-dialog-content>
       <p class="intro">{{ data.fileName }}</p>
 
       @if (canShareFile) {
         <div class="block">
-          <h3><mat-icon>ios_share</mat-icon>Share the file</h3>
+          <h3><mat-icon>ios_share</mat-icon>{{ 'Share the file' | t }}</h3>
           <button mat-flat-button class="full" (click)="systemShare()" [disabled]="busy()">
-            Open the share sheet
+            {{ 'Open the share sheet' | t }}
           </button>
-          <p class="hint">Sends the PDF itself to WhatsApp, Mail or anything else on this device.</p>
+          <p class="hint">{{ 'Sends the PDF itself to WhatsApp, Mail or anything else on this device.' | t }}</p>
         </div>
       }
 
       <div class="block">
         <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
-          <mat-label>Message</mat-label>
+          <mat-label>{{ 'Message' | t }}</mat-label>
           <textarea matInput rows="2" [formControl]="message"></textarea>
         </mat-form-field>
-        <p class="hint">Used for the WhatsApp chat and the email body.</p>
+        <p class="hint">{{ 'Used for the WhatsApp chat and the email body.' | t }}</p>
       </div>
 
       <div class="block">
-        <h3><mat-icon>chat</mat-icon>WhatsApp</h3>
+        <h3><mat-icon>chat</mat-icon>{{ 'WhatsApp' | t }}</h3>
         <div class="row">
           <mat-form-field appearance="outline" subscriptSizing="dynamic">
-            <mat-label>Mobile number (optional)</mat-label>
+            <mat-label>{{ 'Mobile number (optional)' | t }}</mat-label>
             <input matInput [formControl]="whatsappNumber" inputmode="tel" placeholder="01712345678" />
           </mat-form-field>
           <button mat-stroked-button (click)="whatsapp()" [disabled]="busy()">
             <mat-icon>chat</mat-icon>
-            Save PDF &amp; open chat
+            {{ 'Save PDF & open chat' | t }}
           </button>
         </div>
         <p class="hint">
-          WhatsApp does not let a website attach a file, so the PDF is saved to this device first and
-          the chat opens with your message. Attach the saved file with the paperclip.
+          {{ 'WhatsApp does not let a website attach a file, so the PDF is saved to this device first and the chat opens with your message. Attach the saved file with the paperclip.' | t }}
         </p>
       </div>
 
       <div class="block" [formGroup]="emailForm">
-        <h3><mat-icon>mail</mat-icon>Email</h3>
+        <h3><mat-icon>mail</mat-icon>{{ 'Email' | t }}</h3>
         <mat-form-field appearance="outline" class="full" subscriptSizing="dynamic">
-          <mat-label>Email address</mat-label>
-          <input matInput formControlName="to" type="email" autocomplete="off" placeholder="name@example.com" />
+          <mat-label>{{ 'Email address' | t }}</mat-label>
+          <input matInput formControlName="to" type="email" autocomplete="off" [placeholder]="'name@example.com' | t" />
           @if (emailError(); as text) { <mat-error>{{ text }}</mat-error> }
         </mat-form-field>
         <div class="actions" style="margin-top: 10px">
           <button mat-flat-button (click)="sendFromServer()" [disabled]="busy()">
             @if (sending()) { <mat-spinner diameter="16" /> }
-            {{ sending() ? 'Sending…' : 'Send with the PDF attached' }}
+            {{ (sending() ? 'Sending…' : 'Send with the PDF attached') | t }}
           </button>
           <button mat-stroked-button (click)="mailClient()" [disabled]="busy()">
             <mat-icon>drafts</mat-icon>
-            Use my own email app
+            {{ 'Use my own email app' | t }}
           </button>
         </div>
         <p class="hint">
-          The first sends from the server with the PDF attached — nothing left for you to do. The
-          second saves the PDF and opens your mail app with the message ready; you attach the file,
-          because a browser cannot attach one for you.
+          {{ 'The first sends from the server with the PDF attached — nothing left for you to do. The second saves the PDF and opens your mail app with the message ready; you attach the file, because a browser cannot attach one for you.' | t }}
         </p>
       </div>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button (click)="download()" [disabled]="busy()">
         <mat-icon>download</mat-icon>
-        Download
+        {{ 'Download' | t }}
       </button>
-      <button mat-button mat-dialog-close>Close</button>
+      <button mat-button mat-dialog-close>{{ 'Close' | t }}</button>
     </mat-dialog-actions>
   `,
 })
@@ -150,7 +149,7 @@ export class SharePdfDialog {
   readonly sending = signal(false);
   readonly busy = computed(() => this.sending());
 
-  readonly message = this.fb.control(this.data.message ?? `${this.data.title} is attached.`, { nonNullable: true });
+  readonly message = this.fb.control(this.data.message ?? t('{title} is attached.', { title: this.data.title }), { nonNullable: true });
   readonly whatsappNumber = this.fb.control(this.data.mobileNumber ?? '', { nonNullable: true });
   readonly emailForm = this.fb.group({
     to: this.fb.control(this.data.emailAddress ?? '', { validators: [Validators.required, Validators.email], nonNullable: true }),
@@ -179,16 +178,16 @@ export class SharePdfDialog {
     const number = whatsappNumber(this.whatsappNumber.value);
     const text = encodeURIComponent(this.message.value.trim() || this.data.title);
     this.platform.openExternal(`https://wa.me/${number ?? ''}?text=${text}`);
-    this.notify.success(`${this.data.fileName} was saved. Attach it in the chat.`);
+    this.notify.success('{file} was saved. Attach it in the chat.', { file: this.data.fileName });
   }
 
   mailClient(): void {
     this.platform.savePdf(this.data.blob, this.data.fileName);
     const to = encodeURIComponent(this.emailForm.controls.to.value.trim());
     const subject = encodeURIComponent(this.data.title);
-    const body = encodeURIComponent(`${this.message.value.trim()}\n\n(${this.data.fileName} is attached.)`);
+    const body = encodeURIComponent(`${this.message.value.trim()}\n\n(${t('{title} is attached.', { title: this.data.fileName })})`);
     this.platform.openMailClient(`mailto:${to}?subject=${subject}&body=${body}`);
-    this.notify.success(`${this.data.fileName} was saved. Attach it to the email.`);
+    this.notify.success('{file} was saved. Attach it to the email.', { file: this.data.fileName });
   }
 
   sendFromServer(): void {
@@ -201,7 +200,7 @@ export class SharePdfDialog {
     this.api.post<void>(this.data.emailPath, body, this.data.emailQuery).subscribe({
       next: () => {
         this.sending.set(false);
-        this.notify.success(`Sent to ${body.to} with the PDF attached.`);
+        this.notify.success('Sent to {email} with the PDF attached.', { email: body.to });
       },
       error: (e: unknown) => {
         this.sending.set(false);

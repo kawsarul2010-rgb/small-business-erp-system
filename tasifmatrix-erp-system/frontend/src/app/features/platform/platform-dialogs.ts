@@ -14,6 +14,8 @@ import { BusinessDetail, CreatedBusiness, IssuedCredentials } from '../../core/m
 import { NotifyService } from '../../core/notify.service';
 import { PlatformService } from '../../core/platform.service';
 import { applyServerErrors, bdMobileValidator, controlError } from '../../shared/form-errors';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { t } from '../../core/i18n/i18n';
 
 /** Same rule as the server (TenantCodes) and the database constraint ck_tenant_code. */
 export const BUSINESS_CODE_PATTERN = /^[a-z0-9][a-z0-9-]{1,28}[a-z0-9]$/;
@@ -34,66 +36,66 @@ export function suggestBusinessCode(name: string): string {
 
 @Component({
   selector: 'app-business-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
   template: `
-    <h2 mat-dialog-title>{{ data ? 'Edit business' : 'New business' }}</h2>
+    <h2 mat-dialog-title>{{ (data ? 'Edit business' : 'New business') | t }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
       <mat-dialog-content>
         <div class="form-grid">
           <mat-form-field class="span-2">
-            <mat-label>Business name</mat-label>
+            <mat-label>{{ 'Business name' | t }}</mat-label>
             <input matInput formControlName="name" (input)="nameChanged()" />
             <mat-error>{{ err('name', 'Business name') }}</mat-error>
           </mat-form-field>
           <mat-form-field subscriptSizing="dynamic" class="span-2">
-            <mat-label>Business code</mat-label>
+            <mat-label>{{ 'Business code' | t }}</mat-label>
             <input matInput formControlName="code" autocapitalize="off" spellcheck="false" (input)="codeTouchedByUser = true" />
-            <mat-hint>People enter this when they register, e.g. {{ form.controls.code.value || 'rahim-store' }}</mat-hint>
+            <mat-hint>{{ 'People enter this when they register, e.g. {code}' | t: { code: form.controls.code.value || 'rahim-store' } }}</mat-hint>
             <mat-error>{{ codeError() }}</mat-error>
           </mat-form-field>
-          <mat-form-field><mat-label>Contact person</mat-label><input matInput formControlName="contactName" /></mat-form-field>
+          <mat-form-field><mat-label>{{ 'Contact person' | t }}</mat-label><input matInput formControlName="contactName" /></mat-form-field>
           <mat-form-field>
-            <mat-label>Contact mobile</mat-label>
+            <mat-label>{{ 'Contact mobile' | t }}</mat-label>
             <input matInput formControlName="contactPhone" inputmode="tel" placeholder="01712345678" />
             <mat-error>{{ err('contactPhone', 'Contact mobile') }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-2">
-            <mat-label>Contact email</mat-label>
+            <mat-label>{{ 'Contact email' | t }}</mat-label>
             <input matInput formControlName="contactEmail" type="email" />
             <mat-error>{{ err('contactEmail', 'Contact email') }}</mat-error>
           </mat-form-field>
           <mat-form-field class="span-2">
-            <mat-label>Notes (only you see these)</mat-label>
+            <mat-label>{{ 'Notes (only you see these)' | t }}</mat-label>
             <textarea matInput rows="2" formControlName="notes"></textarea>
           </mat-form-field>
         </div>
 
         @if (!data) {
-          <h3 class="section">First admin</h3>
-          <p class="muted hint">This person runs the business's account: companies, products, users. They get a temporary password to change at first sign-in.</p>
+          <h3 class="section">{{ 'First admin' | t }}</h3>
+          <p class="muted hint">{{ "This person runs the business's account: companies, products, users. They get a temporary password to change at first sign-in." | t }}</p>
           <div class="form-grid" formGroupName="admin">
             <mat-form-field class="span-2">
-              <mat-label>Admin name</mat-label>
+              <mat-label>{{ 'Admin name' | t }}</mat-label>
               <input matInput formControlName="userName" />
               <mat-error>{{ err('admin.userName', 'Admin name') }}</mat-error>
             </mat-form-field>
             <mat-form-field>
-              <mat-label>Admin email (to sign in)</mat-label>
+              <mat-label>{{ 'Admin email (to sign in)' | t }}</mat-label>
               <input matInput formControlName="email" type="email" autocomplete="off" />
               <mat-error>{{ err('admin.email', 'Admin email') }}</mat-error>
             </mat-form-field>
             <mat-form-field>
-              <mat-label>Admin mobile</mat-label>
+              <mat-label>{{ 'Admin mobile' | t }}</mat-label>
               <input matInput formControlName="phoneNumber" inputmode="tel" placeholder="01712345678" />
               <mat-error>{{ err('admin.phoneNumber', 'Admin mobile') }}</mat-error>
             </mat-form-field>
           </div>
         }
-        @if (error()) { <p class="negative">{{ error() }}</p> }
+        @if (error()) { <p class="negative">{{ error() | t }}</p> }
       </mat-dialog-content>
       <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancel</button>
-        <button mat-flat-button type="submit" [disabled]="busy()">{{ data ? 'Save' : 'Create business' }}</button>
+        <button mat-button type="button" mat-dialog-close>{{ 'Cancel' | t }}</button>
+        <button mat-flat-button type="submit" [disabled]="busy()">{{ (data ? 'Save' : 'Create business') | t }}</button>
       </mat-dialog-actions>
     </form>
   `,
@@ -132,7 +134,7 @@ export class BusinessDialog {
   readonly codeError = computed(() => {
     this.codeValue();
     const c = this.form.controls.code;
-    if (c.errors?.['pattern']) return '3-30 lowercase letters, numbers or hyphens; no hyphen at either end.';
+    if (c.errors?.['pattern']) return t('3-30 lowercase letters, numbers or hyphens; no hyphen at either end.');
     return controlError(c, 'Business code');
   });
 
@@ -168,25 +170,24 @@ export class BusinessDialog {
 
 @Component({
   selector: 'app-suspend-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
   template: `
-    <h2 mat-dialog-title>Suspend {{ data.name }}</h2>
+    <h2 mat-dialog-title>{{ 'Suspend {name}' | t: { name: data.name } }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
       <mat-dialog-content>
         <p class="muted" style="margin-top: 0">
-          Everyone in this business is signed out and cannot sign in until you reactivate it.
-          Nothing is deleted: their data comes back exactly as it was.
+          {{ 'Everyone in this business is signed out and cannot sign in until you reactivate it. Nothing is deleted: their data comes back exactly as it was.' | t }}
         </p>
         <mat-form-field class="full">
-          <mat-label>Reason (only you see this)</mat-label>
-          <textarea matInput rows="3" formControlName="reason" placeholder="e.g. Subscription unpaid since August"></textarea>
+          <mat-label>{{ 'Reason (only you see this)' | t }}</mat-label>
+          <textarea matInput rows="3" formControlName="reason" [placeholder]="'e.g. Subscription unpaid since August' | t"></textarea>
           <mat-error>{{ err() }}</mat-error>
         </mat-form-field>
-        @if (error()) { <p class="negative">{{ error() }}</p> }
+        @if (error()) { <p class="negative">{{ error() | t }}</p> }
       </mat-dialog-content>
       <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancel</button>
-        <button mat-flat-button type="submit" class="danger" [disabled]="busy()">Suspend</button>
+        <button mat-button type="button" mat-dialog-close>{{ 'Cancel' | t }}</button>
+        <button mat-flat-button type="submit" class="danger" [disabled]="busy()">{{ 'Suspend' | t }}</button>
       </mat-dialog-actions>
     </form>
   `,
@@ -209,7 +210,7 @@ export class SuspendDialog {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.busy.set(true);
     this.api.post<BusinessDetail>(`/platform/businesses/${this.data.uuid}/suspend`, { reason: this.form.value.reason, revision: this.data.revision }).subscribe({
-      next: (updated) => { this.notify.success(`${this.data.name} is suspended.`); this.ref.close(updated); },
+      next: (updated) => { this.notify.success('{name} is suspended.', { name: this.data.name }); this.ref.close(updated); },
       error: (e) => { this.error.set(applyServerErrors(this.form, e)); this.busy.set(false); },
     });
   }
@@ -219,22 +220,22 @@ export class SuspendDialog {
 
 @Component({
   selector: 'app-add-admin-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
   template: `
-    <h2 mat-dialog-title>Add an admin to {{ data.name }}</h2>
+    <h2 mat-dialog-title>{{ 'Add an admin to {name}' | t: { name: data.name } }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
       <mat-dialog-content>
-        <p class="muted" style="margin-top: 0">For when the business's admin has left or lost access. They get a temporary password.</p>
+        <p class="muted" style="margin-top: 0">{{ "For when the business's admin has left or lost access. They get a temporary password." | t }}</p>
         <div class="form-grid">
-          <mat-form-field class="span-2"><mat-label>Name</mat-label><input matInput formControlName="userName" /><mat-error>{{ err('userName', 'Name') }}</mat-error></mat-form-field>
-          <mat-form-field><mat-label>Email (to sign in)</mat-label><input matInput formControlName="email" type="email" autocomplete="off" /><mat-error>{{ err('email', 'Email') }}</mat-error></mat-form-field>
-          <mat-form-field><mat-label>Mobile</mat-label><input matInput formControlName="phoneNumber" inputmode="tel" placeholder="01712345678" /><mat-error>{{ err('phoneNumber', 'Mobile') }}</mat-error></mat-form-field>
+          <mat-form-field class="span-2"><mat-label>{{ 'Name' | t }}</mat-label><input matInput formControlName="userName" /><mat-error>{{ err('userName', 'Name') }}</mat-error></mat-form-field>
+          <mat-form-field><mat-label>{{ 'Email (to sign in)' | t }}</mat-label><input matInput formControlName="email" type="email" autocomplete="off" /><mat-error>{{ err('email', 'Email') }}</mat-error></mat-form-field>
+          <mat-form-field><mat-label>{{ 'Mobile' | t }}</mat-label><input matInput formControlName="phoneNumber" inputmode="tel" placeholder="01712345678" /><mat-error>{{ err('phoneNumber', 'Mobile') }}</mat-error></mat-form-field>
         </div>
-        @if (error()) { <p class="negative">{{ error() }}</p> }
+        @if (error()) { <p class="negative">{{ error() | t }}</p> }
       </mat-dialog-content>
       <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancel</button>
-        <button mat-flat-button type="submit" [disabled]="busy()">Add admin</button>
+        <button mat-button type="button" mat-dialog-close>{{ 'Cancel' | t }}</button>
+        <button mat-flat-button type="submit" [disabled]="busy()">{{ 'Add admin' | t }}</button>
       </mat-dialog-actions>
     </form>
   `,
@@ -275,25 +276,25 @@ export interface CredentialsDialogData {
 
 @Component({
   selector: 'app-credentials-dialog',
-  imports: [MatDialogModule, MatButtonModule, MatIconModule],
+  imports: [TranslatePipe, MatDialogModule, MatButtonModule, MatIconModule],
   template: `
-    <h2 mat-dialog-title>Sign-in details for {{ data.credentials.userName }}</h2>
+    <h2 mat-dialog-title>{{ 'Sign-in details for {name}' | t: { name: data.credentials.userName } }}</h2>
     <mat-dialog-content>
       <p class="warn-box">
         <mat-icon>visibility_off</mat-icon>
-        <span>This password is shown <strong>only now</strong>. Copy it before closing. If it is lost, reset it from the business page.</span>
+        <span>{{ 'This password is shown only now. Copy it before closing. If it is lost, reset it from the business page.' | t }}</span>
       </p>
       <dl class="creds">
-        <dt>Business</dt><dd>{{ data.businessName }} <span class="muted">({{ data.businessCode }})</span></dd>
-        <dt>Email</dt><dd>{{ data.credentials.email }}</dd>
-        <dt>Temporary password</dt><dd class="password">{{ data.credentials.temporaryPassword }}</dd>
-        @if (signInUrl) { <dt>Sign in at</dt><dd>{{ signInUrl }}</dd> }
+        <dt>{{ 'Business' | t }}</dt><dd>{{ data.businessName }} <span class="muted">({{ data.businessCode }})</span></dd>
+        <dt>{{ 'Email' | t }}</dt><dd>{{ data.credentials.email }}</dd>
+        <dt>{{ 'Temporary password' | t }}</dt><dd class="password">{{ data.credentials.temporaryPassword }}</dd>
+        @if (signInUrl) { <dt>{{ 'Sign in at' | t }}</dt><dd>{{ signInUrl }}</dd> }
       </dl>
-      <p class="muted small">They will be asked to choose their own password at first sign-in.</p>
+      <p class="muted small">{{ 'They will be asked to choose their own password at first sign-in.' | t }}</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-stroked-button (click)="copy()"><mat-icon>content_copy</mat-icon>{{ copied() ? 'Copied' : 'Copy message' }}</button>
-      <button mat-flat-button mat-dialog-close>Done</button>
+      <button mat-stroked-button (click)="copy()"><mat-icon>content_copy</mat-icon>{{ (copied() ? 'Copied' : 'Copy message') | t }}</button>
+      <button mat-flat-button mat-dialog-close>{{ 'Done' | t }}</button>
     </mat-dialog-actions>
   `,
   styles: `
@@ -319,11 +320,11 @@ export class CredentialsDialog {
   async copy(): Promise<void> {
     const c = this.data.credentials;
     const lines = [
-      `Your ${APP_INFO.name} account for ${this.data.businessName} is ready.`,
-      this.signInUrl ? `Sign in at: ${this.signInUrl}` : null,
-      `Email: ${c.email}`,
-      `Temporary password: ${c.temporaryPassword}`,
-      'You will be asked to choose your own password when you first sign in.',
+      t('Your {app} account for {business} is ready.', { app: APP_INFO.name, business: this.data.businessName }),
+      this.signInUrl ? t('Sign in at: {url}', { url: this.signInUrl }) : null,
+      t('Email: {email}', { email: c.email }),
+      t('Temporary password: {password}', { password: c.temporaryPassword }),
+      t('You will be asked to choose your own password when you first sign in.'),
     ].filter((l): l is string => !!l);
     try {
       await navigator.clipboard.writeText(lines.join('\n'));

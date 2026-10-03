@@ -1,3 +1,4 @@
+import { t, tServer } from './i18n/i18n';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
@@ -61,7 +62,8 @@ export function problemOf(error: unknown): ProblemDetails {
 }
 
 export function errorMessage(error: unknown): string {
-  return problemOf(error).title ?? 'Something went wrong.';
+  const title = problemOf(error).title;
+  return title ? tServer(title) : t('Something went wrong.');
 }
 
 export function orderApiPath(kind: OrderKind): string {

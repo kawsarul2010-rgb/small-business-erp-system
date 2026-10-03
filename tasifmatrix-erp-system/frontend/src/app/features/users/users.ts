@@ -23,21 +23,23 @@ import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { SearchSelect } from '../../shared/search-select';
 import { StatusChip } from '../../shared/status-chip';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { t } from '../../core/i18n/i18n';
 
 @Component({
   selector: 'app-users',
-  imports: [DatePipe, ReactiveFormsModule, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatCheckboxModule, MatProgressBarModule, MatTooltipModule, MatMenuModule, ListFooter, StatusChip],
+  imports: [TranslatePipe, DatePipe, ReactiveFormsModule, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatCheckboxModule, MatProgressBarModule, MatTooltipModule, MatMenuModule, ListFooter, StatusChip],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
-          <h1>Users</h1>
+          <h1>{{ 'Users' | t }}</h1>
           @if (!layout.isHandset()) {
-            <div class="subtitle">Manage roles and link USER accounts to a buyer (customer) and/or supplier so they can see their own reports.</div>
+            <div class="subtitle">{{ 'Manage roles and link USER accounts to a buyer (customer) and/or supplier so they can see their own reports.' | t }}</div>
           }
         </div>
         @if (!layout.isHandset()) {
-          <div class="actions"><button mat-flat-button (click)="edit()"><mat-icon>person_add</mat-icon>New user</button></div>
+          <div class="actions"><button mat-flat-button (click)="edit()"><mat-icon>person_add</mat-icon>{{ 'New user' | t }}</button></div>
         }
       </div>
 
@@ -45,19 +47,19 @@ import { StatusChip } from '../../shared/status-chip';
         <div class="toolbar">
           <mat-form-field class="search" subscriptSizing="dynamic">
             <mat-icon matPrefix>search</mat-icon>
-            <mat-label>Search name, email or mobile</mat-label>
+            <mat-label>{{ 'Search name, email or mobile' | t }}</mat-label>
             <input matInput (input)="list.search($any($event.target).value)" />
           </mat-form-field>
           <mat-form-field subscriptSizing="dynamic" style="width: 150px">
-            <mat-label>Role</mat-label>
+            <mat-label>{{ 'Role' | t }}</mat-label>
             <mat-select [formControl]="role" (selectionChange)="list.resetToFirstPage()">
-              <mat-option [value]="null">All roles</mat-option>
-              <mat-option value="ADMIN">Admin</mat-option>
-              <mat-option value="MANAGER">Manager</mat-option>
-              <mat-option value="USER">User</mat-option>
+              <mat-option [value]="null">{{ 'All roles' | t }}</mat-option>
+              <mat-option value="ADMIN">{{ 'Admin' | t }}</mat-option>
+              <mat-option value="MANAGER">{{ 'Manager' | t }}</mat-option>
+              <mat-option value="USER">{{ 'User' | t }}</mat-option>
             </mat-select>
           </mat-form-field>
-          <mat-checkbox [formControl]="includeDeleted" (change)="list.resetToFirstPage()">Show deleted</mat-checkbox>
+          <mat-checkbox [formControl]="includeDeleted" (change)="list.resetToFirstPage()">{{ 'Show deleted' | t }}</mat-checkbox>
         </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
 
@@ -74,19 +76,19 @@ import { StatusChip } from '../../shared/status-chip';
                   <div class="m-right">
                     <app-status [value]="u.role" />
                     @if (u.status === 'ACTIVE') {
-                      <button mat-icon-button [matMenuTriggerFor]="menu" aria-label="Actions"><mat-icon>more_vert</mat-icon></button>
+                      <button mat-icon-button [matMenuTriggerFor]="menu" [attr.aria-label]="'Actions' | t"><mat-icon>more_vert</mat-icon></button>
                       <mat-menu #menu="matMenu">
-                        <button mat-menu-item (click)="edit(u)"><mat-icon>edit</mat-icon>Edit</button>
-                        @if (u.isLocked) { <button mat-menu-item (click)="unlock(u)"><mat-icon>lock_open</mat-icon>Unlock</button> }
-                        @if (u.uuid !== auth.user()?.uuid) { <button mat-menu-item (click)="remove(u)"><mat-icon>delete</mat-icon>Delete</button> }
+                        <button mat-menu-item (click)="edit(u)"><mat-icon>edit</mat-icon>{{ 'Edit' | t }}</button>
+                        @if (u.isLocked) { <button mat-menu-item (click)="unlock(u)"><mat-icon>lock_open</mat-icon>{{ 'Unlock' | t }}</button> }
+                        @if (u.uuid !== auth.user()?.uuid) { <button mat-menu-item (click)="remove(u)"><mat-icon>delete</mat-icon>{{ 'Delete' | t }}</button> }
                       </mat-menu>
                     } @else { <app-status [value]="u.status" /> }
                   </div>
                 </div>
                 @if (u.customerName || u.supplierName) {
                   <div class="m-meta two">
-                    @if (u.customerName) { <div><span class="k">Buyer</span><span class="v">{{ u.customerName }}</span></div> }
-                    @if (u.supplierName) { <div><span class="k">Supplier</span><span class="v">{{ u.supplierName }}</span></div> }
+                    @if (u.customerName) { <div><span class="k">{{ 'Buyer' | t }}</span><span class="v">{{ u.customerName }}</span></div> }
+                    @if (u.supplierName) { <div><span class="k">{{ 'Supplier' | t }}</span><span class="v">{{ u.supplierName }}</span></div> }
                   </div>
                 }
               </div>
@@ -95,24 +97,24 @@ import { StatusChip } from '../../shared/status-chip';
         } @else {
           <div class="table-wrap">
             <table mat-table [dataSource]="list.items()">
-              <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef>Name</th>
-                <td mat-cell *matCellDef="let u">{{ u.userName }} @if (u.isLocked) { <mat-icon class="lock" matTooltip="Locked after failed logins">lock</mat-icon> }<div class="muted">{{ u.email }}</div></td></ng-container>
-              <ng-container matColumnDef="mobile"><th mat-header-cell *matHeaderCellDef>Mobile</th><td mat-cell *matCellDef="let u" class="nowrap">{{ u.phoneNumber }}</td></ng-container>
-              <ng-container matColumnDef="role"><th mat-header-cell *matHeaderCellDef>Role</th><td mat-cell *matCellDef="let u"><app-status [value]="u.role" /></td></ng-container>
-              <ng-container matColumnDef="links"><th mat-header-cell *matHeaderCellDef>Linked to</th>
+              <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef>{{ 'Name' | t }}</th>
+                <td mat-cell *matCellDef="let u">{{ u.userName }} @if (u.isLocked) { <mat-icon class="lock" [matTooltip]="'Locked after failed logins' | t">lock</mat-icon> }<div class="muted">{{ u.email }}</div></td></ng-container>
+              <ng-container matColumnDef="mobile"><th mat-header-cell *matHeaderCellDef>{{ 'Mobile' | t }}</th><td mat-cell *matCellDef="let u" class="nowrap">{{ u.phoneNumber }}</td></ng-container>
+              <ng-container matColumnDef="role"><th mat-header-cell *matHeaderCellDef>{{ 'Role' | t }}</th><td mat-cell *matCellDef="let u"><app-status [value]="u.role" /></td></ng-container>
+              <ng-container matColumnDef="links"><th mat-header-cell *matHeaderCellDef>{{ 'Linked to' | t }}</th>
                 <td mat-cell *matCellDef="let u">
-                  @if (u.customerName) { <div><span class="muted">Buyer:</span> {{ u.customerName }} <span class="code">{{ u.customerCode }}</span></div> }
-                  @if (u.supplierName) { <div><span class="muted">Supplier:</span> {{ u.supplierName }} <span class="code">{{ u.supplierCode }}</span></div> }
+                  @if (u.customerName) { <div><span class="muted">{{ 'Buyer:' | t }}</span> {{ u.customerName }} <span class="code">{{ u.customerCode }}</span></div> }
+                  @if (u.supplierName) { <div><span class="muted">{{ 'Supplier:' | t }}</span> {{ u.supplierName }} <span class="code">{{ u.supplierCode }}</span></div> }
                   @if (!u.customerName && !u.supplierName) { <span class="muted">—</span> }
                 </td></ng-container>
-              <ng-container matColumnDef="lastLogin"><th mat-header-cell *matHeaderCellDef>Last login</th><td mat-cell *matCellDef="let u" class="muted nowrap">{{ u.lastLoginDate ? (u.lastLoginDate | date: 'dd MMM yyyy, h:mm a') : 'Never' }}</td></ng-container>
-              <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let u"><app-status [value]="u.status" /></td></ng-container>
+              <ng-container matColumnDef="lastLogin"><th mat-header-cell *matHeaderCellDef>{{ 'Last login' | t }}</th><td mat-cell *matCellDef="let u" class="muted nowrap">{{ u.lastLoginDate ? (u.lastLoginDate | date: 'dd MMM yyyy, h:mm a') : ('Never' | t) }}</td></ng-container>
+              <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>{{ 'Status' | t }}</th><td mat-cell *matCellDef="let u"><app-status [value]="u.status" /></td></ng-container>
               <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef></th>
                 <td mat-cell *matCellDef="let u" class="num nowrap">
                   @if (u.status === 'ACTIVE') {
-                    @if (u.isLocked) { <button mat-icon-button matTooltip="Unlock" (click)="unlock(u)"><mat-icon>lock_open</mat-icon></button> }
-                    <button mat-icon-button matTooltip="Edit" (click)="edit(u)"><mat-icon>edit</mat-icon></button>
-                    @if (u.uuid !== auth.user()?.uuid) { <button mat-icon-button matTooltip="Delete" (click)="remove(u)"><mat-icon>delete</mat-icon></button> }
+                    @if (u.isLocked) { <button mat-icon-button [matTooltip]="'Unlock' | t" (click)="unlock(u)"><mat-icon>lock_open</mat-icon></button> }
+                    <button mat-icon-button [matTooltip]="'Edit' | t" (click)="edit(u)"><mat-icon>edit</mat-icon></button>
+                    @if (u.uuid !== auth.user()?.uuid) { <button mat-icon-button [matTooltip]="'Delete' | t" (click)="remove(u)"><mat-icon>delete</mat-icon></button> }
                   }
                 </td></ng-container>
               <tr mat-header-row *matHeaderRowDef="columns"></tr>
@@ -121,12 +123,12 @@ import { StatusChip } from '../../shared/status-chip';
           </div>
         }
 
-        @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ list.error() ?? 'No users found.' }}</div> }
+        @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ (list.error() ?? 'No users found.') | t }}</div> }
         <app-list-footer [list]="list" />
       </div>
 
       @if (layout.isHandset()) {
-        <button mat-fab class="fab" aria-label="New user" (click)="edit()"><mat-icon>person_add</mat-icon></button>
+        <button mat-fab class="fab" [attr.aria-label]="'New user' | t" (click)="edit()"><mat-icon>person_add</mat-icon></button>
       }
     </div>
   `,
@@ -159,7 +161,7 @@ export class UsersPage implements OnInit {
   }
 
   remove(u: AppUser): void {
-    this.notify.confirm({ title: 'Delete user', message: `Delete ${u.userName} (${u.email})? They will be logged out and can no longer sign in.`, confirmText: 'Delete', danger: true })
+    this.notify.confirm({ title: 'Delete user', message: t('Delete {name} ({email})? They will be logged out and can no longer sign in.', { name: u.userName, email: u.email }), confirmText: 'Delete', danger: true })
       .subscribe((ok) => {
         if (!ok) return;
         this.api.delete(`/users/${u.uuid}`, { revision: u.revision }).subscribe({
@@ -172,45 +174,45 @@ export class UsersPage implements OnInit {
 
 @Component({
   selector: 'app-user-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, SearchSelect, PasswordToggle],
+  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, SearchSelect, PasswordToggle],
   template: `
-    <h2 mat-dialog-title>{{ data ? 'Edit user' : 'New user' }}</h2>
+    <h2 mat-dialog-title>{{ (data ? 'Edit user' : 'New user') | t }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
       <mat-dialog-content>
         <div class="form-grid">
-          <mat-form-field><mat-label>Name</mat-label><input matInput formControlName="userName" /><mat-error>{{ err('userName', 'Name') }}</mat-error></mat-form-field>
-          <mat-form-field><mat-label>Email</mat-label><input matInput type="email" formControlName="email" /><mat-error>{{ err('email', 'Email') }}</mat-error></mat-form-field>
-          <mat-form-field><mat-label>Mobile number</mat-label><input matInput formControlName="phoneNumber" placeholder="01712345678" /><mat-error>{{ err('phoneNumber', 'Mobile number') }}</mat-error></mat-form-field>
+          <mat-form-field><mat-label>{{ 'Name' | t }}</mat-label><input matInput formControlName="userName" /><mat-error>{{ err('userName', 'Name') }}</mat-error></mat-form-field>
+          <mat-form-field><mat-label>{{ 'Email' | t }}</mat-label><input matInput type="email" formControlName="email" /><mat-error>{{ err('email', 'Email') }}</mat-error></mat-form-field>
+          <mat-form-field><mat-label>{{ 'Mobile number' | t }}</mat-label><input matInput formControlName="phoneNumber" placeholder="01712345678" /><mat-error>{{ err('phoneNumber', 'Mobile number') }}</mat-error></mat-form-field>
           <mat-form-field>
-            <mat-label>Role</mat-label>
+            <mat-label>{{ 'Role' | t }}</mat-label>
             <mat-select formControlName="role">
-              <mat-option value="ADMIN">Admin — full access</mat-option>
-              <mat-option value="MANAGER">Manager — sales and customers</mat-option>
-              <mat-option value="USER">User — read-only own reports</mat-option>
+              <mat-option value="ADMIN">{{ 'Admin — full access' | t }}</mat-option>
+              <mat-option value="MANAGER">{{ 'Manager — sales and customers' | t }}</mat-option>
+              <mat-option value="USER">{{ 'User — read-only own reports' | t }}</mat-option>
             </mat-select>
-            @if (isSelf) { <mat-hint>You cannot change your own role.</mat-hint> }
+            @if (isSelf) { <mat-hint>{{ 'You cannot change your own role.' | t }}</mat-hint> }
           </mat-form-field>
           <div class="span-2">
-            <app-search-select label="Linked buyer (customer)" [control]="form.controls.customerUuid" [fetch]="fetchCustomers"
+            <app-search-select [label]="'Linked buyer (customer)' | t" [control]="form.controls.customerUuid" [fetch]="fetchCustomers"
               [initialLabel]="data?.customerName ? data!.customerName + ' (' + data!.customerCode + ')' : null" />
           </div>
           <div class="span-2">
-            <app-search-select label="Linked supplier" [control]="form.controls.supplierUuid" [fetch]="fetchSuppliers"
+            <app-search-select [label]="'Linked supplier' | t" [control]="form.controls.supplierUuid" [fetch]="fetchSuppliers"
               [initialLabel]="data?.supplierName ? data!.supplierName + ' (' + data!.supplierCode + ')' : null" />
           </div>
           <mat-form-field subscriptSizing="dynamic" class="span-2">
-            <mat-label>{{ data ? 'New password (leave empty to keep)' : 'Temporary password' }}</mat-label>
+            <mat-label>{{ (data ? 'New password (leave empty to keep)' : 'Temporary password') | t }}</mat-label>
             <input matInput #pwPassword type="password" formControlName="password" autocomplete="new-password" />
           <app-password-toggle matSuffix [for]="pwPassword" />
-            <mat-hint>The user must change it at next login.</mat-hint>
+            <mat-hint>{{ 'The user must change it at next login.' | t }}</mat-hint>
             <mat-error>{{ err('password', 'Password') }}</mat-error>
           </mat-form-field>
         </div>
-        @if (error()) { <p class="negative">{{ error() }}</p> }
+        @if (error()) { <p class="negative">{{ error() | t }}</p> }
       </mat-dialog-content>
       <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancel</button>
-        <button mat-flat-button type="submit" [disabled]="busy()">Save</button>
+        <button mat-button type="button" mat-dialog-close>{{ 'Cancel' | t }}</button>
+        <button mat-flat-button type="submit" [disabled]="busy()">{{ 'Save' | t }}</button>
       </mat-dialog-actions>
     </form>
   `,

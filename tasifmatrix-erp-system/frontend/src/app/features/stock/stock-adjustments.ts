@@ -22,21 +22,22 @@ import { ListState } from '../../shared/list-state';
 import { LabelPipe, QtyPipe } from '../../shared/pipes';
 import { SearchSelect } from '../../shared/search-select';
 import { StatusChip } from '../../shared/status-chip';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-stock-adjustments',
-  imports: [DatePipe, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, ListFooter, LabelPipe, QtyPipe, StatusChip],
+  imports: [TranslatePipe, DatePipe, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, ListFooter, LabelPipe, QtyPipe, StatusChip],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
-          <h1>Stock adjustments</h1>
+          <h1>{{ 'Stock adjustments' | t }}</h1>
           @if (!layout.isHandset()) {
-            <div class="subtitle">Opening stock, damage, loss and corrections. Adjustments post immediately and cannot be edited.</div>
+            <div class="subtitle">{{ 'Opening stock, damage, loss and corrections. Adjustments post immediately and cannot be edited.' | t }}</div>
           }
         </div>
         @if (!layout.isHandset()) {
-          <div class="actions"><button mat-flat-button (click)="create()"><mat-icon>add</mat-icon>New adjustment</button></div>
+          <div class="actions"><button mat-flat-button (click)="create()"><mat-icon>add</mat-icon>{{ 'New adjustment' | t }}</button></div>
         }
       </div>
 
@@ -44,7 +45,7 @@ import { StatusChip } from '../../shared/status-chip';
         <div class="toolbar">
           <mat-form-field class="search" subscriptSizing="dynamic">
             <mat-icon matPrefix>search</mat-icon>
-            <mat-label>Search product or number</mat-label>
+            <mat-label>{{ 'Search product or number' | t }}</mat-label>
             <input matInput (input)="list.search($any($event.target).value)" />
           </mat-form-field>
         </div>
@@ -67,8 +68,8 @@ import { StatusChip } from '../../shared/status-chip';
                   </div>
                 </div>
                 <div class="m-meta two">
-                  <div><span class="k">Reason</span><span class="v">{{ a.reason | label }}</span></div>
-                  <div><span class="k">By</span><span class="v">{{ a.createdByUserName }}</span></div>
+                  <div><span class="k">{{ 'Reason' | t }}</span><span class="v">{{ a.reason | label }}</span></div>
+                  <div><span class="k">{{ 'By' | t }}</span><span class="v">{{ a.createdByUserName }}</span></div>
                 </div>
                 @if (a.note) { <div class="m-sub note">{{ a.note }}</div> }
               </div>
@@ -77,25 +78,25 @@ import { StatusChip } from '../../shared/status-chip';
         } @else {
           <div class="table-wrap">
             <table mat-table [dataSource]="list.items()">
-              <ng-container matColumnDef="number"><th mat-header-cell *matHeaderCellDef>No.</th><td mat-cell *matCellDef="let a" class="code">{{ a.adjustmentNumber }}</td></ng-container>
-              <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let a" class="nowrap">{{ a.adjustmentDate | date: 'dd MMM yyyy' }}</td></ng-container>
-              <ng-container matColumnDef="product"><th mat-header-cell *matHeaderCellDef>Product</th><td mat-cell *matCellDef="let a">{{ a.productName }} <span class="code">{{ a.productCode }}</span></td></ng-container>
-              <ng-container matColumnDef="type"><th mat-header-cell *matHeaderCellDef>Type</th><td mat-cell *matCellDef="let a"><app-status [value]="a.adjustmentType" /></td></ng-container>
-              <ng-container matColumnDef="qty"><th mat-header-cell *matHeaderCellDef class="num">Qty (pcs)</th><td mat-cell *matCellDef="let a" class="num">{{ a.quantity | qty }}</td></ng-container>
-              <ng-container matColumnDef="reason"><th mat-header-cell *matHeaderCellDef>Reason</th><td mat-cell *matCellDef="let a">{{ a.reason | label }}@if (a.note) { <div class="muted">{{ a.note }}</div> }</td></ng-container>
-              <ng-container matColumnDef="user"><th mat-header-cell *matHeaderCellDef>By</th><td mat-cell *matCellDef="let a" class="muted">{{ a.createdByUserName }}</td></ng-container>
+              <ng-container matColumnDef="number"><th mat-header-cell *matHeaderCellDef>{{ 'No.' | t }}</th><td mat-cell *matCellDef="let a" class="code">{{ a.adjustmentNumber }}</td></ng-container>
+              <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>{{ 'Date' | t }}</th><td mat-cell *matCellDef="let a" class="nowrap">{{ a.adjustmentDate | date: 'dd MMM yyyy' }}</td></ng-container>
+              <ng-container matColumnDef="product"><th mat-header-cell *matHeaderCellDef>{{ 'Product' | t }}</th><td mat-cell *matCellDef="let a">{{ a.productName }} <span class="code">{{ a.productCode }}</span></td></ng-container>
+              <ng-container matColumnDef="type"><th mat-header-cell *matHeaderCellDef>{{ 'Type' | t }}</th><td mat-cell *matCellDef="let a"><app-status [value]="a.adjustmentType" /></td></ng-container>
+              <ng-container matColumnDef="qty"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Qty (pcs)' | t }}</th><td mat-cell *matCellDef="let a" class="num">{{ a.quantity | qty }}</td></ng-container>
+              <ng-container matColumnDef="reason"><th mat-header-cell *matHeaderCellDef>{{ 'Reason' | t }}</th><td mat-cell *matCellDef="let a">{{ a.reason | label }}@if (a.note) { <div class="muted">{{ a.note }}</div> }</td></ng-container>
+              <ng-container matColumnDef="user"><th mat-header-cell *matHeaderCellDef>{{ 'By' | t }}</th><td mat-cell *matCellDef="let a" class="muted">{{ a.createdByUserName }}</td></ng-container>
               <tr mat-header-row *matHeaderRowDef="columns"></tr>
               <tr mat-row *matRowDef="let row; columns: columns"></tr>
             </table>
           </div>
         }
 
-        @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ list.error() ?? 'No adjustments yet. Use an Opening stock adjustment to enter existing stock.' }}</div> }
+        @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ (list.error() ?? 'No adjustments yet. Use an Opening stock adjustment to enter existing stock.') | t }}</div> }
         <app-list-footer [list]="list" />
       </div>
 
       @if (layout.isHandset()) {
-        <button mat-fab class="fab" aria-label="New adjustment" (click)="create()"><mat-icon>add</mat-icon></button>
+        <button mat-fab class="fab" [attr.aria-label]="'New adjustment' | t" (click)="create()"><mat-icon>add</mat-icon></button>
       }
     </div>
   `,
@@ -119,37 +120,37 @@ export class StockAdjustmentsPage implements OnInit {
 
 @Component({
   selector: 'app-adjustment-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule, MatButtonToggleModule, MatDatepickerModule, SearchSelect, QtyPipe],
+  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule, MatButtonToggleModule, MatDatepickerModule, SearchSelect, QtyPipe],
   template: `
-    <h2 mat-dialog-title>New stock adjustment</h2>
+    <h2 mat-dialog-title>{{ 'New stock adjustment' | t }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
       <mat-dialog-content>
-        <app-search-select label="Product" [control]="form.controls.productUuid" [fetch]="fetchProducts" [hint]="stockHint" (selected)="selected.set($event)" />
-        @if (selected(); as p) { <p class="muted" style="margin-top: -8px">Current stock: <strong>{{ p.currentStock | qty }}</strong> {{ unit() }}</p> }
+        <app-search-select [label]="'Product' | t" [control]="form.controls.productUuid" [fetch]="fetchProducts" [hint]="stockHint" (selected)="selected.set($event)" />
+        @if (selected(); as p) { <p class="muted" style="margin-top: -8px">{{ 'Current stock: {qty} {unit}' | t: { qty: (p.currentStock | qty), unit: unit() } }}</p> }
         <mat-button-toggle-group formControlName="adjustmentType" style="margin-bottom: 16px">
-          <mat-button-toggle value="INCREASE">Increase</mat-button-toggle>
-          <mat-button-toggle value="DECREASE">Decrease</mat-button-toggle>
+          <mat-button-toggle value="INCREASE">{{ 'Increase' | t }}</mat-button-toggle>
+          <mat-button-toggle value="DECREASE">{{ 'Decrease' | t }}</mat-button-toggle>
         </mat-button-toggle-group>
         <div class="form-grid">
-          <mat-form-field><mat-label>Quantity ({{ unit() }})</mat-label><input matInput type="number" [attr.inputmode]="measured() ? 'decimal' : 'numeric'" min="0" [step]="measured() ? 0.001 : 1" formControlName="quantity" /><mat-error>{{ err('quantity', 'Quantity') }}</mat-error></mat-form-field>
+          <mat-form-field><mat-label>{{ 'Quantity ({unit})' | t: { unit: unit() } }}</mat-label><input matInput type="number" [attr.inputmode]="measured() ? 'decimal' : 'numeric'" min="0" [step]="measured() ? 0.001 : 1" formControlName="quantity" /><mat-error>{{ err('quantity', 'Quantity') }}</mat-error></mat-form-field>
           <mat-form-field>
-            <mat-label>Reason</mat-label>
+            <mat-label>{{ 'Reason' | t }}</mat-label>
             <mat-select formControlName="reason">
-              @for (r of reasons; track r.value) { <mat-option [value]="r.value">{{ r.label }}</mat-option> }
+              @for (r of reasons; track r.value) { <mat-option [value]="r.value">{{ r.label | t }}</mat-option> }
             </mat-select>
           </mat-form-field>
           <mat-form-field>
-            <mat-label>Date</mat-label>
+            <mat-label>{{ 'Date' | t }}</mat-label>
             <input matInput [matDatepicker]="dp" formControlName="adjustmentDate" [max]="today" />
             <mat-datepicker-toggle matIconSuffix [for]="dp" /><mat-datepicker #dp />
           </mat-form-field>
-          <mat-form-field class="span-2"><mat-label>Note</mat-label><textarea matInput rows="2" formControlName="note"></textarea><mat-error>{{ err('note', 'Note') }}</mat-error></mat-form-field>
+          <mat-form-field class="span-2"><mat-label>{{ 'Note' | t }}</mat-label><textarea matInput rows="2" formControlName="note"></textarea><mat-error>{{ err('note', 'Note') }}</mat-error></mat-form-field>
         </div>
-        @if (error()) { <p class="negative">{{ error() }}</p> }
+        @if (error()) { <p class="negative">{{ error() | t }}</p> }
       </mat-dialog-content>
       <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancel</button>
-        <button mat-flat-button type="submit" [disabled]="busy()">Post adjustment</button>
+        <button mat-button type="button" mat-dialog-close>{{ 'Cancel' | t }}</button>
+        <button mat-flat-button type="submit" [disabled]="busy()">{{ 'Post adjustment' | t }}</button>
       </mat-dialog-actions>
     </form>
   `,
@@ -194,7 +195,7 @@ export class AdjustmentDialog {
     const v = this.form.getRawValue();
     this.busy.set(true);
     this.api.post<StockAdjustment>('/stock/adjustments', { ...v, adjustmentDate: dateToIso(v.adjustmentDate) }).subscribe({
-      next: (a) => { this.notify.success(`Adjustment #${a.adjustmentNumber} posted.`); this.ref.close(true); },
+      next: (a) => { this.notify.success('Adjustment #{no} posted.', { no: a.adjustmentNumber }); this.ref.close(true); },
       error: (e) => { this.error.set(applyServerErrors(this.form, e)); this.busy.set(false); },
     });
   }

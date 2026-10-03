@@ -25,10 +25,12 @@ import { LabelPipe, MoneyPipe, QtyPipe, formatMoney } from '../../shared/pipes';
 import { openSharePdfDialog } from '../../shared/share-pdf-dialog';
 import { StatusChip } from '../../shared/status-chip';
 import { orderMeta } from './order-kind';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { TParams, t } from '../../core/i18n/i18n';
 
 @Component({
   selector: 'app-order-view',
-  imports: [RouterLink, DatePipe, MatTableModule, MatButtonModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule, StatusChip, MoneyPipe, QtyPipe, LabelPipe],
+  imports: [TranslatePipe, RouterLink, DatePipe, MatTableModule, MatButtonModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule, StatusChip, MoneyPipe, QtyPipe, LabelPipe],
   templateUrl: './order-view.html',
   styleUrl: './order-view.scss',
 })
@@ -73,14 +75,16 @@ export class OrderViewPage implements OnInit {
 
   finalize(): void {
     const o = this.order()!;
-    const effect = this.kind() === 'sales' ? 'deducted from' : 'added to';
+    const stockSentence = this.kind() === 'sales'
+      ? 'Stock for {n} line item(s) will be deducted from inventory.'
+      : 'Stock for {n} line item(s) will be added to inventory.';
     this.notify.confirm({
-      title: `Finalize #${o.orderNumber}?`,
-      message: `Stock for ${o.lines.length} line item(s) will be ${effect} inventory.\nAfter finalizing, the order and its lines can no longer be edited. Payments can still be added.`,
+      title: t('Finalize #{no}?', { no: o.orderNumber }),
+      message: t(stockSentence, { n: o.lines.length }) + '\n' + t('After finalizing, the order and its lines can no longer be edited. Payments can still be added.'),
       confirmText: 'Finalize',
     }).subscribe((ok) => {
       if (!ok) return;
-      this.run(this.api.post<OrderDetail>(`${this.meta().api}/${o.uuid}/finalize`, { revision: o.revision }), `Order #${o.orderNumber} finalized.`);
+      this.run(this.api.post<OrderDetail>(`${this.meta().api}/${o.uuid}/finalize`, { revision: o.revision }), 'Order #{no} finalized.', { no: o.orderNumber });
     });
   }
 
@@ -88,13 +92,13 @@ export class OrderViewPage implements OnInit {
     const o = this.order()!;
     this.dialog.open(VoidDialog, this.layout.dialog({ order: o, kind: this.kind() }, '480px')).afterClosed().subscribe((reason?: string) => {
       if (!reason) return;
-      this.run(this.api.post<OrderDetail>(`${this.meta().api}/${o.uuid}/void`, { revision: o.revision, voidReason: reason }), `Order #${o.orderNumber} voided.`);
+      this.run(this.api.post<OrderDetail>(`${this.meta().api}/${o.uuid}/void`, { revision: o.revision, voidReason: reason }), 'Order #{no} voided.', { no: o.orderNumber });
     });
   }
 
   deleteDraft(): void {
     const o = this.order()!;
-    this.notify.confirm({ title: 'Delete draft', message: `Delete draft order #${o.orderNumber}?`, confirmText: 'Delete', danger: true }).subscribe((ok) => {
+    this.notify.confirm({ title: 'Delete draft', message: t('Delete draft order #{no}?', { no: o.orderNumber }), confirmText: 'Delete', danger: true }).subscribe((ok) => {
       if (!ok) return;
       this.busy.set(true);
       this.api.delete(`${this.meta().api}/${o.uuid}`, { revision: o.revision }).subscribe({
@@ -116,7 +120,7 @@ export class OrderViewPage implements OnInit {
     const p = o.payments.find((x) => x.uuid === paymentUuid)!;
     this.notify.confirm({
       title: 'Remove payment',
-      message: `Remove the payment of ${formatMoney(p.paymentAmount)} on ${p.paymentDate}? It stays in the audit history as deleted.`,
+      message: t('Remove the payment of {amount} on {date}? It stays in the audit history as deleted.', { amount: formatMoney(p.paymentAmount), date: p.paymentDate }),
       confirmText: 'Remove',
       danger: true,
     }).subscribe((ok) => {
@@ -166,12 +170,12 @@ export class OrderViewPage implements OnInit {
     );
   }
 
-  private run(req: Observable<OrderDetail>, message: string): void {
+  private run(req: Observable<OrderDetail>, message: string, params?: TParams): void {
     this.busy.set(true);
     req.subscribe({
       next: (updated) => {
         this.order.set(updated);
-        this.notify.success(message);
+        this.notify.success(message, params);
         this.busy.set(false);
       },
       error: (e: unknown) => {
@@ -191,45 +195,45 @@ export class OrderViewPage implements OnInit {
 
 @Component({
   selector: 'app-payment-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatButtonModule, MoneyPipe],
+  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatButtonModule, MoneyPipe],
   template: `
-    <h2 mat-dialog-title>Add payment · #{{ data.order.orderNumber }}</h2>
+    <h2 mat-dialog-title>{{ 'Add payment · #{no}' | t: { no: data.order.orderNumber } }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
       <mat-dialog-content>
         <p class="muted" style="margin-top: 0">
-          Total {{ data.order.totalAmount | money }} · Paid {{ data.order.totalPaidAmount | money }} ·
-          <strong class="negative">Due {{ data.order.dueAmount | money }}</strong>
+          {{ 'Total {amount}' | t: { amount: (data.order.totalAmount | money) } }} · {{ 'Paid {amount}' | t: { amount: (data.order.totalPaidAmount | money) } }} ·
+          <strong class="negative">{{ 'Due {amount}' | t: { amount: (data.order.dueAmount | money) } }}</strong>
         </p>
         <div class="form-grid">
           <mat-form-field floatLabel="always">
-            <mat-label>Amount</mat-label>
+            <mat-label>{{ 'Amount' | t }}</mat-label>
             <span matTextPrefix>Tk&nbsp;</span>
             <input matInput type="number" min="0.01" step="0.01" [max]="data.order.dueAmount" formControlName="paymentAmount" cdkFocusInitial />
             <mat-error>{{ err('paymentAmount', 'Amount') }}</mat-error>
           </mat-form-field>
           <mat-form-field>
-            <mat-label>Method</mat-label>
+            <mat-label>{{ 'Method' | t }}</mat-label>
             <mat-select formControlName="paymentMethod">
-              @for (m of methods; track m.value) { <mat-option [value]="m.value">{{ m.label }}</mat-option> }
+              @for (m of methods; track m.value) { <mat-option [value]="m.value">{{ m.label | t }}</mat-option> }
             </mat-select>
           </mat-form-field>
           <mat-form-field>
-            <mat-label>Payment date</mat-label>
+            <mat-label>{{ 'Payment date' | t }}</mat-label>
             <input matInput [matDatepicker]="dp" formControlName="paymentDate" [min]="minDate" [max]="today" />
             <mat-datepicker-toggle matIconSuffix [for]="dp" /><mat-datepicker #dp />
             <mat-error>{{ err('paymentDate', 'Payment date') }}</mat-error>
           </mat-form-field>
           <div style="display: flex; align-items: center;">
-            <button mat-button type="button" (click)="form.controls.paymentAmount.setValue(data.order.dueAmount)">Pay full due</button>
+            <button mat-button type="button" (click)="form.controls.paymentAmount.setValue(data.order.dueAmount)">{{ 'Pay full due' | t }}</button>
           </div>
-          <mat-form-field class="span-2"><mat-label>Note</mat-label><input matInput formControlName="paymentNote" placeholder="e.g. bKash TrxID" /></mat-form-field>
+          <mat-form-field class="span-2"><mat-label>{{ 'Note' | t }}</mat-label><input matInput formControlName="paymentNote" [placeholder]="'e.g. bKash TrxID' | t" /></mat-form-field>
         </div>
-        <p class="muted" style="margin: 0">An SMS with the amount and remaining due will be sent to {{ data.order.party.mobileNumber }}.</p>
-        @if (error()) { <p class="negative">{{ error() }}</p> }
+        <p class="muted" style="margin: 0">{{ 'An SMS with the amount and remaining due will be sent to {mobile}.' | t: { mobile: data.order.party.mobileNumber } }}</p>
+        @if (error()) { <p class="negative">{{ error() | t }}</p> }
       </mat-dialog-content>
       <mat-dialog-actions align="end">
-        <button mat-button type="button" mat-dialog-close>Cancel</button>
-        <button mat-flat-button type="submit" [disabled]="busy()">Add payment</button>
+        <button mat-button type="button" mat-dialog-close>{{ 'Cancel' | t }}</button>
+        <button mat-flat-button type="submit" [disabled]="busy()">{{ 'Add payment' | t }}</button>
       </mat-dialog-actions>
     </form>
   `,
@@ -280,28 +284,30 @@ export class PaymentDialog {
 
 @Component({
   selector: 'app-void-dialog',
-  imports: [ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
   template: `
-    <h2 mat-dialog-title>Void #{{ data.order.orderNumber }}</h2>
+    <h2 mat-dialog-title>{{ 'Void #{no}' | t: { no: data.order.orderNumber } }}</h2>
     <mat-dialog-content>
       @if (data.order.postingStatus === 'FINAL') {
         @if (data.order.payments.length > 0) {
-          <p class="negative">This order has {{ data.order.payments.length }} payment(s). Remove all payments before voiding.</p>
+          <p class="negative">{{ 'This order has {n} payment(s). Remove all payments before voiding.' | t: { n: data.order.payments.length } }}</p>
         } @else {
-          <p>Voiding reverses the stock movement: stock will be {{ data.kind === 'sales' ? 'added back' : 'deducted' }}. This cannot be undone.</p>
+          <p>{{ (data.kind === 'sales'
+            ? 'Voiding reverses the stock movement: stock will be added back. This cannot be undone.'
+            : 'Voiding reverses the stock movement: stock will be deducted. This cannot be undone.') | t }}</p>
         }
       } @else {
-        <p>This draft will be marked VOID. Stock is not affected. This cannot be undone.</p>
+        <p>{{ 'This draft will be marked VOID. Stock is not affected. This cannot be undone.' | t }}</p>
       }
       <mat-form-field class="full-width">
-        <mat-label>Reason</mat-label>
+        <mat-label>{{ 'Reason' | t }}</mat-label>
         <textarea matInput rows="3" [formControl]="reason" cdkFocusInitial></textarea>
-        <mat-error>A reason is required.</mat-error>
+        <mat-error>{{ 'A reason is required.' | t }}</mat-error>
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close>Cancel</button>
-      <button mat-flat-button class="danger" [disabled]="data.order.postingStatus === 'FINAL' && data.order.payments.length > 0" (click)="confirm()">Void order</button>
+      <button mat-button mat-dialog-close>{{ 'Cancel' | t }}</button>
+      <button mat-flat-button class="danger" [disabled]="data.order.postingStatus === 'FINAL' && data.order.payments.length > 0" (click)="confirm()">{{ 'Void order' | t }}</button>
     </mat-dialog-actions>
   `,
 })

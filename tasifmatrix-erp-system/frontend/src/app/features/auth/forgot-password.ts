@@ -7,26 +7,27 @@ import { MatInputModule } from '@angular/material/input';
 import { RouterLink } from '@angular/router';
 import { ApiService, errorMessage } from '../../core/api.service';
 import { AuthLayout } from '../../shared/auth-layout';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-forgot-password',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, AuthLayout],
+  imports: [TranslatePipe, ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, AuthLayout],
   template: `
     <app-auth-layout>
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
-        <h1>Forgot password</h1>
+        <h1>{{ 'Forgot password' | t }}</h1>
         @if (sent()) {
-          <p>If an account exists for <strong>{{ form.value.email }}</strong>, we have emailed a link to reset your password. The link expires in 30 minutes.</p>
-          <a mat-flat-button class="full-width" routerLink="/login">Back to log in</a>
+          <p>{{ 'If an account exists for {email}, we have emailed a link to reset your password. The link expires in 30 minutes.' | t: { email: form.value.email } }}</p>
+          <a mat-flat-button class="full-width" routerLink="/login">{{ 'Back to log in' | t }}</a>
         } @else {
-          <p class="lead">Enter your account email and we will send you a reset link.</p>
+          <p class="lead">{{ 'Enter your account email and we will send you a reset link.' | t }}</p>
           <mat-form-field>
-            <mat-label>Email</mat-label>
+            <mat-label>{{ 'Email' | t }}</mat-label>
             <input matInput type="email" formControlName="email" autocomplete="email" />
           </mat-form-field>
-          @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() }}</span></div> }
-          <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">Send reset link</button>
-          <div class="links"><span></span><a routerLink="/login">Back to log in</a></div>
+          @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() | t }}</span></div> }
+          <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">{{ 'Send reset link' | t }}</button>
+          <div class="links"><span></span><a routerLink="/login">{{ 'Back to log in' | t }}</a></div>
         }
       </form>
     </app-auth-layout>

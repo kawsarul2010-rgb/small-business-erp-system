@@ -1,17 +1,18 @@
 import { Component, input } from '@angular/core';
 import { APP_INFO } from '../core/app-info';
 import { AppLogo } from './app-logo';
+import { TranslatePipe } from '../core/i18n/translate.pipe';
 
 /** The product lock-up (mark + name + publisher) used on the sign-in screens. */
 @Component({
   selector: 'app-brand',
-  imports: [AppLogo],
+  imports: [TranslatePipe, AppLogo],
   template: `
     <div class="brand" [class.inverse]="inverse()">
       <app-logo [size]="size()" />
       <div class="text">
         <span class="name">{{ app.name }}</span>
-        <span class="by">by {{ app.publisher.name }}</span>
+        <span class="by">{{ 'by {name}' | t: { name: app.publisher.name } }}</span>
       </div>
     </div>
   `,

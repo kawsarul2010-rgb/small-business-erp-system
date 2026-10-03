@@ -4,16 +4,16 @@
     <div class="hero-pattern" aria-hidden="true"></div>
     <div class="hero-text">
       <div class="hero-date"><mat-icon>calendar_today</mat-icon>{{ today | date: 'EEEE, d MMMM y' }}</div>
-      <h1>{{ greeting() }}, {{ firstName() }}</h1>
-      <p>Here is what is happening in {{ auth.user()?.businessName ?? 'your business' }}.</p>
+      <h1>{{ greeting() | t: { name: firstName() } }}</h1>
+      <p>@if (auth.user()?.businessName; as business) { {{ 'Here is what is happening in {business}.' | t: { business: business } }} } @else { {{ 'Here is what is happening in your business.' | t }} }</p>
     </div>
     @if (auth.canSales() || auth.isAdmin()) {
       <div class="hero-actions">
         @if (auth.canSales()) {
-          <a mat-flat-button class="hero-primary" routerLink="/sales-orders/new"><mat-icon>add</mat-icon>New sale</a>
+          <a mat-flat-button class="hero-primary" routerLink="/sales-orders/new"><mat-icon>add</mat-icon>{{ 'New sale' | t }}</a>
         }
         @if (auth.isAdmin()) {
-          <a mat-stroked-button class="hero-secondary" routerLink="/purchase-orders/new"><mat-icon>add_shopping_cart</mat-icon>New purchase</a>
+          <a mat-stroked-button class="hero-secondary" routerLink="/purchase-orders/new"><mat-icon>add_shopping_cart</mat-icon>{{ 'New purchase' | t }}</a>
         }
       </div>
     }
@@ -21,11 +21,11 @@
 
   @if (!auth.isUser() && companies().length > 1) {
     <div class="dash-filter">
-      <span class="muted">Showing</span>
+      <span class="muted">{{ 'Showing' | t }}</span>
       <mat-form-field subscriptSizing="dynamic" class="company-select">
         <mat-icon matPrefix class="field-icon">apartment</mat-icon>
-        <mat-select [formControl]="company" (selectionChange)="load()" placeholder="All companies" aria-label="Company">
-          <mat-option [value]="null">All companies</mat-option>
+        <mat-select [formControl]="company" (selectionChange)="load()" [placeholder]="'All companies' | t" [attr.aria-label]="'Company' | t">
+          <mat-option [value]="null">{{ 'All companies' | t }}</mat-option>
           @for (c of companies(); track c.uuid) { <mat-option [value]="c.uuid">{{ c.name }}</mat-option> }
         </mat-select>
       </mat-form-field>
@@ -33,7 +33,7 @@
   }
 
   @if (loading()) { <mat-progress-bar mode="indeterminate" class="loading" /> }
-  @if (error()) { <div class="card card-pad negative">{{ error() }}</div> }
+  @if (error()) { <div class="card card-pad negative">{{ error() | t }}</div> }
 
   @if (data(); as d) {
     @if (d.role !== 'USER') {
@@ -42,14 +42,14 @@
         <a class="card stat" routerLink="/sales-orders">
           <span class="icon-badge"><mat-icon>today</mat-icon></span>
           <span class="stat-body">
-            <span class="label">Today's sales</span>
+            <span class="label">{{ 'Today\'s sales' | t }}</span>
             <strong>{{ d.todaySales | money }}</strong>
           </span>
         </a>
         <a class="card stat" routerLink="/sales-orders">
           <span class="icon-badge violet"><mat-icon>trending_up</mat-icon></span>
           <span class="stat-body">
-            <span class="label">Sales this month</span>
+            <span class="label">{{ 'Sales this month' | t }}</span>
             <strong>{{ d.monthSales | money }}</strong>
           </span>
         </a>
@@ -57,7 +57,7 @@
           <a class="card stat" routerLink="/purchase-orders">
             <span class="icon-badge teal"><mat-icon>shopping_cart</mat-icon></span>
             <span class="stat-body">
-              <span class="label">Purchases this month</span>
+              <span class="label">{{ 'Purchases this month' | t }}</span>
               <strong>{{ d.monthPurchases | money }}</strong>
             </span>
           </a>
@@ -65,7 +65,7 @@
         <a class="card stat" routerLink="/reports/dues">
           <span class="icon-badge rose"><mat-icon>account_balance_wallet</mat-icon></span>
           <span class="stat-body">
-            <span class="label">Customer due</span>
+            <span class="label">{{ 'Customer due' | t }}</span>
             <strong class="negative">{{ d.customerDue | money }}</strong>
           </span>
         </a>
@@ -73,7 +73,7 @@
           <a class="card stat" routerLink="/reports/dues">
             <span class="icon-badge amber"><mat-icon>local_shipping</mat-icon></span>
             <span class="stat-body">
-              <span class="label">Supplier due</span>
+              <span class="label">{{ 'Supplier due' | t }}</span>
               <strong class="negative">{{ d.supplierDue | money }}</strong>
             </span>
           </a>
@@ -81,9 +81,9 @@
         <a class="card stat" routerLink="/sales-orders" [queryParams]="{ status: 'DRAFT' }">
           <span class="icon-badge slate"><mat-icon>edit_note</mat-icon></span>
           <span class="stat-body">
-            <span class="label">Draft orders</span>
+            <span class="label">{{ 'Draft orders' | t }}</span>
             <strong>{{ (d.draftSalesOrders ?? 0) + (d.draftPurchaseOrders ?? 0) }}</strong>
-            <span class="hint">{{ d.draftSalesOrders }} sales@if (d.draftPurchaseOrders !== null) { · {{ d.draftPurchaseOrders }} purchase }</span>
+            <span class="hint">@if (d.draftPurchaseOrders !== null) { {{ '{sales} sales · {purchase} purchase' | t: { sales: d.draftSalesOrders, purchase: d.draftPurchaseOrders } }} } @else { {{ '{sales} sales' | t: { sales: d.draftSalesOrders } }} }</span>
           </span>
         </a>
       </div>
@@ -92,24 +92,24 @@
         <section class="card card-pad">
           <div class="section-head">
             <div>
-              <h2 class="card-title">Sales · last 30 days</h2>
-              <div class="section-sub">Finalized orders</div>
+              <h2 class="card-title">{{ 'Sales · last 30 days' | t }}</h2>
+              <div class="section-sub">{{ 'Finalized orders' | t }}</div>
             </div>
             <div class="chart-total">
-              <span class="muted">Total</span>
+              <span class="muted">{{ 'Total' | t }}</span>
               <strong>{{ last30Total() | money }}</strong>
             </div>
           </div>
-          <div class="chart-box"><canvas #chart aria-label="Daily sales for the last 30 days" role="img"></canvas></div>
+          <div class="chart-box"><canvas #chart [attr.aria-label]="'Daily sales for the last 30 days' | t" role="img"></canvas></div>
         </section>
 
         <section class="card card-pad">
           <div class="section-head">
             <div>
-              <h2 class="card-title">Low stock</h2>
-              <div class="section-sub">Below the alert level</div>
+              <h2 class="card-title">{{ 'Low stock' | t }}</h2>
+              <div class="section-sub">{{ 'Below the alert level' | t }}</div>
             </div>
-            <a mat-button routerLink="/stock">View stock</a>
+            <a mat-button routerLink="/stock">{{ 'View stock' | t }}</a>
           </div>
           @for (p of d.lowStock; track p.productUuid) {
             <div class="low-row">
@@ -122,7 +122,7 @@
           } @empty {
             <div class="all-good">
               <span class="icon-badge teal"><mat-icon>check_circle</mat-icon></span>
-              <span>All products are above their alert level.</span>
+              <span>{{ 'All products are above their alert level.' | t }}</span>
             </div>
           }
         </section>
@@ -131,16 +131,16 @@
       <div class="grid-2">
         <section class="card card-pad">
           <div class="section-head">
-            <h2 class="card-title">Latest sales orders</h2>
-            @if (auth.canSales()) { <a mat-button routerLink="/sales-orders/new"><mat-icon>add</mat-icon>New</a> }
+            <h2 class="card-title">{{ 'Latest sales orders' | t }}</h2>
+            @if (auth.canSales()) { <a mat-button routerLink="/sales-orders/new"><mat-icon>add</mat-icon>{{ 'New' | t }}</a> }
           </div>
           <ng-container *ngTemplateOutlet="orders; context: { $implicit: d.latestSales }" />
         </section>
         @if (auth.isAdmin()) {
           <section class="card card-pad">
             <div class="section-head">
-              <h2 class="card-title">Latest purchase orders</h2>
-              <a mat-button routerLink="/purchase-orders/new"><mat-icon>add</mat-icon>New</a>
+              <h2 class="card-title">{{ 'Latest purchase orders' | t }}</h2>
+              <a mat-button routerLink="/purchase-orders/new"><mat-icon>add</mat-icon>{{ 'New' | t }}</a>
             </div>
             <ng-container *ngTemplateOutlet="orders; context: { $implicit: d.latestPurchases }" />
           </section>
@@ -152,8 +152,8 @@
         <div class="card card-pad notice">
           <span class="icon-badge amber"><mat-icon>link_off</mat-icon></span>
           <div>
-            <h2 class="card-title">Account awaiting link</h2>
-            <p class="muted">Your account is not yet linked to a customer or supplier. An administrator needs to link it before you can see your orders and payments.</p>
+            <h2 class="card-title">{{ 'Account awaiting link' | t }}</h2>
+            <p class="muted">{{ 'Your account is not yet linked to a customer or supplier. An administrator needs to link it before you can see your orders and payments.' | t }}</p>
           </div>
         </div>
       }
@@ -163,15 +163,15 @@
             <section class="card card-pad">
               <div class="section-head">
                 <div>
-                  <h2 class="card-title">{{ $index === 0 ? 'As buyer' : 'As supplier' }}</h2>
+                  <h2 class="card-title">{{ ($index === 0 ? 'As buyer' : 'As supplier') | t }}</h2>
                   <div class="section-sub">{{ s.partyName }}</div>
                 </div>
               </div>
               <div class="linked">
-                <div><span class="k">Orders</span><strong>{{ s.orderCount }}</strong></div>
-                <div><span class="k">Total</span><strong>{{ s.totalAmount | money }}</strong></div>
-                <div><span class="k">Paid</span><strong class="positive">{{ s.totalPaid | money }}</strong></div>
-                <div><span class="k">Due</span><strong class="negative">{{ s.due | money }}</strong></div>
+                <div><span class="k">{{ 'Orders' | t }}</span><strong>{{ s.orderCount }}</strong></div>
+                <div><span class="k">{{ 'Total' | t }}</span><strong>{{ s.totalAmount | money }}</strong></div>
+                <div><span class="k">{{ 'Paid' | t }}</span><strong class="positive">{{ s.totalPaid | money }}</strong></div>
+                <div><span class="k">{{ 'Due' | t }}</span><strong class="negative">{{ s.due | money }}</strong></div>
               </div>
               <ng-container *ngTemplateOutlet="orders; context: { $implicit: $index === 0 ? d.latestSales : d.latestPurchases }" />
             </section>
@@ -195,7 +195,7 @@
         </div>
       </a>
     } @empty {
-      <div class="empty">No orders yet.</div>
+      <div class="empty">{{ 'No orders yet.' | t }}</div>
     }
   </ng-template>
 </div>

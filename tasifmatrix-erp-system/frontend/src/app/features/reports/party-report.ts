@@ -21,33 +21,34 @@ import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { MoneyPipe, QtyPipe } from '../../shared/pipes';
 import { ReportExport } from '../../shared/report-export';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 type PartyKind = 'customer' | 'supplier';
 
 /** Customer and supplier reports: order totals, payments made and current due (FINAL orders only). */
 @Component({
   selector: 'app-party-report',
-  imports: [RouterLink, ReactiveFormsModule, MatTableModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatCheckboxModule, MatProgressBarModule, MatTooltipModule, ListFooter, MoneyPipe, QtyPipe, ReportExport],
+  imports: [TranslatePipe, RouterLink, ReactiveFormsModule, MatTableModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatCheckboxModule, MatProgressBarModule, MatTooltipModule, ListFooter, MoneyPipe, QtyPipe, ReportExport],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
-          <h1>{{ kind() === 'customer' ? 'Customer report' : 'Supplier report' }}</h1>
+          <h1>{{ (kind() === 'customer' ? 'Customer report' : 'Supplier report') | t }}</h1>
           @if (!layout.isHandset()) {
-            <div class="subtitle">Totals include finalized orders only. Due = order total − payments.</div>
+            <div class="subtitle">{{ 'Totals include finalized orders only. Due = order total − payments.' | t }}</div>
           }
         </div>
         <div class="actions">
           <app-report-export [path]="pdfPath()" [filters]="pdfFilters()"
-            [label]="kind() === 'customer' ? 'Customer report' : 'Supplier report'" />
+            [label]="(kind() === 'customer' ? 'Customer report' : 'Supplier report') | t" />
         </div>
       </div>
 
       <div class="totals-row">
-        <div class="card card-pad stat"><span class="muted">Orders</span><strong>{{ totals().orderCount | qty }}</strong></div>
-        <div class="card card-pad stat"><span class="muted">Order total</span><strong>{{ totals().totalAmount | money }}</strong></div>
-        <div class="card card-pad stat"><span class="muted">Paid</span><strong class="positive">{{ totals().totalPaid | money }}</strong></div>
-        <div class="card card-pad stat"><span class="muted">Due</span><strong class="negative">{{ totals().due | money }}</strong></div>
+        <div class="card card-pad stat"><span class="muted">{{ 'Orders' | t }}</span><strong>{{ totals().orderCount | qty }}</strong></div>
+        <div class="card card-pad stat"><span class="muted">{{ 'Order total' | t }}</span><strong>{{ totals().totalAmount | money }}</strong></div>
+        <div class="card card-pad stat"><span class="muted">{{ 'Paid' | t }}</span><strong class="positive">{{ totals().totalPaid | money }}</strong></div>
+        <div class="card card-pad stat"><span class="muted">{{ 'Due' | t }}</span><strong class="negative">{{ totals().due | money }}</strong></div>
       </div>
 
       <div class="card">
@@ -55,29 +56,29 @@ type PartyKind = 'customer' | 'supplier';
           @if (!auth.isUser()) {
             <mat-form-field class="search" subscriptSizing="dynamic">
               <mat-icon matPrefix>search</mat-icon>
-              <mat-label>Search name or code</mat-label>
+              <mat-label>{{ 'Search name or code' | t }}</mat-label>
               <input matInput (input)="list.search($any($event.target).value)" />
             </mat-form-field>
             @if (!layout.isHandset()) {
               <mat-form-field subscriptSizing="dynamic" style="width: 180px">
-                <mat-label>Company</mat-label>
+                <mat-label>{{ 'Company' | t }}</mat-label>
                 <mat-select [formControl]="company" (selectionChange)="list.resetToFirstPage()">
-                  <mat-option [value]="null">All companies</mat-option>
+                  <mat-option [value]="null">{{ 'All companies' | t }}</mat-option>
                   @for (c of companies(); track c.uuid) { <mat-option [value]="c.uuid">{{ c.name }}</mat-option> }
                 </mat-select>
               </mat-form-field>
             }
           }
           <mat-form-field subscriptSizing="dynamic">
-            <mat-label>Order date</mat-label>
+            <mat-label>{{ 'Order date' | t }}</mat-label>
             <mat-date-range-input [rangePicker]="picker">
-              <input matStartDate [formControl]="from" placeholder="From" />
-              <input matEndDate [formControl]="to" placeholder="To" (dateChange)="list.resetToFirstPage()" />
+              <input matStartDate [formControl]="from" [placeholder]="'From' | t" />
+              <input matEndDate [formControl]="to" [placeholder]="'To' | t" (dateChange)="list.resetToFirstPage()" />
             </mat-date-range-input>
             <mat-datepicker-toggle matIconSuffix [for]="picker" />
             <mat-date-range-picker #picker />
           </mat-form-field>
-          @if (!auth.isUser()) { <mat-checkbox [formControl]="dueOnly" (change)="list.resetToFirstPage()">With due only</mat-checkbox> }
+          @if (!auth.isUser()) { <mat-checkbox [formControl]="dueOnly" (change)="list.resetToFirstPage()">{{ 'With due only' | t }}</mat-checkbox> }
         </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
 
@@ -93,13 +94,13 @@ type PartyKind = 'customer' | 'supplier';
                   </div>
                   <div class="m-right">
                     <span class="m-amount" [class.negative]="r.due > 0">{{ r.due | money }}</span>
-                    <span class="m-sub">due</span>
+                    <span class="m-sub">{{ 'due' | t }}</span>
                   </div>
                 </div>
                 <div class="m-meta">
-                  <div><span class="k">Orders</span><span class="v">{{ r.orderCount }}</span></div>
-                  <div><span class="k">Total</span><span class="v">{{ r.totalAmount | money: false }}</span></div>
-                  <div><span class="k">Paid</span><span class="v">{{ r.totalPaid | money: false }}</span></div>
+                  <div><span class="k">{{ 'Orders' | t }}</span><span class="v">{{ r.orderCount }}</span></div>
+                  <div><span class="k">{{ 'Total' | t }}</span><span class="v">{{ r.totalAmount | money: false }}</span></div>
+                  <div><span class="k">{{ 'Paid' | t }}</span><span class="v">{{ r.totalPaid | money: false }}</span></div>
                 </div>
               </a>
             }
@@ -107,15 +108,15 @@ type PartyKind = 'customer' | 'supplier';
         } @else {
           <div class="table-wrap">
             <table mat-table [dataSource]="list.items()" matSort matSortActive="due" matSortDirection="desc" (matSortChange)="list.onSort($event)">
-              <ng-container matColumnDef="partyName"><th mat-header-cell *matHeaderCellDef mat-sort-header>{{ kind() === 'customer' ? 'Customer' : 'Supplier' }}</th>
+              <ng-container matColumnDef="partyName"><th mat-header-cell *matHeaderCellDef mat-sort-header>{{ (kind() === 'customer' ? 'Customer' : 'Supplier') | t }}</th>
                 <td mat-cell *matCellDef="let r">{{ r.partyName }} <span class="code">{{ r.partyCode }}</span></td></ng-container>
-              <ng-container matColumnDef="mobile"><th mat-header-cell *matHeaderCellDef>Mobile</th><td mat-cell *matCellDef="let r" class="nowrap">{{ r.mobileNumber }}</td></ng-container>
-              <ng-container matColumnDef="orders"><th mat-header-cell *matHeaderCellDef class="num">Orders</th><td mat-cell *matCellDef="let r" class="num">{{ r.orderCount }}</td></ng-container>
-              <ng-container matColumnDef="totalAmount"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Order total</th><td mat-cell *matCellDef="let r" class="num nowrap">{{ r.totalAmount | money }}</td></ng-container>
-              <ng-container matColumnDef="totalPaid"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Paid</th><td mat-cell *matCellDef="let r" class="num nowrap">{{ r.totalPaid | money }}</td></ng-container>
-              <ng-container matColumnDef="due"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Due</th><td mat-cell *matCellDef="let r" class="num nowrap" [class.negative]="r.due > 0"><strong>{{ r.due | money }}</strong></td></ng-container>
+              <ng-container matColumnDef="mobile"><th mat-header-cell *matHeaderCellDef>{{ 'Mobile' | t }}</th><td mat-cell *matCellDef="let r" class="nowrap">{{ r.mobileNumber }}</td></ng-container>
+              <ng-container matColumnDef="orders"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Orders' | t }}</th><td mat-cell *matCellDef="let r" class="num">{{ r.orderCount }}</td></ng-container>
+              <ng-container matColumnDef="totalAmount"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">{{ 'Order total' | t }}</th><td mat-cell *matCellDef="let r" class="num nowrap">{{ r.totalAmount | money }}</td></ng-container>
+              <ng-container matColumnDef="totalPaid"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">{{ 'Paid' | t }}</th><td mat-cell *matCellDef="let r" class="num nowrap">{{ r.totalPaid | money }}</td></ng-container>
+              <ng-container matColumnDef="due"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">{{ 'Due' | t }}</th><td mat-cell *matCellDef="let r" class="num nowrap" [class.negative]="r.due > 0"><strong>{{ r.due | money }}</strong></td></ng-container>
               <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef></th>
-                <td mat-cell *matCellDef="let r" class="num"><a mat-icon-button matTooltip="View orders" [routerLink]="ordersRoute()" [queryParams]="auth.isUser() ? { status: 'FINAL' } : { partyUuid: r.partyUuid, partyLabel: r.partyName + ' (' + r.partyCode + ')', status: 'FINAL' }"><mat-icon>receipt_long</mat-icon></a></td></ng-container>
+                <td mat-cell *matCellDef="let r" class="num"><a mat-icon-button [matTooltip]="'View orders' | t" [routerLink]="ordersRoute()" [queryParams]="auth.isUser() ? { status: 'FINAL' } : { partyUuid: r.partyUuid, partyLabel: r.partyName + ' (' + r.partyCode + ')', status: 'FINAL' }"><mat-icon>receipt_long</mat-icon></a></td></ng-container>
               <tr mat-header-row *matHeaderRowDef="columns"></tr>
               <tr mat-row *matRowDef="let row; columns: columns"></tr>
             </table>
@@ -123,7 +124,7 @@ type PartyKind = 'customer' | 'supplier';
         }
 
         @if (!list.loading() && list.items().length === 0) {
-          <div class="empty">{{ list.error() ?? (auth.isUser() ? 'Your account is not linked yet, or there are no finalized orders.' : 'No data for the selected filters.') }}</div>
+          <div class="empty">{{ (list.error() ?? (auth.isUser() ? 'Your account is not linked yet, or there are no finalized orders.' : 'No data for the selected filters.')) | t }}</div>
         }
         <app-list-footer [list]="list" />
       </div>

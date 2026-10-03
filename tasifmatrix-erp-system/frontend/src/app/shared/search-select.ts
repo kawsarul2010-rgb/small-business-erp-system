@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Observable, catchError, debounceTime, distinctUntilChanged, of, startWith, switchMap } from 'rxjs';
 import { DropdownItem } from '../core/models';
+import { TranslatePipe } from '../core/i18n/translate.pipe';
 
 /**
  * Server-searched dropdown (autocomplete). Binds the selected uuid to `control`,
@@ -15,13 +16,13 @@ import { DropdownItem } from '../core/models';
  */
 @Component({
   selector: 'app-search-select',
-  imports: [ReactiveFormsModule, MatAutocompleteModule, MatFormFieldModule, MatInputModule, MatIconModule, MatButtonModule],
+  imports: [TranslatePipe, ReactiveFormsModule, MatAutocompleteModule, MatFormFieldModule, MatInputModule, MatIconModule, MatButtonModule],
   template: `
     <mat-form-field [appearance]="appearance()" class="full" [subscriptSizing]="subscript()">
-      <mat-label>{{ label() }}</mat-label>
-      <input matInput [formControl]="text" [matAutocomplete]="auto" (blur)="onBlur()" [attr.aria-label]="label()" />
+      <mat-label>{{ label() | t }}</mat-label>
+      <input matInput [formControl]="text" [matAutocomplete]="auto" (blur)="onBlur()" [attr.aria-label]="label() | t" />
       @if (control().value && !control().disabled) {
-        <button matSuffix mat-icon-button type="button" aria-label="Clear" (click)="clear()"><mat-icon>close</mat-icon></button>
+        <button matSuffix mat-icon-button type="button" [attr.aria-label]="'Clear' | t" (click)="clear()"><mat-icon>close</mat-icon></button>
       }
       <mat-autocomplete #auto="matAutocomplete" (optionSelected)="select($event)" [displayWith]="display">
         @for (item of options(); track item.uuid) {
@@ -30,11 +31,11 @@ import { DropdownItem } from '../core/models';
             @if (hint(); as h) { <span class="hint">{{ h(item) }}</span> }
           </mat-option>
         } @empty {
-          <mat-option disabled>{{ loading() ? 'Searching…' : 'No matches' }}</mat-option>
+          <mat-option disabled>{{ (loading() ? 'Searching…' : 'No matches') | t }}</mat-option>
         }
       </mat-autocomplete>
       @if (control().touched && control().invalid) {
-        <mat-error>{{ errorText() }}</mat-error>
+        <mat-error>{{ errorText() | t }}</mat-error>
       }
     </mat-form-field>
   `,

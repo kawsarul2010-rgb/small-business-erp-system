@@ -1,3 +1,4 @@
+import { t } from './i18n/i18n';
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -54,7 +55,7 @@ export class PlatformService {
 
     const base64 = await blobToBase64(blob);
     const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
-    await Share.share({ title: fileName, url: written.uri, dialogTitle: 'Open or share the PDF' });
+    await Share.share({ title: fileName, url: written.uri, dialogTitle: t('Open or share the PDF') });
   }
 
   /** Saves the PDF to the browser's downloads folder. */
@@ -95,7 +96,7 @@ export class PlatformService {
     if (this.isNative) {
       const base64 = await blobToBase64(blob);
       const written = await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
-      await Share.share({ title, text, url: written.uri, dialogTitle: 'Share the PDF' });
+      await Share.share({ title, text, url: written.uri, dialogTitle: t('Share the PDF') });
       return true;
     }
 

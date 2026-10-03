@@ -9,6 +9,8 @@ import { LayoutService } from '../core/layout.service';
 import { NotifyService } from '../core/notify.service';
 import { PlatformService } from '../core/platform.service';
 import { openSharePdfDialog } from './share-pdf-dialog';
+import { TranslatePipe } from '../core/i18n/translate.pipe';
+import { t } from '../core/i18n/i18n';
 
 /**
  * Print / download / share for a report.
@@ -19,32 +21,32 @@ import { openSharePdfDialog } from './share-pdf-dialog';
  */
 @Component({
   selector: 'app-report-export',
-  imports: [MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule],
+  imports: [TranslatePipe, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule],
   template: `
     @if (layout.isHandset()) {
-      <button mat-icon-button [matMenuTriggerFor]="menu" [disabled]="busy()" aria-label="Export report">
+      <button mat-icon-button [matMenuTriggerFor]="menu" [disabled]="busy()" [attr.aria-label]="'Export report' | t">
         <mat-icon>print</mat-icon>
       </button>
     } @else {
       <button mat-stroked-button [matMenuTriggerFor]="menu" [disabled]="busy()">
         <mat-icon>print</mat-icon>
-        {{ busy() ? 'Preparing…' : 'Print / share' }}
+        {{ (busy() ? 'Preparing…' : 'Print / share') | t }}
       </button>
     }
     <mat-menu #menu="matMenu" xPosition="before">
       <button mat-menu-item (click)="run(false)">
         <mat-icon>open_in_new</mat-icon>
-        {{ platform.isNative ? 'Open or share' : 'Open in a new tab' }}
+        {{ (platform.isNative ? 'Open or share' : 'Open in a new tab') | t }}
       </button>
       <button mat-menu-item (click)="run(true)">
         <mat-icon>download</mat-icon>
-        Download PDF
+        {{ 'Download PDF' | t }}
       </button>
       <!-- The Android app already has the system share sheet behind "Open or share". -->
       @if (!platform.isNative) {
         <button mat-menu-item (click)="share()">
           <mat-icon>ios_share</mat-icon>
-          Share (WhatsApp, email)
+          {{ 'Share (WhatsApp, email)' | t }}
         </button>
       }
     </mat-menu>
@@ -85,12 +87,12 @@ export class ReportExport {
 
   share(): void {
     this.busy.set(true);
-    const title = this.label() || 'This report';
+    const title = this.label() || t('This report');
     openSharePdfDialog(
       { api: this.api, dialog: this.dialog, layout: this.layout, notify: this.notify },
       this.path(),
       this.filters(),
-      { title, fileName: this.fileName(), message: `${title} is attached.` },
+      { title, fileName: this.fileName(), message: t('{title} is attached.', { title }) },
       () => this.busy.set(false),
     );
   }

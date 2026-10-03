@@ -9,38 +9,39 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { errorMessage } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { AuthLayout } from '../../shared/auth-layout';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule, AuthLayout],
+  imports: [TranslatePipe, ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule, AuthLayout],
   template: `
     <app-auth-layout>
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
-        <h1>Log in</h1>
-        <p class="lead">Welcome back. Sign in to continue to your business.</p>
-        @if (expired) { <div class="alert info"><mat-icon>schedule</mat-icon><span>Your session expired. Please log in again.</span></div> }
+        <h1>{{ 'Log in' | t }}</h1>
+        <p class="lead">{{ 'Welcome back. Sign in to continue to your business.' | t }}</p>
+        @if (expired) { <div class="alert info"><mat-icon>schedule</mat-icon><span>{{ 'Your session expired. Please log in again.' | t }}</span></div> }
 
         <mat-form-field>
-          <mat-label>Email</mat-label>
+          <mat-label>{{ 'Email' | t }}</mat-label>
           <mat-icon matPrefix class="field-icon">mail</mat-icon>
           <input matInput type="email" formControlName="email" autocomplete="username" />
         </mat-form-field>
         <mat-form-field>
-          <mat-label>Password</mat-label>
+          <mat-label>{{ 'Password' | t }}</mat-label>
           <mat-icon matPrefix class="field-icon">lock</mat-icon>
           <input matInput [type]="showPassword() ? 'text' : 'password'" formControlName="password" autocomplete="current-password" />
-          <button mat-icon-button matSuffix type="button" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'">
+          <button mat-icon-button matSuffix type="button" (click)="showPassword.set(!showPassword())" [attr.aria-label]="(showPassword() ? 'Hide password' : 'Show password') | t">
             <mat-icon>{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
           </button>
         </mat-form-field>
 
-        @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() }}</span></div> }
+        @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() | t }}</span></div> }
         @if (busy()) { <mat-progress-bar mode="indeterminate" /> }
-        <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">{{ busy() ? 'Logging in…' : 'Log in' }}</button>
+        <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">{{ (busy() ? 'Logging in…' : 'Log in') | t }}</button>
 
         <div class="links">
-          <a routerLink="/forgot-password">Forgot password?</a>
-          <a routerLink="/register">Create an account</a>
+          <a routerLink="/forgot-password">{{ 'Forgot password?' | t }}</a>
+          <a routerLink="/register">{{ 'Create an account' | t }}</a>
         </div>
       </form>
     </app-auth-layout>

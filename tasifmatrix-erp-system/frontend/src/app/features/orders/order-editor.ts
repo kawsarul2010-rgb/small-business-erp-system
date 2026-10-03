@@ -21,6 +21,8 @@ import { MoneyPipe, QtyPipe } from '../../shared/pipes';
 import { SearchSelect } from '../../shared/search-select';
 import { allowsFractions, baseQuantityType, baseUnit, boxSizeLabel, entryTypesFor, quantityInputMode, quantityLabel, quantityStep, stockLabel } from '../../shared/units';
 import { orderMeta } from './order-kind';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { t } from '../../core/i18n/i18n';
 
 type LineForm = FormGroup<{
   uuid: FormControl<string | null>;
@@ -46,11 +48,18 @@ interface LineProduct {
   currentStock: number | null;
 }
 
+/** A sales line asking for more than is in stock; rendered (and translated) by stockWarningText(). */
+interface StockWarning {
+  productUuid: string;
+  product: LineProduct;
+  qty: number;
+}
+
 const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 
 @Component({
   selector: 'app-order-editor',
-  imports: [
+  imports: [TranslatePipe, 
     ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatButtonModule,
     MatIconModule, MatTooltipModule, MatProgressBarModule, SearchSelect, MoneyPipe, QtyPipe,
   ],
@@ -80,7 +89,7 @@ export class OrderEditorPage implements OnInit {
   /** Product info per line, parallel to the lines FormArray. */
   readonly lineProducts = signal<(LineProduct | null)[]>([]);
   readonly total = signal(0);
-  readonly stockWarnings = signal<string[]>([]);
+  readonly stockWarnings = signal<StockWarning[]>([]);
 
   readonly paymentTypes: { value: PaymentType; label: string }[] = [
     { value: 'CASH', label: 'Cash' },
@@ -105,7 +114,7 @@ export class OrderEditorPage implements OnInit {
   readonly fetchProducts = (term: string) => this.api.get<ProductDropdownItem[]>('/products/dropdown', { search: term });
   readonly productHint = (p: ProductDropdownItem) => {
     const unit = stockLabel(p);
-    return `${p.currentStock} ${unit} in stock · Tk ${this.isSales() ? p.salesPrice : p.purchasePrice}/${unit}`;
+    return t('{qty} {unit} in stock · Tk {price}/{unit}', { qty: p.currentStock, unit, price: this.isSales() ? p.salesPrice : p.purchasePrice });
   };
 
   ngOnInit(): void {
@@ -118,7 +127,7 @@ export class OrderEditorPage implements OnInit {
         this.companies.set(companies);
         if (order) {
           if (order.postingStatus !== 'DRAFT') {
-            this.notify.error(`Only DRAFT orders can be edited. This order is ${order.postingStatus}.`);
+            this.notify.error('Only DRAFT orders can be edited. This order is {status}.', { status: order.postingStatus });
             void this.router.navigate([this.meta().route, order.uuid]);
             return;
           }
@@ -366,16 +375,22 @@ export class OrderEditorPage implements OnInit {
     if (!this.isSales()) return;
     const needed = new Map<string, number>();
     values.forEach((l) => l.productUuid && needed.set(l.productUuid, (needed.get(l.productUuid) ?? 0) + (Number(l.totalQuantity) || 0)));
-    const warnings: string[] = [];
+    const warnings: StockWarning[] = [];
     const seen = new Set<string>();
     values.forEach((l, i) => {
       const meta = this.productMeta(i);
       if (!l.productUuid || !meta || meta.currentStock === null || seen.has(l.productUuid)) return;
       seen.add(l.productUuid);
       const qty = needed.get(l.productUuid) ?? 0;
-      if (qty > meta.currentStock) warnings.push(`${meta.label}: requested ${qty} ${stockLabel(meta)}, only ${meta.currentStock} in stock.`);
+      if (qty > meta.currentStock) warnings.push({ productUuid: l.productUuid, product: meta, qty });
     });
     this.stockWarnings.set(warnings);
+  }
+
+  stockWarningText(w: StockWarning): string {
+    return t('{product}: requested {qty} {unit}, only {stock} in stock.', {
+      product: w.product.label, qty: w.qty, unit: stockLabel(w.product), stock: w.product.currentStock,
+    });
   }
 
   /** The problems in one order line, each message once ("Value is required." is not repeated per field). */
@@ -434,7 +449,7 @@ export class OrderEditorPage implements OnInit {
 
     req.subscribe({
       next: (saved) => {
-        this.notify.success(`${this.meta().singular} #${saved.orderNumber} saved as draft.`);
+        this.notify.success(this.isSales() ? 'Sales order #{no} saved as draft.' : 'Purchase order #{no} saved as draft.', { no: saved.orderNumber });
         void this.router.navigate([this.meta().route, saved.uuid]);
       },
       error: (e) => {

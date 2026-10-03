@@ -10,48 +10,49 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { applyServerErrors, bdMobileValidator, controlError, passwordValidator } from '../../shared/form-errors';
 import { AuthLayout } from '../../shared/auth-layout';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-register',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule, AuthLayout, PasswordToggle],
+  imports: [TranslatePipe, ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule, AuthLayout, PasswordToggle],
   template: `
     <app-auth-layout>
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
-        <h1>Create account</h1>
-        <p class="lead">Join your business's account. Ask your business for its code; its administrator then gives you access.</p>
+        <h1>{{ 'Create account' | t }}</h1>
+        <p class="lead">{{ "Join your business's account. Ask your business for its code; its administrator then gives you access." | t }}</p>
 
         <mat-form-field>
-          <mat-label>Business code</mat-label>
-          <input matInput formControlName="businessCode" autocapitalize="off" autocomplete="organization" spellcheck="false" placeholder="e.g. rahim-store" />
+          <mat-label>{{ 'Business code' | t }}</mat-label>
+          <input matInput formControlName="businessCode" autocapitalize="off" autocomplete="organization" spellcheck="false" [placeholder]="'e.g. rahim-store' | t" />
           <mat-error>{{ err('businessCode', 'Business code') }}</mat-error>
         </mat-form-field>
         <mat-form-field>
-          <mat-label>Full name</mat-label>
+          <mat-label>{{ 'Full name' | t }}</mat-label>
           <input matInput formControlName="userName" autocomplete="name" />
           <mat-error>{{ err('userName', 'Name') }}</mat-error>
         </mat-form-field>
         <mat-form-field>
-          <mat-label>Email</mat-label>
+          <mat-label>{{ 'Email' | t }}</mat-label>
           <input matInput type="email" formControlName="email" autocomplete="email" />
           <mat-error>{{ err('email', 'Email') }}</mat-error>
         </mat-form-field>
         <mat-form-field>
-          <mat-label>Mobile number</mat-label>
+          <mat-label>{{ 'Mobile number' | t }}</mat-label>
           <input matInput formControlName="phoneNumber" placeholder="01712345678" autocomplete="tel" />
           <mat-error>{{ err('phoneNumber', 'Mobile number') }}</mat-error>
         </mat-form-field>
         <mat-form-field subscriptSizing="dynamic">
-          <mat-label>Password</mat-label>
+          <mat-label>{{ 'Password' | t }}</mat-label>
           <input matInput #pwPassword type="password" formControlName="password" autocomplete="new-password" />
           <app-password-toggle matSuffix [for]="pwPassword" />
-          <mat-hint>At least 8 characters with a letter and a number</mat-hint>
+          <mat-hint>{{ 'At least 8 characters with a letter and a number' | t }}</mat-hint>
           <mat-error>{{ err('password', 'Password') }}</mat-error>
         </mat-form-field>
 
-        @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() }}</span></div> }
+        @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() | t }}</span></div> }
         @if (busy()) { <mat-progress-bar mode="indeterminate" /> }
-        <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">Create account</button>
-        <div class="links"><span></span><a routerLink="/login">I already have an account</a></div>
+        <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">{{ 'Create account' | t }}</button>
+        <div class="links"><span></span><a routerLink="/login">{{ 'I already have an account' | t }}</a></div>
       </form>
     </app-auth-layout>
   `,

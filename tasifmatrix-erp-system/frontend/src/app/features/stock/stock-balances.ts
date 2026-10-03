@@ -18,25 +18,26 @@ import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { QtyPipe } from '../../shared/pipes';
 import { stockLabel } from '../../shared/units';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-stock-balances',
-  imports: [RouterLink, DatePipe, MatTableModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatCheckboxModule, MatTooltipModule, ListFooter, QtyPipe],
+  imports: [TranslatePipe, RouterLink, DatePipe, MatTableModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatCheckboxModule, MatTooltipModule, ListFooter, QtyPipe],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
-          <h1>Stock balance</h1>
+          <h1>{{ 'Stock balance' | t }}</h1>
           @if (!layout.isHandset()) {
-            <div class="subtitle">Current stock per product in pieces. Stock changes only when orders are finalized or voided, or by adjustments.</div>
+            <div class="subtitle">{{ 'Current stock per product in pieces. Stock changes only when orders are finalized or voided, or by adjustments.' | t }}</div>
           }
         </div>
         <div class="actions">
           @if (!layout.isHandset()) {
-            <a mat-stroked-button routerLink="/stock/ledger"><mat-icon>receipt_long</mat-icon>Ledger</a>
-            @if (auth.isAdmin()) { <a mat-flat-button routerLink="/stock/adjustments"><mat-icon>tune</mat-icon>Adjust stock</a> }
+            <a mat-stroked-button routerLink="/stock/ledger"><mat-icon>receipt_long</mat-icon>{{ 'Ledger' | t }}</a>
+            @if (auth.isAdmin()) { <a mat-flat-button routerLink="/stock/adjustments"><mat-icon>tune</mat-icon>{{ 'Adjust stock' | t }}</a> }
           } @else {
-            <a mat-icon-button routerLink="/stock/ledger" aria-label="Stock ledger"><mat-icon>receipt_long</mat-icon></a>
+            <a mat-icon-button routerLink="/stock/ledger" [attr.aria-label]="'Stock ledger' | t"><mat-icon>receipt_long</mat-icon></a>
           }
         </div>
       </div>
@@ -45,10 +46,10 @@ import { stockLabel } from '../../shared/units';
         <div class="toolbar">
           <mat-form-field class="search" subscriptSizing="dynamic">
             <mat-icon matPrefix>search</mat-icon>
-            <mat-label>Search product</mat-label>
+            <mat-label>{{ 'Search product' | t }}</mat-label>
             <input matInput (input)="list.search($any($event.target).value)" />
           </mat-form-field>
-          <mat-checkbox (change)="lowOnly.set($event.checked); list.resetToFirstPage()">Low stock only</mat-checkbox>
+          <mat-checkbox (change)="lowOnly.set($event.checked); list.resetToFirstPage()">{{ 'Low stock only' | t }}</mat-checkbox>
         </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
 
@@ -59,11 +60,11 @@ import { stockLabel } from '../../shared/units';
                 <div class="m-card-head">
                   <div>
                     <div class="m-title">{{ s.productName }}</div>
-                    <div class="m-sub">{{ s.productCode }}@if (s.unitPerBox) { · {{ boxes(s) }} boxes }</div>
+                    <div class="m-sub">{{ s.productCode }}@if (s.unitPerBox) { · {{ '{n} boxes' | t: { n: boxes(s) } }} }</div>
                   </div>
                   <div class="m-right">
                     <span class="m-amount" [class.negative]="s.isLowStock">{{ s.currentStockBalance | qty }} <span class="unit">{{ unit(s) }}</span></span>
-                    @if (s.isLowStock) { <span class="low">Low stock</span> }
+                    @if (s.isLowStock) { <span class="low">{{ 'Low stock' | t }}</span> }
                   </div>
                 </div>
               </a>
@@ -72,28 +73,28 @@ import { stockLabel } from '../../shared/units';
         } @else {
           <div class="table-wrap">
             <table mat-table [dataSource]="list.items()" matSort (matSortChange)="list.onSort($event)">
-              <ng-container matColumnDef="productCode"><th mat-header-cell *matHeaderCellDef mat-sort-header>Code</th><td mat-cell *matCellDef="let s" class="code">{{ s.productCode }}</td></ng-container>
-              <ng-container matColumnDef="productName"><th mat-header-cell *matHeaderCellDef mat-sort-header>Product</th><td mat-cell *matCellDef="let s">{{ s.productName }}</td></ng-container>
-              <ng-container matColumnDef="currentStockBalance"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">Stock</th>
+              <ng-container matColumnDef="productCode"><th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'Code' | t }}</th><td mat-cell *matCellDef="let s" class="code">{{ s.productCode }}</td></ng-container>
+              <ng-container matColumnDef="productName"><th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'Product' | t }}</th><td mat-cell *matCellDef="let s">{{ s.productName }}</td></ng-container>
+              <ng-container matColumnDef="currentStockBalance"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">{{ 'Stock' | t }}</th>
                 <td mat-cell *matCellDef="let s" class="num" [class.negative]="s.isLowStock"><strong>{{ s.currentStockBalance | qty }}</strong></td></ng-container>
-              <ng-container matColumnDef="boxes"><th mat-header-cell *matHeaderCellDef class="num">Boxes</th>
+              <ng-container matColumnDef="boxes"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Boxes' | t }}</th>
                 <td mat-cell *matCellDef="let s" class="num muted">@if (s.unitPerBox) { {{ boxes(s) }} }</td></ng-container>
-              <ng-container matColumnDef="threshold"><th mat-header-cell *matHeaderCellDef class="num">Alert at</th><td mat-cell *matCellDef="let s" class="num muted">{{ s.lowStockThreshold ?? '' }}</td></ng-container>
-              <ng-container matColumnDef="updated"><th mat-header-cell *matHeaderCellDef>Last change</th><td mat-cell *matCellDef="let s" class="muted nowrap">{{ s.updatedDate | date: 'dd MMM yyyy, h:mm a' }}</td></ng-container>
+              <ng-container matColumnDef="threshold"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Alert at' | t }}</th><td mat-cell *matCellDef="let s" class="num muted">{{ s.lowStockThreshold ?? '' }}</td></ng-container>
+              <ng-container matColumnDef="updated"><th mat-header-cell *matHeaderCellDef>{{ 'Last change' | t }}</th><td mat-cell *matCellDef="let s" class="muted nowrap">{{ s.updatedDate | date: 'dd MMM yyyy, h:mm a' }}</td></ng-container>
               <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef></th>
-                <td mat-cell *matCellDef="let s" class="num"><a mat-icon-button matTooltip="Movements" routerLink="/stock/ledger" [queryParams]="{ productUuid: s.productUuid, productLabel: s.productName + ' (' + s.productCode + ')' }"><mat-icon>history</mat-icon></a></td></ng-container>
+                <td mat-cell *matCellDef="let s" class="num"><a mat-icon-button [matTooltip]="'Movements' | t" routerLink="/stock/ledger" [queryParams]="{ productUuid: s.productUuid, productLabel: s.productName + ' (' + s.productCode + ')' }"><mat-icon>history</mat-icon></a></td></ng-container>
               <tr mat-header-row *matHeaderRowDef="columns"></tr>
               <tr mat-row *matRowDef="let row; columns: columns"></tr>
             </table>
           </div>
         }
 
-        @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ list.error() ?? 'No products found.' }}</div> }
+        @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ (list.error() ?? 'No products found.') | t }}</div> }
         <app-list-footer [list]="list" />
       </div>
 
       @if (layout.isHandset() && auth.isAdmin()) {
-        <a mat-fab class="fab" routerLink="/stock/adjustments" aria-label="Adjust stock"><mat-icon>tune</mat-icon></a>
+        <a mat-fab class="fab" routerLink="/stock/adjustments" [attr.aria-label]="'Adjust stock' | t"><mat-icon>tune</mat-icon></a>
       }
     </div>
   `,

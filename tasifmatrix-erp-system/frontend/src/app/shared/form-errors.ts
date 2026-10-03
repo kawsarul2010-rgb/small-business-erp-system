@@ -1,5 +1,6 @@
 import { AbstractControl, FormArray, FormGroup } from '@angular/forms';
 import { problemOf } from '../core/api.service';
+import { t, tServer } from '../core/i18n/i18n';
 
 /**
  * Copies server field errors (e.g. "lines[0].unitQuantity") onto matching form controls as { server: message }.
@@ -14,7 +15,7 @@ export function applyServerErrors(form: FormGroup, error: unknown): string {
       control.markAsTouched();
     }
   }
-  return problem.title ?? 'Please check the form.';
+  return problem.title ? tServer(problem.title) : t('Please check the form.');
 }
 
 function findControl(root: AbstractControl, path: string): AbstractControl | null {
@@ -36,18 +37,20 @@ function findControl(root: AbstractControl, path: string): AbstractControl | nul
 export function controlError(control: AbstractControl | null, label = 'This field'): string {
   const e = control?.errors;
   if (!e) return '';
-  if (e['server']) return e['server'];
-  if (e['required']) return `${label} is required.`;
-  if (e['min']) return `${label} must be at least ${e['min'].min}.`;
-  if (e['max']) return `${label} must be at most ${e['max'].max}.`;
-  if (e['email']) return 'Enter a valid email address.';
-  if (e['maxlength']) return `${label} must be at most ${e['maxlength'].requiredLength} characters.`;
-  if (e['minlength']) return `${label} must be at least ${e['minlength'].requiredLength} characters.`;
-  if (e['pattern']) return `${label} is not in the right format.`;
-  if (e['bdMobile']) return 'Enter a valid Bangladesh mobile number, e.g. 01712345678.';
-  if (e['password']) return 'At least 8 characters with a letter and a number.';
-  if (e['mismatch']) return 'Passwords do not match.';
-  return `${label} is not valid.`;
+  // The label arrives in English (e.g. 'Quantity') and is translated with the sentence.
+  const name = t(label);
+  if (e['server']) return tServer(e['server']);
+  if (e['required']) return t('{label} is required.', { label: name });
+  if (e['min']) return t('{label} must be at least {min}.', { label: name, min: e['min'].min });
+  if (e['max']) return t('{label} must be at most {max}.', { label: name, max: e['max'].max });
+  if (e['email']) return t('Enter a valid email address.');
+  if (e['maxlength']) return t('{label} must be at most {n} characters.', { label: name, n: e['maxlength'].requiredLength });
+  if (e['minlength']) return t('{label} must be at least {n} characters.', { label: name, n: e['minlength'].requiredLength });
+  if (e['pattern']) return t('{label} is not in the right format.', { label: name });
+  if (e['bdMobile']) return t('Enter a valid Bangladesh mobile number, e.g. 01712345678.');
+  if (e['password']) return t('At least 8 characters with a letter and a number.');
+  if (e['mismatch']) return t('Passwords do not match.');
+  return t('{label} is not valid.', { label: name });
 }
 
 export const BD_MOBILE_PATTERN = /^(?:\+?88)?01[3-9]\d{8}$/;

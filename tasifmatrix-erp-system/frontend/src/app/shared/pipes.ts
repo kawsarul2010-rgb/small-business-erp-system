@@ -1,4 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core';
+import { t } from '../core/i18n/i18n';
 import { QuantityType, Uom } from '../core/models';
 import { shortLabel } from './units';
 
@@ -29,8 +30,8 @@ export class QtyPipe implements PipeTransform {
   }
 }
 
-/** "MOBILE_BANKING" -> "Mobile Banking" */
-@Pipe({ name: 'label' })
+/** "MOBILE_BANKING" -> "Mobile Banking" (or its Bangla). Impure so it follows a language switch. */
+@Pipe({ name: 'label', pure: false })
 export class LabelPipe implements PipeTransform {
   transform(value: string | null | undefined): string {
     return enumLabel(value);
@@ -38,6 +39,11 @@ export class LabelPipe implements PipeTransform {
 }
 
 export function enumLabel(value: string | null | undefined): string {
+  return t(enumText(value));
+}
+
+/** The English label of an enum value, untranslated. */
+export function enumText(value: string | null | undefined): string {
   if (!value) return '';
   return value
     .toLowerCase()

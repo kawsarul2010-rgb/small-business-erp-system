@@ -4,13 +4,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth.service';
 import { LabelPipe } from '../../shared/pipes';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-profile',
-  imports: [RouterLink, MatButtonModule, MatIconModule, LabelPipe],
+  imports: [TranslatePipe, RouterLink, MatButtonModule, MatIconModule, LabelPipe],
   template: `
     <div class="page">
-      <div class="page-header"><h1>My profile</h1></div>
+      <div class="page-header"><h1>{{ 'My profile' | t }}</h1></div>
       @if (auth.user(); as u) {
         <div class="card profile">
           <div class="banner">
@@ -25,17 +26,17 @@ import { LabelPipe } from '../../shared/pipes';
           </div>
 
           <div class="details">
-            <div class="item"><span class="icon-badge"><mat-icon>mail</mat-icon></span><div><span class="k">Email</span><span class="v">{{ u.email }}</span></div></div>
-            <div class="item"><span class="icon-badge teal"><mat-icon>call</mat-icon></span><div><span class="k">Mobile</span><span class="v">{{ u.phoneNumber }}</span></div></div>
-            <div class="item"><span class="icon-badge violet"><mat-icon>groups</mat-icon></span><div><span class="k">Linked buyer</span><span class="v">{{ u.customerName ?? 'Not linked' }}</span></div></div>
-            <div class="item"><span class="icon-badge amber"><mat-icon>local_shipping</mat-icon></span><div><span class="k">Linked supplier</span><span class="v">{{ u.supplierName ?? 'Not linked' }}</span></div></div>
+            <div class="item"><span class="icon-badge"><mat-icon>mail</mat-icon></span><div><span class="k">{{ 'Email' | t }}</span><span class="v">{{ u.email }}</span></div></div>
+            <div class="item"><span class="icon-badge teal"><mat-icon>call</mat-icon></span><div><span class="k">{{ 'Mobile' | t }}</span><span class="v">{{ u.phoneNumber }}</span></div></div>
+            <div class="item"><span class="icon-badge violet"><mat-icon>groups</mat-icon></span><div><span class="k">{{ 'Linked buyer' | t }}</span><span class="v">{{ u.customerName ?? ('Not linked' | t) }}</span></div></div>
+            <div class="item"><span class="icon-badge amber"><mat-icon>local_shipping</mat-icon></span><div><span class="k">{{ 'Linked supplier' | t }}</span><span class="v">{{ u.supplierName ?? ('Not linked' | t) }}</span></div></div>
           </div>
 
           @if (u.role === 'USER' && !u.customerUuid && !u.supplierUuid) {
-            <p class="muted note">Your account is waiting for an administrator to link it to a customer or supplier. Reports will appear after that.</p>
+            <p class="muted note">{{ 'Your account is waiting for an administrator to link it to a customer or supplier. Reports will appear after that.' | t }}</p>
           }
           <div class="actions">
-            <a mat-stroked-button routerLink="/change-password"><mat-icon>key</mat-icon>Change password</a>
+            <a mat-stroked-button routerLink="/change-password"><mat-icon>key</mat-icon>{{ 'Change password' | t }}</a>
           </div>
         </div>
       }

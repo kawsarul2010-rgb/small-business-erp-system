@@ -4,6 +4,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { APP_INFO, PUBLISHER_LINE, copyrightLine } from '../core/app-info';
 import { AppLogo } from './app-logo';
+import { TranslatePipe } from '../core/i18n/translate.pipe';
 
 /**
  * The standard "About this app" screen: product identity, version and who makes it.
@@ -11,25 +12,25 @@ import { AppLogo } from './app-logo';
  */
 @Component({
   selector: 'app-about-dialog',
-  imports: [MatDialogModule, MatButtonModule, MatIconModule, AppLogo],
+  imports: [TranslatePipe, MatDialogModule, MatButtonModule, MatIconModule, AppLogo],
   template: `
     <mat-dialog-content class="about">
       <div class="identity">
         <app-logo [size]="64" class="mark" />
         <h2>{{ app.name }}</h2>
-        <p class="version">Version {{ app.version }}</p>
+        <p class="version">{{ 'Version {v}' | t: { v: app.version } }}</p>
       </div>
 
       <div class="credit">
-        <div class="label">A product of</div>
+        <div class="label">{{ 'A product of' | t }}</div>
         <div class="who">{{ app.publisher.name }}</div>
-        <div class="role">{{ role }}</div>
+        <div class="role">{{ role | t }}</div>
       </div>
 
-      <p class="copyright">{{ copyright }}</p>
+      <p class="copyright">{{ copyright() }}</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button mat-dialog-close cdkFocusInitial>Close</button>
+      <button mat-button mat-dialog-close cdkFocusInitial>{{ 'Close' | t }}</button>
     </mat-dialog-actions>
   `,
   styles: `
@@ -49,7 +50,7 @@ import { AppLogo } from './app-logo';
 export class AboutDialog {
   readonly app = APP_INFO;
   readonly role = PUBLISHER_LINE;
-  readonly copyright = copyrightLine();
+  readonly copyright = () => copyrightLine();
 }
 
 /**

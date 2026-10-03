@@ -9,6 +9,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiService, errorMessage } from '../../core/api.service';
 import { controlError, passwordValidator } from '../../shared/form-errors';
 import { AuthLayout } from '../../shared/auth-layout';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 export function matchValidator(group: AbstractControl) {
   const a = group.get('newPassword')?.value;
@@ -19,33 +20,33 @@ export function matchValidator(group: AbstractControl) {
 
 @Component({
   selector: 'app-reset-password',
-  imports: [ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, AuthLayout, PasswordToggle],
+  imports: [TranslatePipe, ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, AuthLayout, PasswordToggle],
   template: `
     <app-auth-layout>
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
-        <h1>Set a new password</h1>
+        <h1>{{ 'Set a new password' | t }}</h1>
         @if (done()) {
-          <p>Your password has been reset. You can now log in with the new password.</p>
-          <a mat-flat-button class="full-width" routerLink="/login">Log in</a>
+          <p>{{ 'Your password has been reset. You can now log in with the new password.' | t }}</p>
+          <a mat-flat-button class="full-width" routerLink="/login">{{ 'Log in' | t }}</a>
         } @else if (!token) {
-          <div class="alert error"><mat-icon>error</mat-icon><span>This reset link is invalid. Request a new one.</span></div>
-          <a mat-button routerLink="/forgot-password">Request a new link</a>
+          <div class="alert error"><mat-icon>error</mat-icon><span>{{ 'This reset link is invalid. Request a new one.' | t }}</span></div>
+          <a mat-button routerLink="/forgot-password">{{ 'Request a new link' | t }}</a>
         } @else {
           <mat-form-field subscriptSizing="dynamic">
-            <mat-label>New password</mat-label>
+            <mat-label>{{ 'New password' | t }}</mat-label>
             <input matInput #pwNewPassword type="password" formControlName="newPassword" autocomplete="new-password" />
           <app-password-toggle matSuffix [for]="pwNewPassword" />
-            <mat-hint>At least 8 characters with a letter and a number</mat-hint>
+            <mat-hint>{{ 'At least 8 characters with a letter and a number' | t }}</mat-hint>
             <mat-error>{{ err('newPassword') }}</mat-error>
           </mat-form-field>
           <mat-form-field>
-            <mat-label>Confirm new password</mat-label>
+            <mat-label>{{ 'Confirm new password' | t }}</mat-label>
             <input matInput #pwConfirmPassword type="password" formControlName="confirmPassword" autocomplete="new-password" />
           <app-password-toggle matSuffix [for]="pwConfirmPassword" />
             <mat-error>{{ err('confirmPassword') }}</mat-error>
           </mat-form-field>
-          @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() }}</span></div> }
-          <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">Reset password</button>
+          @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() | t }}</span></div> }
+          <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">{{ 'Reset password' | t }}</button>
         }
       </form>
     </app-auth-layout>

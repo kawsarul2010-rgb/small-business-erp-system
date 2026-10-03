@@ -9,42 +9,43 @@ import { AuthService } from '../../core/auth.service';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError, passwordValidator } from '../../shared/form-errors';
 import { matchValidator } from './reset-password';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-change-password',
-  imports: [ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, PasswordToggle],
+  imports: [TranslatePipe, ReactiveFormsModule, MatFormFieldModule, MatInputModule, MatButtonModule, PasswordToggle],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
-          <h1>Change password</h1>
+          <h1>{{ 'Change password' | t }}</h1>
           @if (auth.mustChangePassword()) {
-            <div class="subtitle negative">You must set a new password before you can continue.</div>
+            <div class="subtitle negative">{{ 'You must set a new password before you can continue.' | t }}</div>
           }
         </div>
       </div>
       <form class="card card-pad" style="max-width: 460px" [formGroup]="form" (ngSubmit)="submit()">
         <mat-form-field class="full-width">
-          <mat-label>Current password</mat-label>
+          <mat-label>{{ 'Current password' | t }}</mat-label>
           <input matInput #pwCurrentPassword type="password" formControlName="currentPassword" autocomplete="current-password" />
           <app-password-toggle matSuffix [for]="pwCurrentPassword" />
           <mat-error>{{ err('currentPassword', 'Current password') }}</mat-error>
         </mat-form-field>
         <mat-form-field subscriptSizing="dynamic" class="full-width">
-          <mat-label>New password</mat-label>
+          <mat-label>{{ 'New password' | t }}</mat-label>
           <input matInput #pwNewPassword type="password" formControlName="newPassword" autocomplete="new-password" />
           <app-password-toggle matSuffix [for]="pwNewPassword" />
-          <mat-hint>At least 8 characters with a letter and a number</mat-hint>
+          <mat-hint>{{ 'At least 8 characters with a letter and a number' | t }}</mat-hint>
           <mat-error>{{ err('newPassword', 'New password') }}</mat-error>
         </mat-form-field>
         <mat-form-field class="full-width">
-          <mat-label>Confirm new password</mat-label>
+          <mat-label>{{ 'Confirm new password' | t }}</mat-label>
           <input matInput #pwConfirmPassword type="password" formControlName="confirmPassword" autocomplete="new-password" />
           <app-password-toggle matSuffix [for]="pwConfirmPassword" />
           <mat-error>{{ err('confirmPassword', 'Password') }}</mat-error>
         </mat-form-field>
-        @if (error()) { <p class="negative">{{ error() }}</p> }
-        <button mat-flat-button type="submit" [disabled]="busy()">Change password</button>
+        @if (error()) { <p class="negative">{{ error() | t }}</p> }
+        <button mat-flat-button type="submit" [disabled]="busy()">{{ 'Change password' | t }}</button>
       </form>
     </div>
   `,

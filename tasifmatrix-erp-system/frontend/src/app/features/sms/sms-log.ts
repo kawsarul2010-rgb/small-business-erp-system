@@ -15,31 +15,32 @@ import { NotifyService } from '../../core/notify.service';
 import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { StatusChip } from '../../shared/status-chip';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-sms-log',
-  imports: [DatePipe, MatTableModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatTooltipModule, ListFooter, StatusChip],
+  imports: [TranslatePipe, DatePipe, MatTableModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatTooltipModule, ListFooter, StatusChip],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
-          <h1>SMS log</h1>
-          <div class="subtitle">Payment notifications sent to Bangladesh mobile numbers. Failed messages retry automatically up to 5 times.</div>
+          <h1>{{ 'SMS log' | t }}</h1>
+          <div class="subtitle">{{ 'Payment notifications sent to Bangladesh mobile numbers. Failed messages retry automatically up to 5 times.' | t }}</div>
         </div>
-        <div class="actions"><button mat-stroked-button (click)="list.reload()"><mat-icon>refresh</mat-icon>Refresh</button></div>
+        <div class="actions"><button mat-stroked-button (click)="list.reload()"><mat-icon>refresh</mat-icon>{{ 'Refresh' | t }}</button></div>
       </div>
       <div class="card">
         <div class="toolbar">
           <mat-button-toggle-group [value]="status()" (change)="status.set($event.value); list.resetToFirstPage()" hideSingleSelectionIndicator>
-            <mat-button-toggle value="">All</mat-button-toggle>
-            <mat-button-toggle value="PENDING">Pending</mat-button-toggle>
-            <mat-button-toggle value="SENT">Sent</mat-button-toggle>
-            <mat-button-toggle value="FAILED">Failed</mat-button-toggle>
-            <mat-button-toggle value="SKIPPED">Skipped</mat-button-toggle>
+            <mat-button-toggle value="">{{ 'All' | t }}</mat-button-toggle>
+            <mat-button-toggle value="PENDING">{{ 'Pending' | t }}</mat-button-toggle>
+            <mat-button-toggle value="SENT">{{ 'Sent' | t }}</mat-button-toggle>
+            <mat-button-toggle value="FAILED">{{ 'Failed' | t }}</mat-button-toggle>
+            <mat-button-toggle value="SKIPPED">{{ 'Skipped' | t }}</mat-button-toggle>
           </mat-button-toggle-group>
           <mat-form-field class="search" subscriptSizing="dynamic">
             <mat-icon matPrefix>search</mat-icon>
-            <mat-label>Mobile number or text</mat-label>
+            <mat-label>{{ 'Mobile number or text' | t }}</mat-label>
             <input matInput (input)="list.search($any($event.target).value)" />
           </mat-form-field>
         </div>
@@ -52,12 +53,12 @@ import { StatusChip } from '../../shared/status-chip';
                 <div class="m-card-head">
                   <div>
                     <div class="m-title">{{ s.recipientNumber }}</div>
-                    <div class="m-sub">{{ s.createdDate | date: 'dd MMM yyyy, h:mm a' }} · {{ s.attemptCount }} tries</div>
+                    <div class="m-sub">{{ s.createdDate | date: 'dd MMM yyyy, h:mm a' }} · {{ (s.attemptCount === 1 ? '{n} try' : '{n} tries') | t: { n: s.attemptCount } }}</div>
                   </div>
                   <div class="m-right">
                     <app-status [value]="s.status" />
                     @if (s.status === 'FAILED' || s.status === 'SKIPPED') {
-                      <button mat-icon-button matTooltip="Retry" (click)="retry(s)"><mat-icon>replay</mat-icon></button>
+                      <button mat-icon-button [matTooltip]="'Retry' | t" (click)="retry(s)"><mat-icon>replay</mat-icon></button>
                     }
                   </div>
                 </div>
@@ -70,17 +71,17 @@ import { StatusChip } from '../../shared/status-chip';
         <div class="table-wrap">
 
           <table mat-table [dataSource]="list.items()">
-            <ng-container matColumnDef="created"><th mat-header-cell *matHeaderCellDef>Queued</th><td mat-cell *matCellDef="let s" class="nowrap">{{ s.createdDate | date: 'dd MMM, h:mm a' }}</td></ng-container>
-            <ng-container matColumnDef="to"><th mat-header-cell *matHeaderCellDef>To</th><td mat-cell *matCellDef="let s" class="nowrap">{{ s.recipientNumber }}</td></ng-container>
-            <ng-container matColumnDef="message"><th mat-header-cell *matHeaderCellDef>Message</th>
+            <ng-container matColumnDef="created"><th mat-header-cell *matHeaderCellDef>{{ 'Queued' | t }}</th><td mat-cell *matCellDef="let s" class="nowrap">{{ s.createdDate | date: 'dd MMM, h:mm a' }}</td></ng-container>
+            <ng-container matColumnDef="to"><th mat-header-cell *matHeaderCellDef>{{ 'To' | t }}</th><td mat-cell *matCellDef="let s" class="nowrap">{{ s.recipientNumber }}</td></ng-container>
+            <ng-container matColumnDef="message"><th mat-header-cell *matHeaderCellDef>{{ 'Message' | t }}</th>
               <td mat-cell *matCellDef="let s">{{ s.message }}@if (s.lastError) { <div class="negative small">{{ s.lastError }}</div> }</td></ng-container>
-            <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let s"><app-status [value]="s.status" /></td></ng-container>
-            <ng-container matColumnDef="attempts"><th mat-header-cell *matHeaderCellDef class="num">Tries</th><td mat-cell *matCellDef="let s" class="num">{{ s.attemptCount }}</td></ng-container>
-            <ng-container matColumnDef="sent"><th mat-header-cell *matHeaderCellDef>Sent / next try</th>
-              <td mat-cell *matCellDef="let s" class="nowrap muted">{{ s.sentDate ? (s.sentDate | date: 'dd MMM, h:mm a') : (s.nextAttemptDate ? 'next ' + (s.nextAttemptDate | date: 'h:mm a') : '') }}</td></ng-container>
+            <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>{{ 'Status' | t }}</th><td mat-cell *matCellDef="let s"><app-status [value]="s.status" /></td></ng-container>
+            <ng-container matColumnDef="attempts"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Tries' | t }}</th><td mat-cell *matCellDef="let s" class="num">{{ s.attemptCount }}</td></ng-container>
+            <ng-container matColumnDef="sent"><th mat-header-cell *matHeaderCellDef>{{ 'Sent / next try' | t }}</th>
+              <td mat-cell *matCellDef="let s" class="nowrap muted">{{ s.sentDate ? (s.sentDate | date: 'dd MMM, h:mm a') : (s.nextAttemptDate ? ('next {time}' | t: { time: s.nextAttemptDate | date: 'h:mm a' }) : '') }}</td></ng-container>
             <ng-container matColumnDef="actions"><th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let s" class="num">
-                @if (s.status === 'FAILED' || s.status === 'SKIPPED') { <button mat-icon-button matTooltip="Retry" (click)="retry(s)"><mat-icon>replay</mat-icon></button> }
+                @if (s.status === 'FAILED' || s.status === 'SKIPPED') { <button mat-icon-button [matTooltip]="'Retry' | t" (click)="retry(s)"><mat-icon>replay</mat-icon></button> }
               </td></ng-container>
             <tr mat-header-row *matHeaderRowDef="columns"></tr>
             <tr mat-row *matRowDef="let row; columns: columns"></tr>
@@ -88,7 +89,7 @@ import { StatusChip } from '../../shared/status-chip';
         </div>
         }
 
-        @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ list.error() ?? 'No SMS messages.' }}</div> }
+        @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ (list.error() ?? 'No SMS messages.') | t }}</div> }
         <app-list-footer [list]="list" />
       </div>
     </div>

@@ -17,19 +17,29 @@
     }
   }
   <mat-divider />
-  <a mat-menu-item routerLink="/profile"><mat-icon>person</mat-icon>My profile</a>
-  <a mat-menu-item routerLink="/change-password"><mat-icon>key</mat-icon>Change password</a>
-  <button mat-menu-item [matMenuTriggerFor]="themeMenu"><mat-icon>{{ theme.isDark() ? 'dark_mode' : 'light_mode' }}</mat-icon>Appearance</button>
-  <button mat-menu-item (click)="about()"><mat-icon>info</mat-icon>About</button>
+  <a mat-menu-item routerLink="/profile"><mat-icon>person</mat-icon>{{ 'My profile' | t }}</a>
+  <a mat-menu-item routerLink="/change-password"><mat-icon>key</mat-icon>{{ 'Change password' | t }}</a>
+  <button mat-menu-item [matMenuTriggerFor]="themeMenu"><mat-icon>{{ theme.isDark() ? 'dark_mode' : 'light_mode' }}</mat-icon>{{ 'Appearance' | t }}</button>
+  <button mat-menu-item [matMenuTriggerFor]="langMenu"><mat-icon>translate</mat-icon>{{ 'Language' | t }}<span class="menu-value">{{ langLabel() }}</span></button>
+  <button mat-menu-item (click)="about()"><mat-icon>info</mat-icon>{{ 'About' | t }}</button>
   <mat-divider />
-  <button mat-menu-item class="logout" (click)="auth.logout()"><mat-icon>logout</mat-icon>Log out</button>
+  <button mat-menu-item class="logout" (click)="auth.logout()"><mat-icon>logout</mat-icon>{{ 'Log out' | t }}</button>
+</mat-menu>
+
+<mat-menu #langMenu="matMenu" class="account-menu">
+  @for (l of languages; track l.code) {
+    <button mat-menu-item (click)="setLang(l.code)" [class.selected]="lang() === l.code" [attr.lang]="l.code">
+      <mat-icon>{{ lang() === l.code ? 'radio_button_checked' : 'radio_button_unchecked' }}</mat-icon>
+      <span>{{ l.label }}</span>
+    </button>
+  }
 </mat-menu>
 
 <mat-menu #themeMenu="matMenu" class="account-menu">
   @for (option of themeOptions; track option.mode) {
     <button mat-menu-item (click)="theme.setMode(option.mode)" [class.selected]="theme.mode() === option.mode">
       <mat-icon>{{ option.icon }}</mat-icon>
-      <span>{{ option.label }}</span>
+      <span>{{ option.label | t }}</span>
     </button>
   }
 </mat-menu>
@@ -39,22 +49,22 @@
   <div class="mobile-shell">
     <header class="appbar">
       @if (canGoBack()) {
-        <button mat-icon-button class="on-brand" aria-label="Back" (click)="back()"><mat-icon>arrow_back</mat-icon></button>
-        <span class="bar-title">{{ pageTitle() }}</span>
+        <button mat-icon-button class="on-brand" [attr.aria-label]="'Back' | t" (click)="back()"><mat-icon>arrow_back</mat-icon></button>
+        <span class="bar-title">{{ pageTitle() | t }}</span>
       } @else {
         <app-logo [size]="32" class="bar-logo" />
         <!-- People work in their business, so its name leads; the product's name is in About. -->
         <span class="bar-text">
           <span class="bar-title">{{ workspace() }}</span>
-          <span class="bar-sub">{{ pageTitle() }}</span>
+          <span class="bar-sub">{{ pageTitle() | t }}</span>
         </span>
       }
       <span class="spacer"></span>
-      <button mat-icon-button class="on-brand" (click)="theme.toggle()" [attr.aria-label]="theme.isDark() ? 'Switch to light mode' : 'Switch to dark mode'">
+      <button mat-icon-button class="on-brand" (click)="theme.toggle()" [attr.aria-label]="(theme.isDark() ? 'Switch to light mode' : 'Switch to dark mode') | t">
         <mat-icon>{{ theme.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
       </button>
       @if (auth.user()) {
-        <button class="avatar-button" [matMenuTriggerFor]="userMenu" aria-label="Account">
+        <button class="avatar-button" [matMenuTriggerFor]="userMenu" [attr.aria-label]="'Account' | t">
           <span class="avatar">{{ initials() }}</span>
         </button>
       }
@@ -64,11 +74,11 @@
       <router-outlet />
     </main>
 
-    <nav class="bottom-nav" aria-label="Main">
+    <nav class="bottom-nav" [attr.aria-label]="'Main' | t">
       @for (tab of tabs(); track tab.link + tab.label) {
         <a [routerLink]="tab.link" class="tab" [class.active]="isTabActive(tab)" [attr.aria-current]="isTabActive(tab) ? 'page' : null">
           <span class="tab-icon"><mat-icon>{{ tab.icon }}</mat-icon></span>
-          <span class="tab-label">{{ tab.short ?? tab.label }}</span>
+          <span class="tab-label">{{ (tab.short ?? tab.label) | t }}</span>
         </a>
       }
     </nav>
@@ -76,7 +86,7 @@
 } @else {
   <!-- ------------------------------------------------ desktop layout -->
   <div class="desk" [class.collapsed]="collapsed()">
-    <aside class="rail" aria-label="Main navigation">
+    <aside class="rail" [attr.aria-label]="'Main navigation' | t">
       <div class="rail-head">
         <app-logo [size]="36" />
         <span class="rail-brand">
@@ -88,43 +98,47 @@
       <div class="workspace" [matTooltip]="collapsed() ? workspace() : ''" matTooltipPosition="right">
         <span class="ws-icon"><mat-icon>{{ auth.isSuperAdmin() ? 'admin_panel_settings' : 'storefront' }}</mat-icon></span>
         <span class="ws-text">
-          <span class="ws-label">{{ auth.isSuperAdmin() ? 'Platform' : 'Business' }}</span>
+          <span class="ws-label">{{ (auth.isSuperAdmin() ? 'Platform' : 'Business') | t }}</span>
           <span class="ws-name" [title]="workspace()">{{ workspace() }}</span>
         </span>
       </div>
 
       <nav class="rail-nav">
         @for (group of groups(); track group.title) {
-          <div class="group-title">{{ group.title }}</div>
+          <div class="group-title">{{ group.title | t }}</div>
           @for (item of group.items; track item.link + item.label) {
             <a class="nav-item" [routerLink]="item.link" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact ?? false }"
-               [matTooltip]="collapsed() ? item.label : ''" matTooltipPosition="right">
+               [matTooltip]="collapsed() ? (item.label | t) : ''" matTooltipPosition="right">
               <mat-icon>{{ item.icon }}</mat-icon>
-              <span class="label">{{ item.label }}</span>
+              <span class="label">{{ item.label | t }}</span>
             </a>
           }
         }
       </nav>
 
       <!-- Publisher credit, pinned to the bottom of the navigation rail. -->
-      <button type="button" class="credit" (click)="about()" [attr.aria-label]="'About ' + app.name">
+      <button type="button" class="credit" (click)="about()" [attr.aria-label]="'About {name}' | t: { name: app.name }">
         <span class="app">{{ app.name }} <span class="ver">v{{ app.version }}</span></span>
-        <span class="by">{{ developedBy }}</span>
+        <span class="by">{{ developedBy() }}</span>
       </button>
     </aside>
 
     <div class="desk-main">
       <header class="topbar">
-        <button mat-icon-button (click)="toggleRail()" [attr.aria-label]="collapsed() ? 'Expand navigation' : 'Collapse navigation'" [matTooltip]="collapsed() ? 'Expand menu' : 'Collapse menu'">
+        <button mat-icon-button (click)="toggleRail()" [attr.aria-label]="(collapsed() ? 'Expand navigation' : 'Collapse navigation') | t" [matTooltip]="(collapsed() ? 'Expand menu' : 'Collapse menu') | t">
           <mat-icon>{{ collapsed() ? 'menu' : 'menu_open' }}</mat-icon>
         </button>
         <div class="crumb">
           <span class="crumb-ws">{{ workspace() }}</span>
           <mat-icon>chevron_right</mat-icon>
-          <span class="crumb-page">{{ pageTitle() }}</span>
+          <span class="crumb-page">{{ pageTitle() | t }}</span>
         </div>
         <span class="spacer"></span>
-        <button mat-icon-button (click)="theme.toggle()" [attr.aria-label]="theme.isDark() ? 'Switch to light mode' : 'Switch to dark mode'" [matTooltip]="theme.isDark() ? 'Light mode' : 'Dark mode'">
+        <button class="lang-switch" type="button" (click)="toggleLang()" [attr.lang]="otherLang().code"
+                [matTooltip]="'Language' | t" [attr.aria-label]="'Switch language to {name}' | t: { name: otherLang().label }">
+          <mat-icon>translate</mat-icon>{{ otherLang().label }}
+        </button>
+        <button mat-icon-button (click)="theme.toggle()" [attr.aria-label]="(theme.isDark() ? 'Switch to light mode' : 'Switch to dark mode') | t" [matTooltip]="(theme.isDark() ? 'Light mode' : 'Dark mode') | t">
           <mat-icon>{{ theme.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
         </button>
         @if (auth.user(); as user) {

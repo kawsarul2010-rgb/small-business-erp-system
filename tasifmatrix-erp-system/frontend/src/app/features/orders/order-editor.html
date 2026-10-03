@@ -2,15 +2,16 @@
   <div class="page-header">
     <div>
       <h1>
-        @if (order(); as o) { Edit {{ meta().singular.toLowerCase() }} #{{ o.orderNumber }} } @else { New {{ meta().singular.toLowerCase() }} }
+        @if (order(); as o) { {{ (kind() === 'purchase' ? 'Edit purchase order #{no}' : 'Edit sales order #{no}') | t: { no: o.orderNumber } }} }
+        @else { {{ (kind() === 'purchase' ? 'New purchase order' : 'New sales order') | t }} }
       </h1>
-      <div class="subtitle">Saved as DRAFT. Stock changes only when you finalize the order.</div>
+      <div class="subtitle">{{ 'Saved as DRAFT. Stock changes only when you finalize the order.' | t }}</div>
     </div>
     @if (!layout.isHandset()) {
       <div class="actions">
-        <button mat-button type="button" (click)="cancel()">Cancel</button>
+        <button mat-button type="button" (click)="cancel()">{{ 'Cancel' | t }}</button>
         <button mat-flat-button type="button" (click)="save()" [disabled]="saving() || loading()">
-          <mat-icon>save</mat-icon>Save draft
+          <mat-icon>save</mat-icon>{{ 'Save draft' | t }}
         </button>
       </div>
     }
@@ -21,7 +22,8 @@
   @if (!loading()) {
     @if (companies().length === 0) {
       <div class="card card-pad negative" style="margin-bottom: 16px">
-        No active company exists. An administrator must <a routerLink="/companies">create a company</a> before orders can be saved.
+        {{ 'No active company exists. An administrator must create a company before orders can be saved.' | t }}
+        <a routerLink="/companies">{{ 'Create a company' | t }}</a>
       </div>
     }
 
@@ -30,7 +32,7 @@
       <section class="card card-pad header-card">
         <div class="header-grid">
           <mat-form-field>
-            <mat-label>Company</mat-label>
+            <mat-label>{{ 'Company' | t }}</mat-label>
             <mat-select formControlName="companyUuid">
               @for (c of companies(); track c.uuid) {
                 <mat-option [value]="c.uuid">{{ c.name }} <span class="code">{{ c.code }}</span></mat-option>
@@ -44,17 +46,17 @@
             [control]="form.controls.partyUuid"
             [fetch]="fetchParties"
             [initialLabel]="order() ? order()!.party.name + ' (' + order()!.party.code + ')' : null"
-            [errorText]="meta().partyLabel + ' is required.'" />
+            [errorText]="kind() === 'purchase' ? 'Supplier is required.' : 'Customer is required.'" />
 
           <mat-form-field>
-            <mat-label>Payment type</mat-label>
+            <mat-label>{{ 'Payment type' | t }}</mat-label>
             <mat-select formControlName="paymentType">
-              @for (p of paymentTypes; track p.value) { <mat-option [value]="p.value">{{ p.label }}</mat-option> }
+              @for (p of paymentTypes; track p.value) { <mat-option [value]="p.value">{{ p.label | t }}</mat-option> }
             </mat-select>
           </mat-form-field>
 
           <mat-form-field>
-            <mat-label>Order date</mat-label>
+            <mat-label>{{ 'Order date' | t }}</mat-label>
             <input matInput [matDatepicker]="dp" formControlName="orderDate" [max]="today" />
             <mat-datepicker-toggle matIconSuffix [for]="dp" />
             <mat-datepicker #dp />
@@ -62,7 +64,7 @@
           </mat-form-field>
 
           <mat-form-field class="notes">
-            <mat-label>Notes</mat-label>
+            <mat-label>{{ 'Notes' | t }}</mat-label>
             <textarea matInput rows="1" formControlName="notes"></textarea>
           </mat-form-field>
         </div>
@@ -71,14 +73,14 @@
       <!-- ---------------------------------------------------------- lines -->
       <section class="card lines-card">
         <div class="lines-head">
-          <h2 class="card-title">Line items</h2>
-          <span class="muted">Prices are per unit. Values fill in automatically and can be changed.</span>
+          <h2 class="card-title">{{ 'Line items' | t }}</h2>
+          <span class="muted">{{ 'Prices are per unit. Values fill in automatically and can be changed.' | t }}</span>
         </div>
 
         @if (!layout.isHandset()) {
           <div class="line-grid line-labels" aria-hidden="true">
-            <span>#</span><span>Product</span><span>Unit</span><span>Quantity</span><span>Total</span>
-            <span>Unit price</span><span>Per box</span><span>Line total</span><span></span>
+            <span>#</span><span>{{ 'Product' | t }}</span><span>{{ 'Unit' | t }}</span><span>{{ 'Quantity' | t }}</span><span>{{ 'Total' | t }}</span>
+            <span>{{ 'Unit price' | t }}</span><span>{{ 'Per box' | t }}</span><span>{{ 'Line total' | t }}</span><span></span>
           </div>
         }
 
@@ -90,35 +92,35 @@
                 <div class="line-card-head">
                   <span class="line-no">{{ i + 1 }}</span>
                   <app-search-select
-                    label="Product"
+                    [label]="'Product' | t"
                     [control]="line.controls.productUuid"
                     [fetch]="fetchProducts"
                     [hint]="productHint"
                     [initialLabel]="productMeta(i)?.label ?? null"
                     subscript="dynamic"
                     (selected)="onProductSelected(i, $event)" />
-                  <button mat-icon-button type="button" aria-label="Remove line" (click)="removeLine(i)"><mat-icon>delete</mat-icon></button>
+                  <button mat-icon-button type="button" [attr.aria-label]="'Remove line' | t" (click)="removeLine(i)"><mat-icon>delete</mat-icon></button>
                 </div>
                 @if (productMeta(i); as p) {
                   <div class="product-info">
                     @if (boxSizeFor(i); as b) { {{ b }} · }
-                    @if (p.currentStock !== null) { stock {{ p.currentStock | qty }} {{ stockUnitFor(i) }} }
+                    @if (p.currentStock !== null) { {{ 'stock {qty} {unit}' | t: { qty: (p.currentStock | qty), unit: stockUnitFor(i) } }} }
                   </div>
                 }
 
                 <div class="line-fields">
                   <mat-form-field subscriptSizing="dynamic">
-                    <mat-label>Type</mat-label>
+                    <mat-label>{{ 'Type' | t }}</mat-label>
                     <mat-select formControlName="quantityType" (selectionChange)="onQuantityTypeChange(i)">
-                      @for (t of entryTypes(i); track t) {
-                        <mat-option [value]="t" [disabled]="t === 'BOX' && !canUseBox(i)">{{ t }}</mat-option>
+                      @for (qt of entryTypes(i); track qt) {
+                        <mat-option [value]="qt" [disabled]="qt === 'BOX' && !canUseBox(i)">{{ qt | t }}</mat-option>
                       }
                     </mat-select>
                   </mat-form-field>
 
                   @if (line.controls.quantityType.value === 'BOX') {
                     <mat-form-field subscriptSizing="dynamic">
-                      <mat-label>Boxes</mat-label>
+                      <mat-label>{{ 'Boxes' | t }}</mat-label>
                       <input matInput type="number" inputmode="numeric" min="1" step="1" formControlName="boxQuantity" (input)="recalcQuantity(i)" />
                     </mat-form-field>
                   } @else {
@@ -129,24 +131,24 @@
                   }
 
                   <mat-form-field subscriptSizing="dynamic">
-                    <mat-label>Total {{ unitFor(i) }}</mat-label>
+                    <mat-label>{{ 'Total {unit}' | t: { unit: unitFor(i) } }}</mat-label>
                     <input matInput type="number" [attr.inputmode]="quantityModeFor(i)" min="0" [step]="quantityStepFor(i)" formControlName="totalQuantity" (input)="recalcFromTotalQty(i)" />
                   </mat-form-field>
 
                   <mat-form-field subscriptSizing="dynamic">
-                    <mat-label>Price / {{ unitFor(i) }}</mat-label>
+                    <mat-label>{{ 'Price / {unit}' | t: { unit: unitFor(i) } }}</mat-label>
                     <input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="perUnitPrice" (input)="recalcFromPerUnit(i)" />
                   </mat-form-field>
 
                   @if (line.controls.quantityType.value === 'BOX') {
                     <mat-form-field subscriptSizing="dynamic">
-                      <mat-label>Price / box</mat-label>
+                      <mat-label>{{ 'Price / box' | t }}</mat-label>
                       <input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="perBoxPrice" (input)="recalcFromPerBox(i)" />
                     </mat-form-field>
                   }
 
                   <mat-form-field floatLabel="always" subscriptSizing="dynamic" class="line-total-field">
-                    <mat-label>Line total</mat-label>
+                    <mat-label>{{ 'Line total' | t }}</mat-label>
                     <span matTextPrefix>Tk&nbsp;</span>
                     <input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="totalPrice" (input)="refresh()" />
                   </mat-form-field>
@@ -166,7 +168,7 @@
 
                 <div class="cell product">
                   <app-search-select
-                    label="Product"
+                    [label]="'Product' | t"
                     [control]="line.controls.productUuid"
                     [fetch]="fetchProducts"
                     [hint]="productHint"
@@ -176,23 +178,23 @@
                   @if (productMeta(i); as p) {
                     <div class="product-info">
                       @if (boxSizeFor(i); as b) { {{ b }} · }
-                      @if (p.currentStock !== null) { stock {{ p.currentStock | qty }} {{ stockUnitFor(i) }} }
+                      @if (p.currentStock !== null) { {{ 'stock {qty} {unit}' | t: { qty: (p.currentStock | qty), unit: stockUnitFor(i) } }} }
                     </div>
                   }
                 </div>
 
                 <mat-form-field class="cell" subscriptSizing="dynamic">
-                  <mat-label>Type</mat-label>
+                  <mat-label>{{ 'Type' | t }}</mat-label>
                   <mat-select formControlName="quantityType" (selectionChange)="onQuantityTypeChange(i)">
-                    @for (t of entryTypes(i); track t) {
-                      <mat-option [value]="t" [disabled]="t === 'BOX' && !canUseBox(i)">{{ t }}</mat-option>
+                    @for (qt of entryTypes(i); track qt) {
+                      <mat-option [value]="qt" [disabled]="qt === 'BOX' && !canUseBox(i)">{{ qt | t }}</mat-option>
                     }
                   </mat-select>
                 </mat-form-field>
 
                 @if (line.controls.quantityType.value === 'BOX') {
                   <mat-form-field class="cell" subscriptSizing="dynamic">
-                    <mat-label>Boxes</mat-label>
+                    <mat-label>{{ 'Boxes' | t }}</mat-label>
                     <input matInput type="number" min="1" step="1" formControlName="boxQuantity" (input)="recalcQuantity(i)" />
                   </mat-form-field>
                 } @else {
@@ -203,27 +205,27 @@
                 }
 
                 <mat-form-field class="cell" subscriptSizing="dynamic">
-                  <mat-label>Total {{ unitFor(i) }}</mat-label>
+                  <mat-label>{{ 'Total {unit}' | t: { unit: unitFor(i) } }}</mat-label>
                   <input matInput type="number" min="0" [step]="quantityStepFor(i)" formControlName="totalQuantity" (input)="recalcFromTotalQty(i)" />
                 </mat-form-field>
 
                 <mat-form-field class="cell" subscriptSizing="dynamic">
-                  <mat-label>Per {{ unitFor(i) }}</mat-label>
+                  <mat-label>{{ 'Per {unit}' | t: { unit: unitFor(i) } }}</mat-label>
                   <input matInput type="number" min="0" step="0.01" formControlName="perUnitPrice" (input)="recalcFromPerUnit(i)" />
                 </mat-form-field>
 
                 <mat-form-field class="cell" subscriptSizing="dynamic">
-                  <mat-label>Per box</mat-label>
+                  <mat-label>{{ 'Per box' | t }}</mat-label>
                   <input matInput type="number" min="0" step="0.01" formControlName="perBoxPrice" (input)="recalcFromPerBox(i)"
                          [readonly]="line.controls.quantityType.value !== 'BOX'" />
                 </mat-form-field>
 
                 <mat-form-field class="cell" subscriptSizing="dynamic">
-                  <mat-label>Line total</mat-label>
+                  <mat-label>{{ 'Line total' | t }}</mat-label>
                   <input matInput type="number" min="0" step="0.01" formControlName="totalPrice" (input)="refresh()" />
                 </mat-form-field>
 
-                <button mat-icon-button type="button" class="remove" matTooltip="Remove line" (click)="removeLine(i)">
+                <button mat-icon-button type="button" class="remove" [matTooltip]="'Remove line' | t" (click)="removeLine(i)">
                   <mat-icon>delete</mat-icon>
                 </button>
 
@@ -239,10 +241,10 @@
         </div>
 
         <div class="lines-foot">
-          <button mat-stroked-button type="button" (click)="addLine()"><mat-icon>add</mat-icon>Add line</button>
+          <button mat-stroked-button type="button" (click)="addLine()"><mat-icon>add</mat-icon>{{ 'Add line' | t }}</button>
           @if (!layout.isHandset()) {
             <div class="order-total">
-              <span class="muted">Order total</span>
+              <span class="muted">{{ 'Order total' | t }}</span>
               <strong>{{ total() | money }}</strong>
             </div>
           }
@@ -251,15 +253,15 @@
 
       @if (stockWarnings().length > 0) {
         <div class="card card-pad warn-box">
-          <strong>Not enough stock</strong>
-          <ul>@for (w of stockWarnings(); track w) { <li>{{ w }}</li> }</ul>
+          <strong>{{ 'Not enough stock' | t }}</strong>
+          <ul>@for (w of stockWarnings(); track w.productUuid) { <li>{{ stockWarningText(w) }}</li> }</ul>
         </div>
       }
       @if (error()) {
         <div class="card card-pad error-box">
-          <span>{{ error() }}</span>
+          <span>{{ error() | t }}</span>
           @if (shortages().length > 0) {
-            <ul>@for (s of shortages(); track s.productUuid) { <li>{{ s.productName }} ({{ s.productCode }}): available {{ s.available }}, requested {{ s.required }}</li> }</ul>
+            <ul>@for (s of shortages(); track s.productUuid) { <li>{{ '{name} ({code}): available {available}, requested {required}' | t: { name: s.productName, code: s.productCode, available: s.available, required: s.required } }}</li> }</ul>
           }
         </div>
       }
@@ -267,15 +269,15 @@
       @if (layout.isHandset()) {
         <div class="save-bar">
           <div class="bar-total">
-            <span class="muted">Order total</span>
+            <span class="muted">{{ 'Order total' | t }}</span>
             <strong>{{ total() | money }}</strong>
           </div>
-          <button mat-flat-button type="submit" [disabled]="saving()"><mat-icon>save</mat-icon>Save draft</button>
+          <button mat-flat-button type="submit" [disabled]="saving()"><mat-icon>save</mat-icon>{{ 'Save draft' | t }}</button>
         </div>
       } @else {
         <div class="bottom-actions">
-          <button mat-button type="button" (click)="cancel()">Cancel</button>
-          <button mat-flat-button type="submit" [disabled]="saving()"><mat-icon>save</mat-icon>Save draft</button>
+          <button mat-button type="button" (click)="cancel()">{{ 'Cancel' | t }}</button>
+          <button mat-flat-button type="submit" [disabled]="saving()"><mat-icon>save</mat-icon>{{ 'Save draft' | t }}</button>
         </div>
       }
     </form>

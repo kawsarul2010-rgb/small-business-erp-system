@@ -20,6 +20,18 @@
   }
 }
 
+/* Bangla: loaded only when Bangla text is on screen (unicode-range), also bundled for offline use. */
+@each $weight in (400, 500, 600, 700) {
+  @font-face {
+    font-family: 'Noto Sans Bengali';
+    font-style: normal;
+    font-weight: $weight;
+    font-display: swap;
+    src: url('/fonts/noto-sans-bengali-#{$weight}.woff2') format('woff2');
+    unicode-range: U+0951-0952, U+0964-0965, U+0980-09FE, U+1CD0, U+1CD2, U+1CD5-1CD6, U+1CD8, U+1CE1, U+1CEA, U+1CED, U+1CF2, U+1CF5-1CF7, U+200C-200D, U+25CC, U+A8F1;
+  }
+}
+
 @font-face {
   font-family: 'Material Symbols Outlined';
   font-style: normal;
@@ -28,7 +40,7 @@
   src: url('/fonts/material-symbols-subset.woff2') format('woff2');
 }
 
-$font: 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
+$font: 'Inter, "Noto Sans Bengali", system-ui, -apple-system, "Segoe UI", sans-serif';
 
 /* ============================== tokens: light ============================== */
 html {
@@ -204,7 +216,7 @@ html {
 html, body { height: 100%; }
 body {
   margin: 0;
-  font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: Inter, 'Noto Sans Bengali', system-ui, -apple-system, 'Segoe UI', sans-serif;
   background: var(--erp-bg);
   color: var(--erp-text);
   -webkit-font-smoothing: antialiased;
@@ -563,3 +575,9 @@ html.dark button.danger.mat-mdc-unelevated-button:not(:disabled) { color: #2a061
 .mat-mdc-dialog-content .form-grid + p, .mat-mdc-dialog-content p.negative { margin: 4px 0 8px; }
 /* room for the first field's floating label under the dialog title */
 .mat-mdc-dialog-container .mat-mdc-dialog-content { padding-top: 8px; }
+.account-menu .menu-value { margin-left: auto; padding-left: 16px; font-size: 12.5px; color: var(--erp-faint); }
+
+/* Bangla script sits taller than Latin: a touch more line height keeps the vowel signs clear. */
+html[lang='bn'] body { line-height: 1.55; }
+html[lang='bn'] .page-header h1, html[lang='bn'] .auth-card h1, html[lang='bn'] .hero h1 { letter-spacing: 0; line-height: 1.35; }
+html[lang='bn'] .mat-mdc-header-cell, html[lang='bn'] .group-title, html[lang='bn'] .m-meta .k { letter-spacing: 0; text-transform: none; }

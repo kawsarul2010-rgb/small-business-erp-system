@@ -195,3 +195,14 @@
 .bottom-nav .tab.active { color: var(--erp-brand-fg); font-weight: 650; }
 .bottom-nav .tab.active .tab-icon { background: var(--erp-brand-soft); color: var(--erp-brand); }
 .bottom-nav .tab:active .tab-icon { background: var(--erp-pressed); }
+
+/* quick language switch in the desktop top bar */
+.lang-switch {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 34px; padding: 0 12px; margin-right: 2px;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--erp-muted); cursor: pointer;
+  background: var(--erp-card); border: 1px solid var(--erp-border); border-radius: 999px;
+  transition: border-color .15s ease, color .15s ease;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+  &:hover { border-color: var(--erp-border-strong); color: var(--erp-text); }
+}

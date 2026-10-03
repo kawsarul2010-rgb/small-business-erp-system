@@ -1,14 +1,16 @@
 import { Component } from '@angular/core';
 import { APP_INFO, PUBLISHER_LINE, copyrightLine } from '../core/app-info';
+import { TranslatePipe } from '../core/i18n/translate.pipe';
 
 /** One-line publisher credit for pages outside the shell, such as the login screen. */
 @Component({
   selector: 'app-credit',
+  imports: [TranslatePipe],
   template: `
     <footer class="credit">
       <div>{{ app.name }} <span class="ver">v{{ app.version }}</span></div>
-      <div>A product of <strong>{{ app.publisher.name }}</strong></div>
-      <div class="role">{{ copyright }}</div>
+      <div>{{ 'A product of {name}' | t: { name: app.publisher.name } }}</div>
+      <div class="role">{{ copyright() }}</div>
     </footer>
   `,
   styles: `
@@ -26,5 +28,5 @@ import { APP_INFO, PUBLISHER_LINE, copyrightLine } from '../core/app-info';
 })
 export class AppCredit {
   readonly app = APP_INFO;
-  readonly copyright = copyrightLine();
+  readonly copyright = () => copyrightLine();
 }

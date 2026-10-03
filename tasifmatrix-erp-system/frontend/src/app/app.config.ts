@@ -2,6 +2,8 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideNativeDateAdapter, MAT_DATE_LOCALE } from '@angular/material/core';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
+import { MatPaginatorIntl } from '@angular/material/paginator';
+import { TranslatedPaginatorIntl } from './core/i18n/paginator-intl';
 import { TitleStrategy, provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
 import { routes } from './app.routes';
 import { authInterceptor } from './core/auth.interceptor';
@@ -16,5 +18,6 @@ export const appConfig: ApplicationConfig = {
     { provide: MAT_DATE_LOCALE, useValue: 'en-GB' },
     { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { appearance: 'outline' } },
     { provide: TitleStrategy, useExisting: AppTitleStrategy },
+    { provide: MatPaginatorIntl, useClass: TranslatedPaginatorIntl },
   ],
 };

@@ -4,7 +4,9 @@ import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
-import { APP_INFO, PUBLISHED_BY, PUBLISHER_LINE } from '../../core/app-info';
+import { APP_INFO, PUBLISHER_LINE } from '../../core/app-info';
+import { LANGUAGES, Lang, currentLang, setLang, t } from '../../core/i18n/i18n';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { AuthService } from '../../core/auth.service';
 import { ThemeMode, ThemeService } from '../../core/theme.service';
 import { NAV_GROUPS, visibleGroups } from '../../layout/navigation';
@@ -26,7 +28,7 @@ const GROUP_TONES: Record<string, string> = {
 /** Phone-only menu screen reached from the last tab: every destination, grouped. */
 @Component({
   selector: 'app-more',
-  imports: [RouterLink, MatIconModule, MatButtonModule, MatButtonToggleModule, LabelPipe, AppLogo],
+  imports: [TranslatePipe, RouterLink, MatIconModule, MatButtonModule, MatButtonToggleModule, LabelPipe, AppLogo],
   template: `
     <div class="page">
       @if (auth.user(); as user) {
@@ -44,41 +46,50 @@ const GROUP_TONES: Record<string, string> = {
       }
 
       @for (group of groups(); track group.title) {
-        <h2 class="group">{{ group.title }}</h2>
+        <h2 class="group">{{ group.title | t }}</h2>
         <section class="card rows">
           @for (item of group.items; track item.link + item.label) {
             <a class="row" [routerLink]="item.link">
               <span class="icon-badge" [class]="'icon-badge ' + tone(group.title)"><mat-icon>{{ item.icon }}</mat-icon></span>
-              <span class="row-label">{{ item.label }}</span>
+              <span class="row-label">{{ item.label | t }}</span>
               <mat-icon class="chev">chevron_right</mat-icon>
             </a>
           }
         </section>
       }
 
-      <h2 class="group">Appearance</h2>
+      <h2 class="group">{{ 'Language' | t }}</h2>
       <section class="card appearance">
-        <mat-button-toggle-group [value]="theme.mode()" (change)="setTheme($event.value)" hideSingleSelectionIndicator aria-label="Appearance">
-          <mat-button-toggle value="system"><mat-icon>brightness_auto</mat-icon>Auto</mat-button-toggle>
-          <mat-button-toggle value="light"><mat-icon>light_mode</mat-icon>Light</mat-button-toggle>
-          <mat-button-toggle value="dark"><mat-icon>dark_mode</mat-icon>Dark</mat-button-toggle>
+        <mat-button-toggle-group [value]="lang()" (change)="setLang($event.value)" hideSingleSelectionIndicator [attr.aria-label]="'Language' | t">
+          @for (l of languages; track l.code) {
+            <mat-button-toggle [value]="l.code" [attr.lang]="l.code"><mat-icon>translate</mat-icon>{{ l.label }}</mat-button-toggle>
+          }
         </mat-button-toggle-group>
       </section>
 
-      <h2 class="group">Account</h2>
+      <h2 class="group">{{ 'Appearance' | t }}</h2>
+      <section class="card appearance">
+        <mat-button-toggle-group [value]="theme.mode()" (change)="setTheme($event.value)" hideSingleSelectionIndicator [attr.aria-label]="'Appearance' | t">
+          <mat-button-toggle value="system"><mat-icon>brightness_auto</mat-icon>{{ 'Auto' | t }}</mat-button-toggle>
+          <mat-button-toggle value="light"><mat-icon>light_mode</mat-icon>{{ 'Light' | t }}</mat-button-toggle>
+          <mat-button-toggle value="dark"><mat-icon>dark_mode</mat-icon>{{ 'Dark' | t }}</mat-button-toggle>
+        </mat-button-toggle-group>
+      </section>
+
+      <h2 class="group">{{ 'Account' | t }}</h2>
       <section class="card rows">
-        <a class="row" routerLink="/profile"><span class="icon-badge slate"><mat-icon>person</mat-icon></span><span class="row-label">My profile</span><mat-icon class="chev">chevron_right</mat-icon></a>
-        <a class="row" routerLink="/change-password"><span class="icon-badge slate"><mat-icon>key</mat-icon></span><span class="row-label">Change password</span><mat-icon class="chev">chevron_right</mat-icon></a>
-        <button class="row" type="button" (click)="about()"><span class="icon-badge slate"><mat-icon>info</mat-icon></span><span class="row-label">About</span><mat-icon class="chev">chevron_right</mat-icon></button>
-        <button class="row logout" type="button" (click)="auth.logout()"><span class="icon-badge rose"><mat-icon>logout</mat-icon></span><span class="row-label">Log out</span></button>
+        <a class="row" routerLink="/profile"><span class="icon-badge slate"><mat-icon>person</mat-icon></span><span class="row-label">{{ 'My profile' | t }}</span><mat-icon class="chev">chevron_right</mat-icon></a>
+        <a class="row" routerLink="/change-password"><span class="icon-badge slate"><mat-icon>key</mat-icon></span><span class="row-label">{{ 'Change password' | t }}</span><mat-icon class="chev">chevron_right</mat-icon></a>
+        <button class="row" type="button" (click)="about()"><span class="icon-badge slate"><mat-icon>info</mat-icon></span><span class="row-label">{{ 'About' | t }}</span><mat-icon class="chev">chevron_right</mat-icon></button>
+        <button class="row logout" type="button" (click)="auth.logout()"><span class="icon-badge rose"><mat-icon>logout</mat-icon></span><span class="row-label">{{ 'Log out' | t }}</span></button>
       </section>
 
       <!-- Publisher credit, closing the menu screen. -->
       <footer class="credit">
         <app-logo [size]="28" />
         <div class="app">{{ app.name }} <span class="ver">v{{ app.version }}</span></div>
-        <div class="by">{{ developedBy }}</div>
-        <div class="org">{{ role }}</div>
+        <div class="by">{{ developedBy() }}</div>
+        <div class="org">{{ role | t }}</div>
       </footer>
     </div>
   `,
@@ -137,7 +148,9 @@ export class MorePage {
   private readonly dialog = inject(MatDialog);
 
   readonly app = APP_INFO;
-  readonly developedBy = PUBLISHED_BY;
+  readonly developedBy = () => t('by {name}', { name: APP_INFO.publisher.name });
+  readonly languages = LANGUAGES;
+  readonly lang = currentLang;
   readonly role = PUBLISHER_LINE;
   readonly groups = computed(() => visibleGroups(NAV_GROUPS, this.auth.user()));
   readonly initials = computed(() => {
@@ -147,6 +160,10 @@ export class MorePage {
 
   tone(group: string): string {
     return GROUP_TONES[group] ?? 'indigo';
+  }
+
+  setLang(lang: Lang): void {
+    setLang(lang);
   }
 
   setTheme(mode: ThemeMode): void {

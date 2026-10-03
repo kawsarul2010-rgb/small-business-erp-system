@@ -24,10 +24,11 @@ import { LabelPipe, MoneyPipe } from '../../shared/pipes';
 import { SearchSelect } from '../../shared/search-select';
 import { StatusChip } from '../../shared/status-chip';
 import { orderMeta } from './order-kind';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-order-list',
-  imports: [
+  imports: [TranslatePipe, 
     RouterLink, DatePipe, ReactiveFormsModule, MatTableModule, MatSortModule, MatButtonModule, MatButtonToggleModule,
     MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatProgressBarModule,
     SearchSelect, StatusChip, ListFooter, MoneyPipe, LabelPipe,
@@ -88,7 +89,8 @@ export class OrderListPage implements OnInit {
   }
 
   statusLabel(s: PostingStatus | ''): string {
-    return s === '' ? 'All' : s.charAt(0) + s.slice(1).toLowerCase();
+    const labels: Record<PostingStatus | '', string> = { '': 'All', DRAFT: 'Draft', FINAL: 'Final', VOID: 'Void' };
+    return labels[s];
   }
 
   setStatus(value: PostingStatus | ''): void {
@@ -152,33 +154,33 @@ interface FilterSheetData {
 
 @Component({
   selector: 'app-order-filter-sheet',
-  imports: [ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, SearchSelect],
+  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, SearchSelect],
   template: `
-    <h2 mat-dialog-title>Filters</h2>
+    <h2 mat-dialog-title>{{ 'Filters' | t }}</h2>
     <mat-dialog-content>
       @if (data.showParty) {
         <app-search-select [label]="data.partyLabelText" [control]="data.party" [fetch]="data.fetchParties" [initialLabel]="data.partyInitialLabel" />
       }
       <mat-form-field class="full-width">
-        <mat-label>Company</mat-label>
+        <mat-label>{{ 'Company' | t }}</mat-label>
         <mat-select [formControl]="data.company">
-          <mat-option [value]="null">All companies</mat-option>
+          <mat-option [value]="null">{{ 'All companies' | t }}</mat-option>
           @for (c of data.companies; track c.uuid) { <mat-option [value]="c.uuid">{{ c.name }}</mat-option> }
         </mat-select>
       </mat-form-field>
       <mat-form-field class="full-width">
-        <mat-label>Order date</mat-label>
+        <mat-label>{{ 'Order date' | t }}</mat-label>
         <mat-date-range-input [rangePicker]="picker">
-          <input matStartDate [formControl]="data.from" placeholder="From" />
-          <input matEndDate [formControl]="data.to" placeholder="To" />
+          <input matStartDate [formControl]="data.from" [placeholder]="'From' | t" />
+          <input matEndDate [formControl]="data.to" [placeholder]="'To' | t" />
         </mat-date-range-input>
         <mat-datepicker-toggle matIconSuffix [for]="picker" />
         <mat-date-range-picker #picker />
       </mat-form-field>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button (click)="ref.close('clear')">Clear all</button>
-      <button mat-flat-button (click)="ref.close(true)">Apply</button>
+      <button mat-button (click)="ref.close('clear')">{{ 'Clear all' | t }}</button>
+      <button mat-flat-button (click)="ref.close(true)">{{ 'Apply' | t }}</button>
     </mat-dialog-actions>
   `,
 })

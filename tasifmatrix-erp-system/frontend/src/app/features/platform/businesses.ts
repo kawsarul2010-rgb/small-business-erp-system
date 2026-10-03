@@ -16,6 +16,7 @@ import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { StatusChip } from '../../shared/status-chip';
 import { BusinessDialog, showCredentials } from './platform-dialogs';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 /**
  * The super admin's home: every business using the system, with how much each one uses it.
@@ -23,27 +24,27 @@ import { BusinessDialog, showCredentials } from './platform-dialogs';
  */
 @Component({
   selector: 'app-businesses',
-  imports: [DatePipe, RouterLink, MatTableModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, ListFooter, StatusChip],
+  imports: [TranslatePipe, DatePipe, RouterLink, MatTableModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, ListFooter, StatusChip],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
-          <h1>Businesses</h1>
+          <h1>{{ 'Businesses' | t }}</h1>
           @if (!layout.isHandset()) {
-            <div class="subtitle">Every business using the system. You manage their accounts; their customers, sales and payments stay private to them.</div>
+            <div class="subtitle">{{ 'Every business using the system. You manage their accounts; their customers, sales and payments stay private to them.' | t }}</div>
           }
         </div>
         @if (!layout.isHandset()) {
-          <div class="actions"><button mat-flat-button (click)="create()"><mat-icon>add_business</mat-icon>New business</button></div>
+          <div class="actions"><button mat-flat-button (click)="create()"><mat-icon>add_business</mat-icon>{{ 'New business' | t }}</button></div>
         }
       </div>
 
       @if (summary(); as s) {
         <div class="stats">
-          <div class="card stat"><span class="icon-badge"><mat-icon>storefront</mat-icon></span><span class="body"><span class="label">Businesses</span><strong>{{ s.businesses }}</strong></span></div>
-          <div class="card stat"><span class="icon-badge teal"><mat-icon>check_circle</mat-icon></span><span class="body"><span class="label">Active</span><strong class="positive">{{ s.activeBusinesses }}</strong></span></div>
-          <div class="card stat"><span class="icon-badge rose"><mat-icon>block</mat-icon></span><span class="body"><span class="label">Suspended</span><strong [class.negative]="s.suspendedBusinesses > 0">{{ s.suspendedBusinesses }}</strong></span></div>
-          <div class="card stat"><span class="icon-badge violet"><mat-icon>receipt_long</mat-icon></span><span class="body"><span class="label">Orders this month</span><strong>{{ s.ordersThisMonth }}</strong><span class="hint">{{ s.activeUsers }} active users</span></span></div>
+          <div class="card stat"><span class="icon-badge"><mat-icon>storefront</mat-icon></span><span class="body"><span class="label">{{ 'Businesses' | t }}</span><strong>{{ s.businesses }}</strong></span></div>
+          <div class="card stat"><span class="icon-badge teal"><mat-icon>check_circle</mat-icon></span><span class="body"><span class="label">{{ 'Active' | t }}</span><strong class="positive">{{ s.activeBusinesses }}</strong></span></div>
+          <div class="card stat"><span class="icon-badge rose"><mat-icon>block</mat-icon></span><span class="body"><span class="label">{{ 'Suspended' | t }}</span><strong [class.negative]="s.suspendedBusinesses > 0">{{ s.suspendedBusinesses }}</strong></span></div>
+          <div class="card stat"><span class="icon-badge violet"><mat-icon>receipt_long</mat-icon></span><span class="body"><span class="label">{{ 'Orders this month' | t }}</span><strong>{{ s.ordersThisMonth }}</strong><span class="hint">{{ (s.activeUsers === 1 ? '{n} active user' : '{n} active users') | t: { n: s.activeUsers } }}</span></span></div>
         </div>
       }
 
@@ -51,13 +52,13 @@ import { BusinessDialog, showCredentials } from './platform-dialogs';
         <div class="toolbar">
           <mat-form-field class="search" subscriptSizing="dynamic">
             <mat-icon matPrefix>search</mat-icon>
-            <mat-label>Search name, code or contact</mat-label>
+            <mat-label>{{ 'Search name, code or contact' | t }}</mat-label>
             <input matInput (input)="list.search($any($event.target).value)" />
           </mat-form-field>
-          <mat-button-toggle-group [value]="status()" (change)="filter($event.value)" hideSingleSelectionIndicator aria-label="Status">
-            <mat-button-toggle [value]="null">All</mat-button-toggle>
-            <mat-button-toggle value="ACTIVE">Active</mat-button-toggle>
-            <mat-button-toggle value="SUSPENDED">Suspended</mat-button-toggle>
+          <mat-button-toggle-group [value]="status()" (change)="filter($event.value)" hideSingleSelectionIndicator [attr.aria-label]="'Status' | t">
+            <mat-button-toggle [value]="null">{{ 'All' | t }}</mat-button-toggle>
+            <mat-button-toggle value="ACTIVE">{{ 'Active' | t }}</mat-button-toggle>
+            <mat-button-toggle value="SUSPENDED">{{ 'Suspended' | t }}</mat-button-toggle>
           </mat-button-toggle-group>
         </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
@@ -74,7 +75,7 @@ import { BusinessDialog, showCredentials } from './platform-dialogs';
                   <app-status [value]="b.status" />
                 </div>
                 <div class="m-sub usage">
-                  {{ b.usage.activeUsers }} {{ b.usage.activeUsers === 1 ? 'user' : 'users' }} · {{ b.usage.ordersThisMonth }} {{ b.usage.ordersThisMonth === 1 ? 'order' : 'orders' }} this month
+                  {{ (b.usage.activeUsers === 1 ? '{n} user' : '{n} users') | t: { n: b.usage.activeUsers } }} · {{ (b.usage.ordersThisMonth === 1 ? '{n} order this month' : '{n} orders this month') | t: { n: b.usage.ordersThisMonth } }}
                   @if (b.contactName) { · {{ b.contactName }} }
                 </div>
               </a>
@@ -84,21 +85,21 @@ import { BusinessDialog, showCredentials } from './platform-dialogs';
           <div class="table-wrap">
             <table mat-table [dataSource]="list.items()">
               <ng-container matColumnDef="name">
-                <th mat-header-cell *matHeaderCellDef>Business</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'Business' | t }}</th>
                 <td mat-cell *matCellDef="let b"><a [routerLink]="[b.uuid]" class="name-link">{{ b.name }}</a><div class="muted code">{{ b.code }}</div></td>
               </ng-container>
-              <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>Status</th><td mat-cell *matCellDef="let b"><app-status [value]="b.status" /></td></ng-container>
+              <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>{{ 'Status' | t }}</th><td mat-cell *matCellDef="let b"><app-status [value]="b.status" /></td></ng-container>
               <ng-container matColumnDef="contact">
-                <th mat-header-cell *matHeaderCellDef>Contact</th>
+                <th mat-header-cell *matHeaderCellDef>{{ 'Contact' | t }}</th>
                 <td mat-cell *matCellDef="let b">{{ b.contactName }}<div class="muted">{{ b.contactPhone }}</div></td>
               </ng-container>
-              <ng-container matColumnDef="users"><th mat-header-cell *matHeaderCellDef class="num">Users</th><td mat-cell *matCellDef="let b" class="num">{{ b.usage.activeUsers }}</td></ng-container>
-              <ng-container matColumnDef="orders"><th mat-header-cell *matHeaderCellDef class="num">Orders this month</th><td mat-cell *matCellDef="let b" class="num">{{ b.usage.ordersThisMonth }}</td></ng-container>
+              <ng-container matColumnDef="users"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Users' | t }}</th><td mat-cell *matCellDef="let b" class="num">{{ b.usage.activeUsers }}</td></ng-container>
+              <ng-container matColumnDef="orders"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Orders this month' | t }}</th><td mat-cell *matCellDef="let b" class="num">{{ b.usage.ordersThisMonth }}</td></ng-container>
               <ng-container matColumnDef="lastSignIn">
-                <th mat-header-cell *matHeaderCellDef>Last sign-in</th>
-                <td mat-cell *matCellDef="let b">{{ b.usage.lastSignInDate ? (b.usage.lastSignInDate | date: 'd MMM yyyy') : 'Never' }}</td>
+                <th mat-header-cell *matHeaderCellDef>{{ 'Last sign-in' | t }}</th>
+                <td mat-cell *matCellDef="let b">{{ b.usage.lastSignInDate ? (b.usage.lastSignInDate | date: 'd MMM yyyy') : ('Never' | t) }}</td>
               </ng-container>
-              <ng-container matColumnDef="created"><th mat-header-cell *matHeaderCellDef>Since</th><td mat-cell *matCellDef="let b">{{ b.createdDate | date: 'd MMM yyyy' }}</td></ng-container>
+              <ng-container matColumnDef="created"><th mat-header-cell *matHeaderCellDef>{{ 'Since' | t }}</th><td mat-cell *matCellDef="let b">{{ b.createdDate | date: 'd MMM yyyy' }}</td></ng-container>
               <tr mat-header-row *matHeaderRowDef="columns"></tr>
               <tr mat-row *matRowDef="let row; columns: columns" class="clickable" (click)="open(row)"></tr>
             </table>
@@ -106,13 +107,13 @@ import { BusinessDialog, showCredentials } from './platform-dialogs';
         }
 
         @if (!list.loading() && list.items().length === 0) {
-          <div class="empty">{{ list.error() ?? (hasFilter() ? 'No business matches.' : 'No businesses yet. Create the first one to hand it its admin account.') }}</div>
+          <div class="empty">{{ (list.error() ?? (hasFilter() ? 'No business matches.' : 'No businesses yet. Create the first one to hand it its admin account.')) | t }}</div>
         }
         <app-list-footer [list]="list" [pageSizes]="[10, 20, 50]" />
       </div>
 
       @if (layout.isHandset()) {
-        <button mat-fab class="fab" aria-label="New business" (click)="create()"><mat-icon>add_business</mat-icon></button>
+        <button mat-fab class="fab" [attr.aria-label]="'New business' | t" (click)="create()"><mat-icon>add_business</mat-icon></button>
       }
     </div>
   `,

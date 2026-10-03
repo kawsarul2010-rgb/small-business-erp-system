@@ -8,5 +8,5 @@
  */
 export const environment = {
   production: true,
-  apiBaseUrl: 'https://sompriti-sikriti-business.up.railway.app',
+  apiBaseUrl: 'https://tasifmatrix.up.railway.app',
 };

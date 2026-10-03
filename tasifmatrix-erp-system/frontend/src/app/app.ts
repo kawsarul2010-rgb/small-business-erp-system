@@ -2,6 +2,7 @@ import { Component, OnInit, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { PlatformService } from './core/platform.service';
 import { ThemeService } from './core/theme.service';
+import { applyDocumentLang } from './core/i18n/i18n';
 import { IconFontService } from './shared/icon-font.service';
 
 @Component({
@@ -17,6 +18,7 @@ export class App implements OnInit {
 
   ngOnInit(): void {
     this.icons.start();
+    applyDocumentLang();
     void this.platform.initialize();
   }
 }

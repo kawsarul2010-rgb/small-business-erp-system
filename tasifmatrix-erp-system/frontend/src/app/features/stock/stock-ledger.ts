@@ -16,37 +16,38 @@ import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { LabelPipe, QtyPipe } from '../../shared/pipes';
 import { SearchSelect } from '../../shared/search-select';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-stock-ledger',
-  imports: [RouterLink, DatePipe, ReactiveFormsModule, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatDatepickerModule, MatProgressBarModule, SearchSelect, ListFooter, LabelPipe, QtyPipe],
+  imports: [TranslatePipe, RouterLink, DatePipe, ReactiveFormsModule, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatDatepickerModule, MatProgressBarModule, SearchSelect, ListFooter, LabelPipe, QtyPipe],
   template: `
     <div class="page">
       <div class="page-header">
         <div>
-          <h1>Stock ledger</h1>
-          @if (!layout.isHandset()) { <div class="subtitle">Every stock movement with the balance after it</div> }
+          <h1>{{ 'Stock ledger' | t }}</h1>
+          @if (!layout.isHandset()) { <div class="subtitle">{{ 'Every stock movement with the balance after it' | t }}</div> }
         </div>
         @if (!layout.isHandset()) {
-          <div class="actions"><a mat-stroked-button routerLink="/stock"><mat-icon>inventory</mat-icon>Stock balance</a></div>
+          <div class="actions"><a mat-stroked-button routerLink="/stock"><mat-icon>inventory</mat-icon>{{ 'Stock balance' | t }}</a></div>
         }
       </div>
 
       <div class="card">
         <div class="toolbar">
           <div style="flex: 1 1 260px; max-width: 420px">
-            <app-search-select label="Product" [control]="product" [fetch]="fetchProducts" [initialLabel]="productLabel" subscript="dynamic" (selected)="list.resetToFirstPage()" />
+            <app-search-select [label]="'Product' | t" [control]="product" [fetch]="fetchProducts" [initialLabel]="productLabel" subscript="dynamic" (selected)="list.resetToFirstPage()" />
           </div>
           <mat-form-field subscriptSizing="dynamic">
-            <mat-label>Date range</mat-label>
+            <mat-label>{{ 'Date range' | t }}</mat-label>
             <mat-date-range-input [rangePicker]="picker">
-              <input matStartDate [formControl]="from" placeholder="From" />
-              <input matEndDate [formControl]="to" placeholder="To" (dateChange)="list.resetToFirstPage()" />
+              <input matStartDate [formControl]="from" [placeholder]="'From' | t" />
+              <input matEndDate [formControl]="to" [placeholder]="'To' | t" (dateChange)="list.resetToFirstPage()" />
             </mat-date-range-input>
             <mat-datepicker-toggle matIconSuffix [for]="picker" />
             <mat-date-range-picker #picker />
           </mat-form-field>
-          <button mat-button (click)="clear()">Clear</button>
+          <button mat-button (click)="clear()">{{ 'Clear' | t }}</button>
         </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }
 
@@ -63,16 +64,16 @@ import { SearchSelect } from '../../shared/search-select';
                     <span class="m-amount" [class.positive]="l.quantityChange > 0" [class.negative]="l.quantityChange < 0">
                       {{ l.quantityChange > 0 ? '+' : '' }}{{ l.quantityChange | qty }}
                     </span>
-                    <span class="m-sub">balance {{ l.balanceAfter | qty }}</span>
+                    <span class="m-sub">{{ 'balance {qty}' | t: { qty: (l.balanceAfter | qty) } }}</span>
                   </div>
                 </div>
                 <div class="m-meta two">
-                  <div><span class="k">Reference</span>
+                  <div><span class="k">{{ 'Reference' | t }}</span>
                     <span class="v">
                       @if (refLink(l); as link) { <a [routerLink]="link">#{{ l.referenceNumber }}</a> } @else { #{{ l.referenceNumber }} }
                     </span>
                   </div>
-                  <div><span class="k">By</span><span class="v">{{ l.createdByUserName }}</span></div>
+                  <div><span class="k">{{ 'By' | t }}</span><span class="v">{{ l.createdByUserName }}</span></div>
                 </div>
               </div>
             }
@@ -80,24 +81,24 @@ import { SearchSelect } from '../../shared/search-select';
         } @else {
           <div class="table-wrap">
             <table mat-table [dataSource]="list.items()">
-              <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>Date</th><td mat-cell *matCellDef="let l" class="nowrap">{{ l.createdDate | date: 'dd MMM yyyy, h:mm a' }}</td></ng-container>
-              <ng-container matColumnDef="product"><th mat-header-cell *matHeaderCellDef>Product</th><td mat-cell *matCellDef="let l">{{ l.productName }} <span class="code">{{ l.productCode }}</span></td></ng-container>
-              <ng-container matColumnDef="movement"><th mat-header-cell *matHeaderCellDef>Movement</th><td mat-cell *matCellDef="let l" class="nowrap">{{ l.movementType | label }}</td></ng-container>
-              <ng-container matColumnDef="reference"><th mat-header-cell *matHeaderCellDef>Reference</th>
+              <ng-container matColumnDef="date"><th mat-header-cell *matHeaderCellDef>{{ 'Date' | t }}</th><td mat-cell *matCellDef="let l" class="nowrap">{{ l.createdDate | date: 'dd MMM yyyy, h:mm a' }}</td></ng-container>
+              <ng-container matColumnDef="product"><th mat-header-cell *matHeaderCellDef>{{ 'Product' | t }}</th><td mat-cell *matCellDef="let l">{{ l.productName }} <span class="code">{{ l.productCode }}</span></td></ng-container>
+              <ng-container matColumnDef="movement"><th mat-header-cell *matHeaderCellDef>{{ 'Movement' | t }}</th><td mat-cell *matCellDef="let l" class="nowrap">{{ l.movementType | label }}</td></ng-container>
+              <ng-container matColumnDef="reference"><th mat-header-cell *matHeaderCellDef>{{ 'Reference' | t }}</th>
                 <td mat-cell *matCellDef="let l" class="nowrap">
                   @if (refLink(l); as link) { <a [routerLink]="link">#{{ l.referenceNumber }}</a> } @else { #{{ l.referenceNumber }} }
                 </td></ng-container>
-              <ng-container matColumnDef="change"><th mat-header-cell *matHeaderCellDef class="num">Change</th>
+              <ng-container matColumnDef="change"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Change' | t }}</th>
                 <td mat-cell *matCellDef="let l" class="num" [class.positive]="l.quantityChange > 0" [class.negative]="l.quantityChange < 0">{{ l.quantityChange > 0 ? '+' : '' }}{{ l.quantityChange | qty }}</td></ng-container>
-              <ng-container matColumnDef="balance"><th mat-header-cell *matHeaderCellDef class="num">Balance</th><td mat-cell *matCellDef="let l" class="num"><strong>{{ l.balanceAfter | qty }}</strong></td></ng-container>
-              <ng-container matColumnDef="user"><th mat-header-cell *matHeaderCellDef>By</th><td mat-cell *matCellDef="let l" class="muted">{{ l.createdByUserName }}</td></ng-container>
+              <ng-container matColumnDef="balance"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Balance' | t }}</th><td mat-cell *matCellDef="let l" class="num"><strong>{{ l.balanceAfter | qty }}</strong></td></ng-container>
+              <ng-container matColumnDef="user"><th mat-header-cell *matHeaderCellDef>{{ 'By' | t }}</th><td mat-cell *matCellDef="let l" class="muted">{{ l.createdByUserName }}</td></ng-container>
               <tr mat-header-row *matHeaderRowDef="columns"></tr>
               <tr mat-row *matRowDef="let row; columns: columns"></tr>
             </table>
           </div>
         }
 
-        @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ list.error() ?? 'No stock movements found.' }}</div> }
+        @if (!list.loading() && list.items().length === 0) { <div class="empty">{{ (list.error() ?? 'No stock movements found.') | t }}</div> }
         <app-list-footer [list]="list" [pageSizes]="[20, 50, 100]" />
       </div>
     </div>

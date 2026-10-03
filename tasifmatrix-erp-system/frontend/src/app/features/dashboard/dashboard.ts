@@ -15,10 +15,11 @@ import { ThemeService } from '../../core/theme.service';
 import { Dashboard, DropdownItem, OrderListItem } from '../../core/models';
 import { MoneyPipe, QtyPipe, formatMoney } from '../../shared/pipes';
 import { StatusChip } from '../../shared/status-chip';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, DatePipe, NgTemplateOutlet, ReactiveFormsModule, MatButtonModule, MatIconModule, MatProgressBarModule, MatFormFieldModule, MatSelectModule, MoneyPipe, QtyPipe, StatusChip],
+  imports: [TranslatePipe, RouterLink, DatePipe, NgTemplateOutlet, ReactiveFormsModule, MatButtonModule, MatIconModule, MatProgressBarModule, MatFormFieldModule, MatSelectModule, MoneyPipe, QtyPipe, StatusChip],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -40,7 +41,8 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
   readonly today = new Date();
   readonly greeting = computed(() => {
     const h = new Date().getHours();
-    return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    // English keys with a {name} param, translated at render.
+    return h < 12 ? 'Good morning, {name}' : h < 17 ? 'Good afternoon, {name}' : 'Good evening, {name}';
   });
   readonly firstName = computed(() => (this.auth.user()?.userName ?? '').trim().split(/\s+/)[0] ?? '');
   readonly last30Total = computed(() => (this.data()?.salesLast30Days ?? []).reduce((sum, x) => sum + x.total, 0));

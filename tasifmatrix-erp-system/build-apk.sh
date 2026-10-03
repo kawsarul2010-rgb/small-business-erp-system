@@ -19,7 +19,7 @@ fail() { printf '\n\033[1;31mx %s\033[0m\n' "$1" >&2; exit 1; }
 # ---------------------------------------------------------------- prerequisites
 command -v node >/dev/null || fail "Node is not installed. Try: nvm use 24"
 # An APK built with the placeholder would talk to nobody (or, worse, to another deployment).
-grep -q "CHANGE-ME" src/environments/environment.mobile.ts \
+grep -q "apiBaseUrl: .*CHANGE-ME" src/environments/environment.mobile.ts \
   && fail "Set apiBaseUrl in frontend/src/environments/environment.mobile.ts to your server first."
 NODE_MAJOR=$(node -p 'process.versions.node.split(".")[0]')
 [ "$NODE_MAJOR" -ge 22 ] || fail "Node $(node -v) is too old for Angular. Try: nvm use 24"

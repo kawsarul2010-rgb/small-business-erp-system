@@ -55,6 +55,15 @@ users out on their next request; reactivating restores everything as it was.
 - PDF invoices, purchase orders and reports under each business's own name; share by WhatsApp or email
 - Dashboard, customer / supplier / company / due reports
 - Soft delete everywhere, full audit columns
+- English and Bangla (বাংলা) display, chosen per device on the login screen, the account menu or the More tab; light and dark mode
+
+### Translations
+
+The English text in the code is the translation key: templates use `{{ 'Sales orders' | t }}` and code uses
+`t('Order #{no} finalized.', { no })`. Bangla lives in `frontend/src/app/core/i18n/bn/ui.ts` (screens) and
+`bn/server.ts` (messages the server sends); server messages with names or numbers in them are matched in
+`core/i18n/bn-server.ts`. A sentence with no Bangla entry simply shows in English. Numbers, money and dates keep
+English digits in both languages. Printed PDFs, SMS and emails stay in English.
 
 ## Android app (APK)
 
@@ -174,7 +183,7 @@ post-deploy checks and troubleshooting. The short version:
 
 1. Push this repository to GitHub.
 2. In Railway: **New Project → Deploy from GitHub repo** and select the repository.
-   Then **Settings → Root Directory → `tasifmatrix-erp-system`**, so Railway finds `railway.json` and the `Dockerfile`.
+   The `Dockerfile` and `railway.json` are at the top of this repository, so Root Directory stays empty.
 3. **+ Create → Database → PostgreSQL** in the same project.
 4. Open the app service → **Variables** and add (see `.env.example`):
    - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (variable reference to the database service)
@@ -215,5 +224,3 @@ Base path `/api/v1`, JSON (camelCase, enums as `UPPER_SNAKE_CASE`), errors as RF
 | Orders | `purchase-orders`, `sales-orders`: list, get, create, update (draft), delete (draft), `DELETE {id}/lines/{lineId}`, `POST {id}/finalize`, `POST {id}/void`, `POST {id}/payments`, `DELETE {id}/payments/{paymentId}`, `GET {id}/pdf` |
 | Reports | `GET reports/customers`, `reports/suppliers`, `reports/companies`, `GET dashboard` |
 | SMS | `GET sms`, `POST sms/{id}/retry` (ADMIN) |
-
-

@@ -9,7 +9,9 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
-import { APP_INFO, PUBLISHED_BY } from '../core/app-info';
+import { APP_INFO } from '../core/app-info';
+import { LANGUAGES, Lang, currentLang, setLang, t } from '../core/i18n/i18n';
+import { TranslatePipe } from '../core/i18n/translate.pipe';
 import { openAboutDialog } from '../shared/about-dialog';
 import { AuthService } from '../core/auth.service';
 import { AppTitleStrategy } from '../core/title.service';
@@ -23,7 +25,7 @@ import { NAV_GROUPS, NavItem, bottomTabs, visibleGroups } from './navigation';
   selector: 'app-shell',
   imports: [
     RouterOutlet, RouterLink, RouterLinkActive, MatTooltipModule,
-    MatIconModule, MatButtonModule, MatMenuModule, MatDividerModule, LabelPipe, AppLogo,
+    MatIconModule, MatButtonModule, MatMenuModule, MatDividerModule, LabelPipe, AppLogo, TranslatePipe,
   ],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
@@ -37,7 +39,13 @@ export class Shell {
   private readonly dialog = inject(MatDialog);
 
   readonly app = APP_INFO;
-  readonly developedBy = PUBLISHED_BY;
+  readonly developedBy = computed(() => t('by {name}', { name: APP_INFO.publisher.name }));
+
+  readonly languages = LANGUAGES;
+  readonly lang = currentLang;
+  readonly langLabel = computed(() => LANGUAGES.find((l) => l.code === currentLang())?.label ?? '');
+  /** The language the quick switch in the top bar changes to. */
+  readonly otherLang = computed(() => LANGUAGES.find((l) => l.code !== currentLang())!);
 
   /** Current URL, updated on every navigation. */
   private readonly url = toSignal(
@@ -71,7 +79,7 @@ export class Shell {
   readonly workspace = computed(() => {
     const user = this.auth.user();
     if (!user) return this.app.name;
-    return user.businessName ?? (user.role === 'SUPER_ADMIN' ? 'Platform administration' : this.app.name);
+    return user.businessName ?? (user.role === 'SUPER_ADMIN' ? t('Platform administration') : this.app.name);
   });
   readonly tabs = computed(() => bottomTabs(this.auth.user()));
 
@@ -84,6 +92,14 @@ export class Shell {
   isTabActive(tab: NavItem): boolean {
     const current = this.url().split('?')[0];
     return tab.link === '/' ? current === '/' : current.startsWith(tab.link);
+  }
+
+  setLang(lang: Lang): void {
+    setLang(lang);
+  }
+
+  toggleLang(): void {
+    setLang(this.otherLang().code);
   }
 
   toggleRail(): void {

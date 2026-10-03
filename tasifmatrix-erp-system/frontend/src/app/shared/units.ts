@@ -1,3 +1,4 @@
+import { t } from '../core/i18n/i18n';
 import { QuantityType, Uom } from '../core/models';
 
 /**
@@ -66,8 +67,12 @@ export function baseUnitLabel(p: UnitInfo | Uom | null | undefined): string {
   return quantityLabel(baseUnit(p));
 }
 
-/** "kg", "litre", "pcs", "box" - for use after a number. */
+/** "kg", "litre", "pcs", "box" - for use after a number (translated). */
 export function shortLabel(unit: Uom | QuantityType | null | undefined): string {
+  return t(unitKey(unit));
+}
+
+function unitKey(unit: Uom | QuantityType | null | undefined): string {
   switch (unit) {
     case 'BOX':
       return 'box';
@@ -87,8 +92,8 @@ export function stockLabel(p: UnitInfo | Uom | null | undefined): string {
 
 /** Field label for a quantity input, e.g. "Kg" or "Pcs". */
 export function quantityLabel(unit: QuantityType | Uom | null | undefined): string {
-  const s = shortLabel(unit);
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  const s = unitKey(unit);
+  return t(s.charAt(0).toUpperCase() + s.slice(1));
 }
 
 /** Step for a number input: 0.001 where fractions are allowed, otherwise 1. */
@@ -104,5 +109,5 @@ export function quantityInputMode(unit: Uom | QuantityType | null | undefined): 
 /** "12 pcs/box", "25 kg/box" - how a box size reads next to a product. */
 export function boxSizeLabel(p: UnitInfo | null | undefined): string | null {
   if (!p?.unitPerBox) return null;
-  return `${p.unitPerBox} ${shortLabel(baseUnit(p))}/box`;
+  return t('{n} {unit}/box', { n: p.unitPerBox, unit: shortLabel(baseUnit(p)) });
 }
