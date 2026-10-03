@@ -11,11 +11,11 @@ namespace Sompriti.Erp.Application.MasterData;
 public sealed record PartyDto(
     Guid Uuid, string Name, string Code, string MobileNumber, string? Nid, string? Tin, string? Address,
     string? City, string? State, string? PostalCode, Guid Revision, DateTimeOffset CreatedDate,
-    DateTimeOffset UpdatedDate, string CreatedByUserName, string UpdatedByUserName);
+    DateTimeOffset UpdatedDate, string CreatedByUserName, string UpdatedByUserName, bool SmsEnabled);
 
 public sealed record PartySaveRequest(
     string? Name, string? MobileNumber, string? Nid, string? Tin, string? Address, string? City,
-    string? State, string? PostalCode, Guid? Revision);
+    string? State, string? PostalCode, Guid? Revision, bool? SmsEnabled = null);
 
 /// <summary>Shared logic for customers and suppliers.</summary>
 public abstract class PartyService<TParty>(IAppDbContext db) where TParty : PartyEntity, new()
@@ -38,7 +38,8 @@ public abstract class PartyService<TParty>(IAppDbContext db) where TParty : Part
     };
 
     public static PartyDto ToDto(PartyEntity p) => new(p.Uuid, p.Name, p.Code ?? "", BdMobile.ToDisplay(p.MobileNumber), p.Nid, p.Tin,
-        p.Address, p.City, p.State, p.PostalCode, p.Revision, p.CreatedDate, p.UpdatedDate, p.CreatedByUserName, p.UpdatedByUserName);
+        p.Address, p.City, p.State, p.PostalCode, p.Revision, p.CreatedDate, p.UpdatedDate, p.CreatedByUserName, p.UpdatedByUserName,
+        p.SmsEnabled);
 
     public async Task<PagedResult<PartyDto>> ListAsync(PageQuery q, CancellationToken ct)
     {
@@ -134,6 +135,7 @@ public abstract class PartyService<TParty>(IAppDbContext db) where TParty : Part
         p.City = Validator.Clean(r.City);
         p.State = Validator.Clean(r.State);
         p.PostalCode = Validator.Clean(r.PostalCode);
+        if (r.SmsEnabled is { } sms) p.SmsEnabled = sms; // left out: unchanged (new ones start with SMS on)
     }
 }
 

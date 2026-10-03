@@ -64,6 +64,13 @@ export function suggestBusinessCode(name: string): string {
             <input matInput formControlName="contactEmail" type="email" />
             <mat-error>{{ err('contactEmail', 'Contact email') }}</mat-error>
           </mat-form-field>
+          <mat-form-field floatLabel="always" class="span-2">
+            <mat-label>{{ 'Price per SMS' | t }}</mat-label>
+            <span matTextPrefix>Tk&nbsp;</span>
+            <input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="smsPrice" [placeholder]="'Not charged' | t" />
+            <mat-hint>{{ 'What you charge this business for each SMS it sends. Leave empty to not charge.' | t }}</mat-hint>
+            <mat-error>{{ err('smsPrice', 'SMS price') }}</mat-error>
+          </mat-form-field>
           <mat-form-field class="span-2">
             <mat-label>{{ 'Notes (only you see these)' | t }}</mat-label>
             <textarea matInput rows="2" formControlName="notes"></textarea>
@@ -123,6 +130,7 @@ export class BusinessDialog {
     contactPhone: [this.data?.contactPhone ?? '', bdMobileValidator],
     contactEmail: [this.data?.contactEmail ?? '', [Validators.email, Validators.maxLength(200)]],
     notes: [this.data?.notes ?? '', Validators.maxLength(1000)],
+    smsPrice: [this.data?.smsPrice ?? (null as number | null), [Validators.min(0), Validators.max(1000)]],
     admin: this.fb.group({
       userName: ['', this.data ? [] : [Validators.required, Validators.maxLength(100)]],
       email: ['', this.data ? [] : [Validators.required, Validators.email, Validators.maxLength(200)]],
@@ -152,7 +160,8 @@ export class BusinessDialog {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.busy.set(true);
     const v = this.form.getRawValue();
-    const business = { code: v.code, name: v.name, contactName: v.contactName, contactPhone: v.contactPhone, contactEmail: v.contactEmail, notes: v.notes };
+    const smsPrice = v.smsPrice === null || (v.smsPrice as unknown) === '' ? null : Number(v.smsPrice);
+    const business = { code: v.code, name: v.name, contactName: v.contactName, contactPhone: v.contactPhone, contactEmail: v.contactEmail, notes: v.notes, smsPrice };
     const req: Observable<BusinessDetail | CreatedBusiness> = this.data
       ? this.api.put<BusinessDetail>(`/platform/businesses/${this.data.uuid}`, { ...business, revision: this.data.revision })
       : this.api.post<CreatedBusiness>('/platform/businesses', { ...business, admin: v.admin });

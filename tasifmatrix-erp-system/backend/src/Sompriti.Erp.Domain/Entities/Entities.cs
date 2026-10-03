@@ -44,6 +44,18 @@ public class Tenant : AuditedEntity
     public string? Notes { get; set; }
     public DateTimeOffset? SuspendedDate { get; set; }
     public string? SuspendReason { get; set; }
+    /// <summary>What the platform owner charges this business per SMS part, in taka. Null: not charged.</summary>
+    public decimal? SmsPrice { get; set; }
+}
+
+/// <summary>A business's own settings, changed by its admins. Missing row: the defaults below.</summary>
+public class BusinessSetting : AuditedEntity, ITenantOwned
+{
+    public Guid TenantUuid { get; set; }
+    /// <summary>False: the business sends no SMS at all.</summary>
+    public bool SmsEnabled { get; set; } = true;
+    /// <summary>Whether a new order starts with "Send SMS" switched on.</summary>
+    public bool SmsOnNewOrders { get; set; }
 }
 
 public class AppUser : SoftDeletableEntity
@@ -95,6 +107,8 @@ public abstract class PartyEntity : SoftDeletableEntity, ITenantOwned
     public string? City { get; set; }
     public string? State { get; set; }
     public string? PostalCode { get; set; }
+    /// <summary>False: this customer or supplier never gets an SMS, whatever the order says.</summary>
+    public bool SmsEnabled { get; set; } = true;
 }
 
 public class Customer : PartyEntity { }
@@ -176,6 +190,11 @@ public abstract class OrderHeader : SoftDeletableEntity, ITenantOwned
     public Guid? VoidedByUserUuid { get; set; }
     public string? VoidedByUserName { get; set; }
     public string? VoidReason { get; set; }
+    /// <summary>
+    /// Send the customer or supplier an SMS when this order is finalized and when a payment is
+    /// added. Also needs SMS on for the business and for the party.
+    /// </summary>
+    public bool SendSms { get; set; }
 
     public decimal DueAmount => TotalAmount - TotalPaidAmount;
 }
@@ -251,6 +270,8 @@ public class SmsOutbox : ITenantOwned
     public Guid TenantUuid { get; set; }
     public string RecipientNumber { get; set; } = "";
     public string Message { get; set; } = "";
+    /// <summary>SMS parts the operator charges for this message, worked out when it is queued.</summary>
+    public short SmsParts { get; set; } = 1;
     public string ReferenceType { get; set; } = "";
     public Guid ReferenceUuid { get; set; }
     public SmsStatus Status { get; set; } = SmsStatus.Pending;

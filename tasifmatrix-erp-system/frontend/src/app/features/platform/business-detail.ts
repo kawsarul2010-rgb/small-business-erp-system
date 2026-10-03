@@ -9,9 +9,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { ApiService, problemOf } from '../../core/api.service';
 import { LayoutService } from '../../core/layout.service';
-import { BusinessAdmin, BusinessDetail, IssuedCredentials } from '../../core/models';
+import { BusinessAdmin, BusinessDetail, BusinessSmsUsage, IssuedCredentials } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { StatusChip } from '../../shared/status-chip';
+import { MoneyPipe } from '../../shared/pipes';
 import { AddAdminDialog, BusinessDialog, SuspendDialog, showCredentials } from './platform-dialogs';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { t } from '../../core/i18n/i18n';
@@ -19,7 +20,7 @@ import { t } from '../../core/i18n/i18n';
 /** One business, as the super admin sees it: its account, its usage and its admins. */
 @Component({
   selector: 'app-business-detail',
-  imports: [TranslatePipe, DatePipe, RouterLink, MatButtonModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule, StatusChip],
+  imports: [TranslatePipe, MoneyPipe, DatePipe, RouterLink, MatButtonModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule, StatusChip],
   template: `
     <div class="page">
       @if (!layout.isHandset()) { <a routerLink="/platform/businesses" class="back-link">{{ 'Businesses' | t }}</a> }
@@ -75,6 +76,8 @@ import { t } from '../../core/i18n/i18n';
           <div class="card stat"><span class="label">{{ 'Last activity' | t }}</span>
             <strong class="small">{{ b.usage.lastOrderDate ? (b.usage.lastOrderDate | date: 'd MMM yyyy') : ('No orders yet' | t) }}</strong>
             <span class="hint">{{ (b.usage.lastSignInDate ? 'Last sign-in {date}' : 'Last sign-in never') | t: { date: (b.usage.lastSignInDate | date: 'd MMM, h:mm a') } }}</span></div>
+          <div class="card stat"><span class="label">{{ 'SMS this month' | t }}</span><strong>{{ b.usage.smsPartsThisMonth }}</strong>
+            <span class="hint">{{ 'Last month {n}' | t: { n: b.usage.smsPartsLastMonth } }}</span></div>
         </div>
 
         <div class="grid-2">
@@ -115,6 +118,48 @@ import { t } from '../../core/i18n/i18n';
             }
           </div>
         </div>
+
+        <section class="card card-pad sms-card">
+          <div class="section-head">
+            <div>
+              <h2 class="card-title">{{ 'SMS usage' | t }}</h2>
+              <div class="muted small">
+                @if (b.smsPrice !== null) { {{ 'Billed at {price} per SMS. Change the price with Edit.' | t: { price: (b.smsPrice | money) } }} }
+                @else { {{ 'No SMS price set. Add one with Edit to see the amount to bill.' | t }} }
+              </div>
+              @if (!b.smsEnabledByBusiness) {
+                <div class="sms-off-note"><mat-icon>speaker_notes_off</mat-icon>{{ 'This business has turned SMS off in its settings.' | t }}</div>
+              }
+            </div>
+          </div>
+          @if (sms(); as u) {
+            <div class="table-wrap">
+              <table class="sms-table">
+                <thead>
+                  <tr>
+                    <th>{{ 'Month' | t }}</th>
+                    <th class="num">{{ 'Messages' | t }}</th>
+                    <th class="num">{{ 'SMS' | t }}</th>
+                    @if (u.smsPrice !== null) { <th class="num">{{ 'Amount' | t }}</th> }
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (m of u.months; track m.month; let first = $first) {
+                    <tr [class.current]="first">
+                      <td>{{ m.month + '-01' | date: 'MMMM y' }}@if (first) { <span class="muted small"> · {{ 'so far' | t }}</span> }</td>
+                      <td class="num">{{ m.messages }}</td>
+                      <td class="num">{{ m.parts }}</td>
+                      @if (u.smsPrice !== null) { <td class="num">{{ m.amount | money }}</td> }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <p class="muted small sms-note">{{ 'Only messages the SMS gateway accepted are counted. A long message is charged as 2 or more SMS, as operators do.' | t }}</p>
+          } @else {
+            <mat-progress-bar mode="indeterminate" />
+          }
+        </section>
       }
     </div>
   `,
@@ -145,12 +190,23 @@ import { t } from '../../core/i18n/i18n';
     .admin-row .name { font-weight: 600; }
     .small { font-size: 12.5px; }
     .warn-text { color: var(--erp-negative); }
+    .sms-card { margin-top: 16px; }
+    .sms-off-note { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12.5px; font-weight: 600; color: var(--erp-chip-warn-fg); }
+    .sms-off-note mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    .sms-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .sms-table th { text-align: left; font-weight: 600; color: var(--erp-muted); font-size: 12.5px; padding: 8px 10px; border-bottom: 1px solid var(--erp-border); }
+    .sms-table td { padding: 9px 10px; border-bottom: 1px solid var(--erp-border); font-variant-numeric: tabular-nums; }
+    .sms-table tr:last-child td { border-bottom: 0; }
+    .sms-table .num { text-align: right; white-space: nowrap; }
+    .sms-table tr.current td { font-weight: 600; }
+    .sms-note { margin: 12px 0 0; }
     @media (max-width: 960px) { .grid-2 { grid-template-columns: 1fr; } }
     @media (max-width: 840px) {
       .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .stat { padding: 12px; }
       .stat strong { font-size: 18px; }
       .admin-row { flex-direction: column; align-items: stretch; }
+      .sms-table th, .sms-table td { padding-left: 6px; padding-right: 6px; }
     }
   `,
 })
@@ -166,9 +222,18 @@ export class BusinessDetailPage implements OnInit {
   readonly loading = signal(true);
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
+  readonly sms = signal<BusinessSmsUsage | null>(null);
 
   ngOnInit(): void {
     this.load();
+    this.loadSms();
+  }
+
+  loadSms(): void {
+    this.api.get<BusinessSmsUsage>(`/platform/businesses/${this.id()}/sms-usage`, { months: 12 }).subscribe({
+      next: (u) => this.sms.set(u),
+      error: () => this.sms.set({ smsPrice: null, months: [] }),
+    });
   }
 
   load(): void {
@@ -181,7 +246,9 @@ export class BusinessDetailPage implements OnInit {
 
   edit(b: BusinessDetail): void {
     this.dialog.open(BusinessDialog, this.layout.dialog(b, '600px')).afterClosed().subscribe((updated?: BusinessDetail) => {
-      if (updated) this.business.set(updated);
+      if (!updated) return;
+      this.business.set(updated);
+      this.loadSms();
     });
   }
 

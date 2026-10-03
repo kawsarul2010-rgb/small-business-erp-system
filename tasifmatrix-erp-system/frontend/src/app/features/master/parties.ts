@@ -7,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSortModule } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -59,7 +60,7 @@ type PartyKind = 'customer' | 'supplier';
                 <div class="m-card-head">
                   <div>
                     <div class="m-title">{{ p.name }}</div>
-                    <div class="m-sub">{{ p.code }} · {{ p.mobileNumber }}</div>
+                    <div class="m-sub">{{ p.code }} · {{ p.mobileNumber }}@if (!p.smsEnabled) { <span class="sms-off"><mat-icon>speaker_notes_off</mat-icon>{{ 'SMS off' | t }}</span> }</div>
                   </div>
                   <button mat-icon-button [matMenuTriggerFor]="menu" [attr.aria-label]="'Actions' | t"><mat-icon>more_vert</mat-icon></button>
                   <mat-menu #menu="matMenu">
@@ -81,7 +82,7 @@ type PartyKind = 'customer' | 'supplier';
             <table mat-table [dataSource]="list.items()" matSort (matSortChange)="list.onSort($event)">
               <ng-container matColumnDef="code"><th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'Code' | t }}</th><td mat-cell *matCellDef="let p" class="code">{{ p.code }}</td></ng-container>
               <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'Name' | t }}</th><td mat-cell *matCellDef="let p">{{ p.name }}</td></ng-container>
-              <ng-container matColumnDef="mobile"><th mat-header-cell *matHeaderCellDef>{{ 'Mobile' | t }}</th><td mat-cell *matCellDef="let p" class="nowrap">{{ p.mobileNumber }}</td></ng-container>
+              <ng-container matColumnDef="mobile"><th mat-header-cell *matHeaderCellDef>{{ 'Mobile' | t }}</th><td mat-cell *matCellDef="let p" class="nowrap">{{ p.mobileNumber }}@if (!p.smsEnabled) { <div class="sms-off"><mat-icon>speaker_notes_off</mat-icon>{{ 'SMS off' | t }}</div> }</td></ng-container>
               <ng-container matColumnDef="city"><th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'City' | t }}</th><td mat-cell *matCellDef="let p">{{ p.city }}</td></ng-container>
               <ng-container matColumnDef="address"><th mat-header-cell *matHeaderCellDef>{{ 'Address' | t }}</th><td mat-cell *matCellDef="let p">{{ p.address }}</td></ng-container>
               <ng-container matColumnDef="actions">
@@ -109,7 +110,12 @@ type PartyKind = 'customer' | 'supplier';
       }
     </div>
   `,
-  styles: `.address { margin-top: 8px; }`,
+  styles: `
+    .address { margin-top: 8px; }
+    .sms-off { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; font-size: 11.5px; font-weight: 600; color: var(--erp-chip-warn-fg); }
+    div.sms-off { margin: 2px 0 0; }
+    .sms-off mat-icon { font-size: 14px; width: 14px; height: 14px; }
+  `,
 })
 export class PartiesPage implements OnInit {
   readonly kind = input<PartyKind>('customer');
@@ -148,7 +154,7 @@ export class PartiesPage implements OnInit {
 
 @Component({
   selector: 'app-party-dialog',
-  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatSlideToggleModule],
   template: `
     <h2 mat-dialog-title>{{ dialogTitle | t }} @if (data.party) { <span class="code">#{{ data.party.code }}</span> }</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
@@ -162,6 +168,14 @@ export class PartiesPage implements OnInit {
           <mat-form-field class="span-2"><mat-label>{{ 'Address' | t }}</mat-label><input matInput formControlName="address" /></mat-form-field>
           <mat-form-field><mat-label>{{ 'State / Division' | t }}</mat-label><input matInput formControlName="state" /></mat-form-field>
           <mat-form-field><mat-label>{{ 'Postal code' | t }}</mat-label><input matInput formControlName="postalCode" /></mat-form-field>
+        </div>
+        <div class="switch-row" [class.off]="!form.controls.smsEnabled.value">
+          <mat-icon>{{ form.controls.smsEnabled.value ? 'sms' : 'speaker_notes_off' }}</mat-icon>
+          <div class="switch-text">
+            <span class="switch-title">{{ (data.kind === 'customer' ? 'Send SMS to this customer' : 'Send SMS to this supplier') | t }}</span>
+            <span class="switch-hint">{{ (form.controls.smsEnabled.value ? 'Gets an SMS for orders that have SMS turned on.' : 'Never gets an SMS, even when an order has SMS turned on.') | t }}</span>
+          </div>
+          <mat-slide-toggle formControlName="smsEnabled" [attr.aria-label]="'SMS' | t" />
         </div>
         @if (error()) { <p class="negative">{{ error() | t }}</p> }
       </mat-dialog-content>
@@ -192,6 +206,7 @@ export class PartyDialog {
     city: [this.p?.city ?? ''],
     state: [this.p?.state ?? ''],
     postalCode: [this.p?.postalCode ?? ''],
+    smsEnabled: [this.p?.smsEnabled ?? true],
   });
 
   err(name: string, label: string): string {

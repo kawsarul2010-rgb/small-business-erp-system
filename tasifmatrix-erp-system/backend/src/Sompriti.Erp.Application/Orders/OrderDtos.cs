@@ -41,7 +41,9 @@ public sealed record OrderDetailDto(
     DateTimeOffset? FinalizedDate, string? FinalizedByUserName,
     DateTimeOffset? VoidedDate, string? VoidedByUserName, string? VoidReason,
     Guid Revision, DateTimeOffset CreatedDate, DateTimeOffset UpdatedDate, string CreatedByUserName, string UpdatedByUserName,
-    IReadOnlyList<OrderLineDto> Lines, IReadOnlyList<OrderPaymentDto> Payments);
+    IReadOnlyList<OrderLineDto> Lines, IReadOnlyList<OrderPaymentDto> Payments,
+    /// <summary>The order asks for SMS. SmsBlockedReason, when set, says why none is sent anyway.</summary>
+    bool SendSms, string? SmsBlockedReason);
 
 public sealed record OrderLineRequest(
     Guid? Uuid, Guid? ProductUuid, QuantityType? QuantityType, int? BoxQuantity, decimal? UnitQuantity,
@@ -49,7 +51,11 @@ public sealed record OrderLineRequest(
 
 public sealed record OrderSaveRequest(
     Guid? CompanyUuid, Guid? PartyUuid, PaymentType? PaymentType, DateOnly? OrderDate, string? Notes,
-    IReadOnlyList<OrderLineRequest>? Lines, Guid? Revision);
+    IReadOnlyList<OrderLineRequest>? Lines, Guid? Revision,
+    /// <summary>Left out on a new order: the business's default (Settings). Left out on an edit: unchanged.</summary>
+    bool? SendSms = null);
+
+public sealed record OrderSmsRequest(bool SendSms, Guid Revision);
 
 public sealed record VoidOrderRequest(Guid Revision, string? VoidReason);
 

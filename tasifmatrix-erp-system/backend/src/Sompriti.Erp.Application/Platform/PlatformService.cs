@@ -15,11 +15,12 @@ namespace Sompriti.Erp.Application.Platform;
 /// never sees their customers, prices, sales amounts or payments.
 /// </summary>
 public sealed record BusinessUsageDto(int ActiveUsers, int Companies, int SalesOrders, int PurchaseOrders,
-    int OrdersThisMonth, DateTimeOffset? LastOrderDate, DateTimeOffset? LastSignInDate);
+    int OrdersThisMonth, DateTimeOffset? LastOrderDate, DateTimeOffset? LastSignInDate,
+    int SmsThisMonth, int SmsPartsThisMonth, int SmsLastMonth, int SmsPartsLastMonth);
 
 public sealed record BusinessListItemDto(Guid Uuid, string Code, string Name, TenantStatus Status,
     string? ContactName, string? ContactPhone, string? ContactEmail, BusinessUsageDto Usage,
-    DateTimeOffset CreatedDate, Guid Revision);
+    DateTimeOffset CreatedDate, Guid Revision, decimal? SmsPrice);
 
 public sealed record BusinessAdminDto(Guid Uuid, string UserName, string Email, string PhoneNumber,
     DateTimeOffset? LastLoginDate, bool IsLocked, bool MustChangePassword);
@@ -27,7 +28,10 @@ public sealed record BusinessAdminDto(Guid Uuid, string UserName, string Email, 
 public sealed record BusinessDetailDto(Guid Uuid, string Code, string Name, TenantStatus Status,
     string? ContactName, string? ContactEmail, string? ContactPhone, string? Notes,
     DateTimeOffset? SuspendedDate, string? SuspendReason, BusinessUsageDto Usage, IReadOnlyList<BusinessAdminDto> Admins,
-    Guid Revision, DateTimeOffset CreatedDate, string CreatedByUserName, DateTimeOffset UpdatedDate, string UpdatedByUserName);
+    Guid Revision, DateTimeOffset CreatedDate, string CreatedByUserName, DateTimeOffset UpdatedDate, string UpdatedByUserName,
+    decimal? SmsPrice,
+    /// <summary>The business's own switch (its Settings); false means it sends no SMS.</summary>
+    bool SmsEnabledByBusiness);
 
 /// <summary>A temporary password, shown to the super admin once and never stored in readable form.</summary>
 public sealed record IssuedCredentialsDto(Guid UserUuid, string UserName, string Email, string TemporaryPassword);
@@ -37,10 +41,10 @@ public sealed record CreatedBusinessDto(BusinessDetailDto Business, IssuedCreden
 public sealed record BusinessAdminRequest(string? UserName, string? Email, string? PhoneNumber);
 
 public sealed record CreateBusinessRequest(string? Code, string? Name, string? ContactName, string? ContactEmail,
-    string? ContactPhone, string? Notes, BusinessAdminRequest? Admin);
+    string? ContactPhone, string? Notes, BusinessAdminRequest? Admin, decimal? SmsPrice = null);
 
 public sealed record UpdateBusinessRequest(string? Code, string? Name, string? ContactName, string? ContactEmail,
-    string? ContactPhone, string? Notes, Guid? Revision);
+    string? ContactPhone, string? Notes, Guid? Revision, decimal? SmsPrice = null);
 
 public sealed record SuspendBusinessRequest(string? Reason, Guid? Revision);
 
@@ -49,7 +53,15 @@ public sealed record BusinessListQuery : PageQuery
     public TenantStatus? Status { get; init; }
 }
 
-public sealed record PlatformSummaryDto(int Businesses, int ActiveBusinesses, int SuspendedBusinesses, int ActiveUsers, int OrdersThisMonth);
+/// <summary>SmsAmountThisMonth: SMS parts sent this month times each business's price, over the priced businesses.</summary>
+public sealed record PlatformSummaryDto(int Businesses, int ActiveBusinesses, int SuspendedBusinesses, int ActiveUsers, int OrdersThisMonth,
+    int SmsThisMonth, int SmsPartsThisMonth, decimal SmsAmountThisMonth);
+
+/// <summary>One month of a business's sent SMS. Month is "yyyy-MM" in Bangladesh time; Amount is null when the business has no SMS price.</summary>
+public sealed record SmsMonthDto(string Month, int Messages, int Parts, decimal? Amount);
+
+/// <summary>A business's SMS bill: sent messages per month, newest first, priced at the business's current SMS price.</summary>
+public sealed record BusinessSmsUsageDto(decimal? SmsPrice, IReadOnlyList<SmsMonthDto> Months);
 
 // ---------------------------------------------------------------------------------------- service
 
@@ -80,8 +92,18 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
         var users = await db.Users.IgnoreQueryFilters().CountAsync(u => u.TenantUuid != null && u.Status == RecordStatus.Active, ct);
         var sales = await db.SalesOrders.IgnoreQueryFilters().CountAsync(o => o.Status == RecordStatus.Active && o.OrderDate >= monthStart, ct);
         var purchases = await db.PurchaseOrders.IgnoreQueryFilters().CountAsync(o => o.Status == RecordStatus.Active && o.OrderDate >= monthStart, ct);
+        var monthStartUtc = BusinessClock.StartOfDayUtc(monthStart);
+        var sms = await db.SmsOutbox.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.Status == SmsStatus.Sent && x.SentDate >= monthStartUtc)
+            .GroupBy(x => x.TenantUuid)
+            .Select(g => new { Tenant = g.Key, Messages = g.Count(), Parts = g.Sum(x => (int)x.SmsParts) })
+            .ToListAsync(ct);
+        var prices = await db.Tenants.AsNoTracking().Where(t => t.SmsPrice != null)
+            .ToDictionaryAsync(t => t.Uuid, t => t.SmsPrice!.Value, ct);
+        var amount = sms.Sum(x => prices.TryGetValue(x.Tenant, out var price) ? x.Parts * price : 0m);
         return new PlatformSummaryDto(statuses.Count, statuses.Count(s => s == TenantStatus.Active),
-            statuses.Count(s => s == TenantStatus.Suspended), users, sales + purchases);
+            statuses.Count(s => s == TenantStatus.Suspended), users, sales + purchases,
+            sms.Sum(x => x.Messages), sms.Sum(x => x.Parts), Money.Round(amount));
     }
 
     public async Task<PagedResult<BusinessListItemDto>> ListAsync(BusinessListQuery q, CancellationToken ct)
@@ -100,7 +122,7 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
         var page = await tenants.OrderBy(t => t.TenantName).ToPagedAsync(q, t => t, ct);
         var usage = await UsageAsync(page.Items.Select(t => t.Uuid).ToList(), ct);
         var items = page.Items.Select(t => new BusinessListItemDto(t.Uuid, t.TenantCode, t.TenantName, t.Status,
-            t.ContactName, Phone(t.ContactPhone), t.ContactEmail, usage[t.Uuid], t.CreatedDate, t.Revision)).ToList();
+            t.ContactName, Phone(t.ContactPhone), t.ContactEmail, usage[t.Uuid], t.CreatedDate, t.Revision, t.SmsPrice)).ToList();
         return new PagedResult<BusinessListItemDto>(items, page.Page, page.PageSize, page.TotalCount);
     }
 
@@ -116,11 +138,50 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
             .Select(u => new BusinessAdminDto(u.Uuid, u.UserName, u.Email, u.PhoneNumber, u.LastLoginDate,
                 u.LockoutEndDate != null && u.LockoutEndDate > now, u.MustChangePassword))
             .ToListAsync(ct);
+        var smsEnabled = await db.BusinessSettings.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantUuid == id).Select(x => (bool?)x.SmsEnabled).FirstOrDefaultAsync(ct) ?? true;
         return new BusinessDetailDto(t.Uuid, t.TenantCode, t.TenantName, t.Status, t.ContactName, t.ContactEmail,
             Phone(t.ContactPhone), t.Notes, t.SuspendedDate, t.SuspendReason, usage,
             admins.Select(a => a with { PhoneNumber = BdMobile.ToDisplay(a.PhoneNumber) }).ToList(),
-            t.Revision, t.CreatedDate, t.CreatedByUserName, t.UpdatedDate, t.UpdatedByUserName);
+            t.Revision, t.CreatedDate, t.CreatedByUserName, t.UpdatedDate, t.UpdatedByUserName, t.SmsPrice, smsEnabled);
     }
+
+    /// <summary>
+    /// A business's sent SMS per month, for billing it. Only messages the gateway accepted (SENT)
+    /// count; failed and skipped ones cost nothing. Months run on Bangladesh time.
+    /// </summary>
+    public async Task<BusinessSmsUsageDto> SmsUsageAsync(Guid id, int months, CancellationToken ct)
+    {
+        EnsureSuperAdmin();
+        months = Math.Clamp(months, 1, 36);
+        var t = (await db.Tenants.AsNoTracking().FirstOrDefaultAsync(x => x.Uuid == id, ct)).OrNotFound("Business");
+
+        var thisMonth = MonthStart();
+        var created = BusinessClock.Today(t.CreatedDate);
+        var first = thisMonth.AddMonths(-(months - 1));
+        var createdMonth = new DateOnly(created.Year, created.Month, 1);
+        if (createdMonth > first) first = createdMonth;
+        var fromUtc = BusinessClock.StartOfDayUtc(first);
+
+        var sent = await db.SmsOutbox.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => x.TenantUuid == id && x.Status == SmsStatus.Sent && x.SentDate >= fromUtc)
+            .Select(x => new { x.SentDate, x.SmsParts })
+            .ToListAsync(ct);
+        var byMonth = sent
+            .GroupBy(x => MonthKey(BusinessClock.Today(x.SentDate!.Value)))
+            .ToDictionary(g => g.Key, g => (Messages: g.Count(), Parts: g.Sum(x => (int)x.SmsParts)));
+
+        var list = new List<SmsMonthDto>();
+        for (var m = thisMonth; m >= first; m = m.AddMonths(-1))
+        {
+            var key = MonthKey(m);
+            var (messages, parts) = byMonth.TryGetValue(key, out var v) ? v : (0, 0);
+            list.Add(new SmsMonthDto(key, messages, parts, t.SmsPrice is { } price ? Money.Round(parts * price) : null));
+        }
+        return new BusinessSmsUsageDto(t.SmsPrice, list);
+    }
+
+    private static string MonthKey(DateOnly d) => $"{d.Year:0000}-{d.Month:00}";
 
     /// <summary>Usage per business, in one grouped query per table rather than one per business.</summary>
     private async Task<Dictionary<Guid, BusinessUsageDto>> UsageAsync(IReadOnlyCollection<Guid> ids, CancellationToken ct)
@@ -146,15 +207,31 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
             .GroupBy(o => o.TenantUuid)
             .Select(g => new { Tenant = g.Key, Count = g.Count(), ThisMonth = g.Count(o => o.OrderDate >= monthStart), Last = g.Max(o => (DateTimeOffset?)o.CreatedDate) })
             .ToListAsync(ct);
+        var monthStartUtc = BusinessClock.StartOfDayUtc(monthStart);
+        var lastMonthStartUtc = BusinessClock.StartOfDayUtc(monthStart.AddMonths(-1));
+        var sms = await db.SmsOutbox.IgnoreQueryFilters().AsNoTracking()
+            .Where(x => ids.Contains(x.TenantUuid) && x.Status == SmsStatus.Sent && x.SentDate >= lastMonthStartUtc)
+            .GroupBy(x => x.TenantUuid)
+            .Select(g => new
+            {
+                Tenant = g.Key,
+                ThisMonth = g.Count(x => x.SentDate >= monthStartUtc),
+                PartsThisMonth = g.Sum(x => x.SentDate >= monthStartUtc ? (int)x.SmsParts : 0),
+                LastMonth = g.Count(x => x.SentDate < monthStartUtc),
+                PartsLastMonth = g.Sum(x => x.SentDate < monthStartUtc ? (int)x.SmsParts : 0),
+            })
+            .ToListAsync(ct);
 
         return ids.ToDictionary(id => id, id =>
         {
             var u = users.FirstOrDefault(x => x.Tenant == id);
             var s = sales.FirstOrDefault(x => x.Tenant == id);
             var p = purchases.FirstOrDefault(x => x.Tenant == id);
+            var m = sms.FirstOrDefault(x => x.Tenant == id);
             DateTimeOffset? last = new[] { s?.Last, p?.Last }.Max();
             return new BusinessUsageDto(u?.Count ?? 0, companies.FirstOrDefault(x => x.Tenant == id)?.Count ?? 0,
-                s?.Count ?? 0, p?.Count ?? 0, (s?.ThisMonth ?? 0) + (p?.ThisMonth ?? 0), last, u?.LastLogin);
+                s?.Count ?? 0, p?.Count ?? 0, (s?.ThisMonth ?? 0) + (p?.ThisMonth ?? 0), last, u?.LastLogin,
+                m?.ThisMonth ?? 0, m?.PartsThisMonth ?? 0, m?.LastMonth ?? 0, m?.PartsLastMonth ?? 0);
         });
     }
 
@@ -166,6 +243,7 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
         EnsureSuperAdmin();
         var (code, name, contactPhone) = ValidateBusiness(r.Code, r.Name, r.ContactName, r.ContactEmail, r.ContactPhone, r.Notes);
         if (r.Admin is null) throw DomainException.Validation("admin.email", "The business needs its first admin.");
+        var smsPrice = ValidateSmsPrice(r.SmsPrice);
         var admin = await ValidateAdminAsync(r.Admin, "admin.", ct);
         await EnsureCodeFreeAsync(code, exceptId: null, ct);
 
@@ -178,6 +256,7 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
             ContactEmail = Validator.Clean(r.ContactEmail)?.ToLowerInvariant(),
             ContactPhone = contactPhone,
             Notes = Validator.Clean(r.Notes),
+            SmsPrice = smsPrice,
         };
         var (user, password) = NewAdmin(tenant.Uuid, admin);
 
@@ -200,6 +279,7 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
     {
         EnsureSuperAdmin();
         var (code, name, contactPhone) = ValidateBusiness(r.Code, r.Name, r.ContactName, r.ContactEmail, r.ContactPhone, r.Notes);
+        var smsPrice = ValidateSmsPrice(r.SmsPrice);
         var tenant = (await db.Tenants.FirstOrDefaultAsync(t => t.Uuid == id, ct)).OrNotFound("Business");
         RevisionGuard.Check(db, tenant, r.Revision ?? Guid.Empty);
         await EnsureCodeFreeAsync(code, exceptId: id, ct);
@@ -210,6 +290,7 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
         tenant.ContactEmail = Validator.Clean(r.ContactEmail)?.ToLowerInvariant();
         tenant.ContactPhone = contactPhone;
         tenant.Notes = Validator.Clean(r.Notes);
+        tenant.SmsPrice = smsPrice;
         await db.SaveChangesAsync(ct);
         return await GetAsync(id, ct);
     }
@@ -309,6 +390,15 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
             .MaxLength("notes", notes, "Notes", 1000)
             .ThrowIfInvalid();
         return (code!, name!, phone);
+    }
+
+    private static decimal? ValidateSmsPrice(decimal? price)
+    {
+        new Validator()
+            .When(price is < 0, "smsPrice", "SMS price cannot be negative.")
+            .When(price is > 1000, "smsPrice", "SMS price cannot be more than Tk 1,000.")
+            .ThrowIfInvalid();
+        return price is { } p ? Money.Round(p) : null;
     }
 
     private async Task<ValidAdmin> ValidateAdminAsync(BusinessAdminRequest r, string prefix, CancellationToken ct)

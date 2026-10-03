@@ -99,6 +99,8 @@ export interface Party extends Audited {
   city: string | null;
   state: string | null;
   postalCode: string | null;
+  /** False: never sent an SMS, whatever an order says. */
+  smsEnabled: boolean;
 }
 
 export interface Product extends Audited {
@@ -246,6 +248,10 @@ export interface OrderDetail extends Audited {
   voidReason: string | null;
   lines: OrderLine[];
   payments: OrderPayment[];
+  /** The order asks for SMS on finalize and on each payment. */
+  sendSms: boolean;
+  /** Set when no SMS goes out even with sendSms on (business or party switched SMS off). */
+  smsBlockedReason: string | null;
 }
 
 export interface OrderLineRequest {
@@ -268,6 +274,18 @@ export interface OrderSaveRequest {
   notes: string | null;
   lines: OrderLineRequest[];
   revision: string | null;
+  sendSms: boolean;
+}
+
+/** The business's own settings (ADMIN changes, MANAGER reads). */
+export interface BusinessSettings {
+  smsEnabled: boolean;
+  smsOnNewOrders: boolean;
+  smsSentThisMonth: number;
+  smsPartsThisMonth: number;
+  revision: string | null;
+  updatedDate: string | null;
+  updatedByUserName: string | null;
 }
 
 // ---------------------------------------------------------------- reports
@@ -372,6 +390,11 @@ export interface BusinessUsage {
   ordersThisMonth: number;
   lastOrderDate: string | null;
   lastSignInDate: string | null;
+  /** Sent SMS (and the operator's SMS parts) this month and last month, Bangladesh time. */
+  smsThisMonth: number;
+  smsPartsThisMonth: number;
+  smsLastMonth: number;
+  smsPartsLastMonth: number;
 }
 
 export interface BusinessListItem {
@@ -385,6 +408,8 @@ export interface BusinessListItem {
   usage: BusinessUsage;
   createdDate: string;
   revision: string;
+  /** Taka charged per SMS part; null when not charged. */
+  smsPrice: number | null;
 }
 
 export interface BusinessAdmin {
@@ -415,6 +440,22 @@ export interface BusinessDetail {
   createdByUserName: string;
   updatedDate: string;
   updatedByUserName: string;
+  smsPrice: number | null;
+  /** The business's own SMS switch in its Settings. */
+  smsEnabledByBusiness: boolean;
+}
+
+/** One month of a business's sent SMS; month is "yyyy-MM". amount is null when the business has no SMS price. */
+export interface SmsMonth {
+  month: string;
+  messages: number;
+  parts: number;
+  amount: number | null;
+}
+
+export interface BusinessSmsUsage {
+  smsPrice: number | null;
+  months: SmsMonth[];
 }
 
 /** A temporary password, shown once. */
@@ -436,4 +477,8 @@ export interface PlatformSummary {
   suspendedBusinesses: number;
   activeUsers: number;
   ordersThisMonth: number;
+  smsThisMonth: number;
+  smsPartsThisMonth: number;
+  /** SMS parts this month times each business's SMS price. */
+  smsAmountThisMonth: number;
 }

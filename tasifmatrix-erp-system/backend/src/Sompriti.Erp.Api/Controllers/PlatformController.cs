@@ -24,6 +24,11 @@ public sealed class PlatformController(PlatformService service) : ControllerBase
     [HttpGet("businesses/{id:guid}")]
     public Task<BusinessDetailDto> Get(Guid id, CancellationToken ct) => service.GetAsync(id, ct);
 
+    /// <summary>Sent SMS per month for billing the business, newest month first.</summary>
+    [HttpGet("businesses/{id:guid}/sms-usage")]
+    public Task<BusinessSmsUsageDto> SmsUsage(Guid id, [FromQuery] int months = 12, CancellationToken ct = default) =>
+        service.SmsUsageAsync(id, months, ct);
+
     /// <summary>Creates the business and its first admin. The response carries the admin's temporary password, once.</summary>
     [HttpPost("businesses")]
     public async Task<ActionResult<CreatedBusinessDto>> Create(CreateBusinessRequest r, CancellationToken ct)

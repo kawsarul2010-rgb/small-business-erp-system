@@ -354,7 +354,7 @@ public class PdfTests
             new OrderPartyDto(Guid.NewGuid(), "Karim Traders", "100007", "01712345678", "House 12, Road 5, Dhanmondi", "Dhaka"),
             PaymentType.Installment, status, new DateOnly(2026, 9, 9), "Deliver before Friday. Handle with care.",
             total, 1500m, total - 1500m, null, null, null, null, status == PostingStatus.Void ? "Customer cancelled" : null,
-            Guid.NewGuid(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, "Admin", "Admin", lines, payments);
+            Guid.NewGuid(), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow, "Admin", "Admin", lines, payments, false, null);
     }
 
     internal static CompanyDto SampleCompany() => new(Guid.NewGuid(), "Sompriti Enterprise", "SE", "12/A Motijheel C/A", "Dhaka", "Dhaka",

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sompriti.Erp.Application.Common;
 using Sompriti.Erp.Application.MasterData;
+using Sompriti.Erp.Application.Settings;
 using Sompriti.Erp.Application.Stock;
 using Sompriti.Erp.Domain.Common;
 using Sompriti.Erp.Domain.Entities;
@@ -115,12 +116,16 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
             .Select(p => new OrderPaymentDto(p.Uuid, p.PaymentDate, p.PaymentAmount, p.PaymentMethod, p.PaymentNote, p.CreatedDate, p.CreatedByUserName))
             .ToListAsync(ct);
 
+        var smsSettings = await BusinessSettingsService.SmsAsync(Db, ct);
+        var smsBlocked = SmsRules.BlockedReason(smsSettings.SmsEnabled, party.SmsEnabled, Type);
+
         return new OrderDetailDto(o.Uuid, o.TransactionType, o.OrderNumber!,
             new OrderCompanyDto(company.Uuid, company.CompanyName, company.CompanyCode),
             new OrderPartyDto(party.Uuid, party.Name, party.Code ?? "", BdMobile.ToDisplay(party.MobileNumber), party.Address, party.City),
             o.PaymentType, o.PostingStatus, o.OrderDate, o.Notes, o.TotalAmount, o.TotalPaidAmount, o.DueAmount,
             o.FinalizedDate, o.FinalizedByUserName, o.VoidedDate, o.VoidedByUserName, o.VoidReason,
-            o.Revision, o.CreatedDate, o.UpdatedDate, o.CreatedByUserName, o.UpdatedByUserName, lines, payments);
+            o.Revision, o.CreatedDate, o.UpdatedDate, o.CreatedByUserName, o.UpdatedByUserName, lines, payments,
+            o.SendSms, smsBlocked);
     }
 
     /// <param name="Description">A one-line name for the document, used as an email subject.</param>
@@ -141,6 +146,7 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
     {
         var order = new TOrder { Uuid = Guid.NewGuid(), PostingStatus = PostingStatus.Draft };
         await ApplyHeaderAsync(order, r, ct);
+        order.SendSms = r.SendSms ?? (await BusinessSettingsService.SmsAsync(Db, ct)).SmsOnNewOrders;
         var lines = await BuildLinesAsync(order, r.Lines ?? [], [], ct);
         await ValidateDraftLinesAsync(lines.Where(l => l.IsActive).ToList(), ct);
 
@@ -161,6 +167,7 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         PostingRules.EnsureDraft(order);
 
         await ApplyHeaderAsync(order, r, ct);
+        if (r.SendSms is { } sendSms) order.SendSms = sendSms;
         var existing = await Lines.Where(l => l.OrderUuid == id && l.Status == RecordStatus.Active).ToListAsync(ct);
         var lines = await BuildLinesAsync(order, r.Lines ?? [], existing, ct);
         await ValidateDraftLinesAsync(lines.Where(l => l.IsActive).ToList(), ct);
@@ -315,6 +322,12 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         order.FinalizedDate = clock.GetUtcNow();
         order.FinalizedByUserUuid = User.UserUuid;
         order.FinalizedByUserName = User.UserName;
+        await Db.SaveChangesAsync(ct);
+
+        // SMS 1 of 2: the order is confirmed - its amount plus the party's running account.
+        await QueueSmsAsync(order,
+            Type == TransactionType.Sales ? "SALES_ORDER" : "PURCHASE_ORDER", order.Uuid,
+            (company, account) => SmsTemplates.OrderFinalized(Type, company, order.OrderNumber!, order.TotalAmount, account), ct);
 
         await Db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
@@ -356,6 +369,23 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         return await GetAsync(id, ct);
     }
 
+    /// <summary>
+    /// Switches SMS for this order on or off - also after it is finalized, so the next payment's
+    /// SMS can still be turned on or off. Changes nothing already sent.
+    /// </summary>
+    public async Task<OrderDetailDto> SetSmsAsync(Guid id, OrderSmsRequest r, CancellationToken ct)
+    {
+        await using var tx = await Db.Database.BeginTransactionAsync(ct);
+        var order = await LockAsync(id, ct);
+        RevisionGuard.Check(Db, order, r.Revision);
+        if (order.PostingStatus == PostingStatus.Void)
+            throw DomainException.Rule(ErrorCodes.BusinessRule, "This order is void.");
+        order.SendSms = r.SendSms;
+        await Db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return await GetAsync(id, ct);
+    }
+
     // ================================================================== payments
 
     public async Task<OrderDetailDto> AddPaymentAsync(Guid id, AddPaymentRequest r, CancellationToken ct)
@@ -392,26 +422,53 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         };
         Payments.Add(payment);
         order.TotalPaidAmount = Money.Round(order.TotalPaidAmount + amount);
+        await Db.SaveChangesAsync(ct);
 
-        // Outbox pattern (SRS 11.3): the SMS row is committed together with the payment and sent later by a worker.
-        var company = await Db.Companies.AsNoTracking().FirstAsync(c => c.Uuid == order.CompanyUuid, ct);
-        var party = await Parties.AsNoTracking().FirstAsync(p => p.Uuid == order.PartyUuid, ct);
-        var now = clock.GetUtcNow();
-        Db.SmsOutbox.Add(new SmsOutbox
-        {
-            Uuid = Guid.NewGuid(),
-            RecipientNumber = party.MobileNumber,
-            Message = SmsTemplates.Payment(Type, company.CompanyName, order.OrderNumber!, amount, order.DueAmount),
-            ReferenceType = Type == TransactionType.Sales ? "SALES_ORDER_PAYMENT" : "PURCHASE_ORDER_PAYMENT",
-            ReferenceUuid = payment.Uuid,
-            Status = sms.Enabled ? SmsStatus.Pending : SmsStatus.Skipped,
-            NextAttemptDate = sms.Enabled ? now : null,
-            CreatedDate = now,
-        });
+        // SMS 2 of 2: the payment - its amount plus the party's running account after it.
+        await QueueSmsAsync(order,
+            Type == TransactionType.Sales ? "SALES_ORDER_PAYMENT" : "PURCHASE_ORDER_PAYMENT", payment.Uuid,
+            (company, account) => SmsTemplates.Payment(Type, company, order.OrderNumber!, amount, account), ct);
 
         await Db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return await GetAsync(id, ct);
+    }
+
+    /// <summary>
+    /// Outbox pattern (SRS 11.3): the SMS row is committed in the same transaction as the change it
+    /// reports and sent later by the worker. Call after the change is saved, so the running account
+    /// - every FINAL order of this kind for the same customer or supplier - already includes it.
+    /// </summary>
+    private async Task QueueSmsAsync(TOrder order, string referenceType, Guid referenceUuid,
+        Func<string, AccountTotals, string> message, CancellationToken ct)
+    {
+        // Three switches, all needed: the order, the customer or supplier, and the business.
+        if (!order.SendSms) return;
+        var party = await Parties.AsNoTracking().FirstAsync(p => p.Uuid == order.PartyUuid, ct);
+        var business = await BusinessSettingsService.SmsAsync(Db, ct);
+        if (!SmsRules.ShouldSend(order.SendSms, party.SmsEnabled, business.SmsEnabled)) return;
+
+        var company = await Db.Companies.AsNoTracking().FirstAsync(c => c.Uuid == order.CompanyUuid, ct);
+        var finals = Orders.AsNoTracking().Where(o =>
+            o.PartyUuid == order.PartyUuid && o.Status == RecordStatus.Active && o.PostingStatus == PostingStatus.Final);
+        var account = new AccountTotals(
+            Money.Round(await finals.SumAsync(o => o.TotalAmount, ct)),
+            Money.Round(await finals.SumAsync(o => o.TotalPaidAmount, ct)));
+
+        var now = clock.GetUtcNow();
+        var text = message(company.CompanyName, account);
+        Db.SmsOutbox.Add(new SmsOutbox
+        {
+            Uuid = Guid.NewGuid(),
+            RecipientNumber = party.MobileNumber,
+            Message = text,
+            SmsParts = (short)SmsParts.Count(text),
+            ReferenceType = referenceType,
+            ReferenceUuid = referenceUuid,
+            Status = sms.Enabled ? SmsStatus.Pending : SmsStatus.Skipped,
+            NextAttemptDate = sms.Enabled ? now : null,
+            CreatedDate = now,
+        });
     }
 
     public async Task<OrderDetailDto> DeletePaymentAsync(Guid id, Guid paymentId, Guid revision, CancellationToken ct)

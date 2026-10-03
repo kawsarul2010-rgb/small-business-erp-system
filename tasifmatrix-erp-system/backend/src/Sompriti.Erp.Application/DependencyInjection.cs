@@ -6,6 +6,7 @@ using Sompriti.Erp.Application.MasterData;
 using Sompriti.Erp.Application.Orders;
 using Sompriti.Erp.Application.Platform;
 using Sompriti.Erp.Application.Reports;
+using Sompriti.Erp.Application.Settings;
 using Sompriti.Erp.Application.Sms;
 using Sompriti.Erp.Application.Stock;
 using Sompriti.Erp.Application.Users;
@@ -34,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<ReportService>();
         services.AddScoped<SmsService>();
         services.AddScoped<PlatformService>();
+        services.AddScoped<BusinessSettingsService>();
         return services;
     }
 }

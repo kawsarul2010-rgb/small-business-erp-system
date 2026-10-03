@@ -58,6 +58,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<SmsOutbox> SmsOutbox => Set<SmsOutbox>();
+    public DbSet<BusinessSetting> BusinessSettings => Set<BusinessSetting>();
 
     public void SetOriginalRevision(AuditedEntity entity, Guid revision) =>
         Entry(entity).Property(nameof(AuditedEntity.Revision)).OriginalValue = revision;
@@ -163,6 +164,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
             e.HasQueryFilter(u => u.TenantUuid == CurrentTenantFilter);
         });
         b.Entity<Company>(e => { e.ToTable("company"); Audited(e); });
+        b.Entity<BusinessSetting>(e => { e.ToTable("business_setting"); Audited(e); });
 
         b.Entity<Customer>(e =>
         {

@@ -4,6 +4,7 @@ using Sompriti.Erp.Api.Infrastructure;
 using Sompriti.Erp.Application.Common;
 using Sompriti.Erp.Application.Reports;
 using Sompriti.Erp.Application.Sms;
+using Sompriti.Erp.Application.Settings;
 using Sompriti.Erp.Application.Stock;
 
 namespace Sompriti.Erp.Api.Controllers;
@@ -131,4 +132,17 @@ public sealed class SmsController(SmsService service) : ControllerBase
         await service.RetryAsync(id, ct);
         return NoContent();
     }
+}
+
+/// <summary>The business's own settings. Everyone who creates orders reads them; only admins change them.</summary>
+[ApiController]
+[Route("api/v1/settings")]
+[Authorize] // roles are set per action
+public sealed class SettingsController(BusinessSettingsService service) : ControllerBase
+{
+    [HttpGet, Authorize(Roles = Roles.AdminOrManager)]
+    public Task<BusinessSettingsDto> Get(CancellationToken ct) => service.GetAsync(ct);
+
+    [HttpPut, Authorize(Roles = Roles.Admin)]
+    public Task<BusinessSettingsDto> Update(BusinessSettingsRequest r, CancellationToken ct) => service.UpdateAsync(r, ct);
 }

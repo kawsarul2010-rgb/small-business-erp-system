@@ -325,6 +325,20 @@ td.num, th.num { text-align: right !important; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
 .form-grid .span-2 { grid-column: span 2; }
 .form-grid mat-form-field { width: 100%; }
+
+/* An on/off setting: icon, title and hint, and the switch on the right. */
+.switch-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border: 1px solid var(--erp-border); border-radius: var(--erp-radius-sm);
+  background: var(--erp-card-2);
+}
+.switch-row > mat-icon { flex: none; color: var(--erp-brand); }
+.switch-row.off > mat-icon { color: var(--erp-faint); }
+.switch-row .switch-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.switch-row .switch-title { font-weight: 600; font-size: 14px; line-height: 1.35; }
+.switch-row .switch-hint { font-size: 12.5px; color: var(--erp-muted); line-height: 1.45; }
+.switch-row mat-slide-toggle { flex: none; }
+.switch-row + .switch-row { margin-top: 10px; }
 .mat-mdc-dialog-container .mat-mdc-dialog-title { font-weight: 650; letter-spacing: -0.01em; }
 
 

@@ -68,6 +68,20 @@
             <textarea matInput rows="1" formControlName="notes"></textarea>
           </mat-form-field>
         </div>
+        @let smsOn = form.controls.sendSms.value;
+        @let businessOff = settings()?.smsEnabled === false;
+        <div class="switch-row sms-switch" [class.off]="!smsOn || businessOff">
+          <mat-icon>{{ smsOn && !businessOff ? 'sms' : 'speaker_notes_off' }}</mat-icon>
+          <div class="switch-text">
+            <span class="switch-title">{{ (isSales() ? 'Send SMS to the customer' : 'Send SMS to the supplier') | t }}</span>
+            <span class="switch-hint">
+              @if (businessOff) { {{ 'SMS is turned off in the business settings.' | t }} }
+              @else if (smsOn) { {{ 'An SMS goes out when the order is finalized and for each payment.' | t }} }
+              @else { {{ 'No SMS for this order. You can turn it on later from the order.' | t }} }
+            </span>
+          </div>
+          <mat-slide-toggle formControlName="sendSms" [attr.aria-label]="'Send SMS' | t" />
+        </div>
       </section>
 
       <!-- ---------------------------------------------------------- lines -->

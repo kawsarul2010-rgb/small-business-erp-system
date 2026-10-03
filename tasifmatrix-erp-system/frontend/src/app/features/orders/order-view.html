@@ -69,6 +69,22 @@
         <div class="party-name">{{ o.party.name }} <span class="code">{{ o.party.code }}</span></div>
         <div class="muted">{{ o.party.mobileNumber }}</div>
         @if (o.party.address || o.party.city) { <div class="muted">{{ o.party.address }}@if (o.party.address && o.party.city) {, }{{ o.party.city }}</div> }
+        @if (!auth.isUser() && o.postingStatus !== 'VOID') {
+          <div class="switch-row sms-row" [class.off]="!smsActive()">
+            <mat-icon>{{ smsActive() ? 'sms' : 'speaker_notes_off' }}</mat-icon>
+            <div class="switch-text">
+              <span class="switch-title">{{ (o.sendSms ? 'SMS on' : 'SMS off') | t }}</span>
+              <span class="switch-hint">
+                @if (o.sendSms && o.smsBlockedReason) { {{ o.smsBlockedReason | t }} }
+                @else if (o.sendSms) { {{ (isDraft() ? 'Finalizing and each payment send an SMS to {mobile}.' : 'Each payment sends an SMS to {mobile}.') | t: { mobile: o.party.mobileNumber } }} }
+                @else { {{ 'No SMS for this order.' | t }} }
+              </span>
+            </div>
+            @if (canWrite()) {
+              <mat-slide-toggle [checked]="o.sendSms" (change)="setSms($event.checked)" [disabled]="busy()" [attr.aria-label]="'Send SMS' | t" />
+            }
+          </div>
+        }
         @if (layout.isHandset()) {
           <div class="mini-kv">
             <div><span class="k">{{ 'Company' | t }}</span><span>{{ o.company.companyName }}</span></div>

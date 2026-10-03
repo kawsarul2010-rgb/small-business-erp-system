@@ -7,13 +7,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
+import { catchError, forkJoin, of } from 'rxjs';
 import { ApiService, dateToIso, isoToDate, problemOf } from '../../core/api.service';
 import { LayoutService } from '../../core/layout.service';
 import {
-  DropdownItem, OrderDetail, OrderKind, OrderLineRequest, OrderSaveRequest, PaymentType, Product, ProductDropdownItem, QuantityType, StockShortage, Uom,
+  BusinessSettings, DropdownItem, OrderDetail, OrderKind, OrderLineRequest, OrderSaveRequest, PaymentType, Product, ProductDropdownItem, QuantityType, StockShortage, Uom,
 } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
@@ -61,7 +62,7 @@ const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
   selector: 'app-order-editor',
   imports: [TranslatePipe, 
     ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatButtonModule,
-    MatIconModule, MatTooltipModule, MatProgressBarModule, SearchSelect, MoneyPipe, QtyPipe,
+    MatIconModule, MatTooltipModule, MatProgressBarModule, MatSlideToggleModule, SearchSelect, MoneyPipe, QtyPipe,
   ],
   templateUrl: './order-editor.html',
   styleUrl: './order-editor.scss',
@@ -84,6 +85,8 @@ export class OrderEditorPage implements OnInit {
   readonly shortages = signal<StockShortage[]>([]);
   readonly companies = signal<DropdownItem[]>([]);
   readonly order = signal<OrderDetail | null>(null);
+  /** The business's SMS switches; null until loaded (or when they could not be read). */
+  readonly settings = signal<BusinessSettings | null>(null);
   readonly today = new Date();
 
   /** Product info per line, parallel to the lines FormArray. */
@@ -103,6 +106,7 @@ export class OrderEditorPage implements OnInit {
     paymentType: this.fb.control<PaymentType>('CASH', { nonNullable: true, validators: Validators.required }),
     orderDate: this.fb.control<Date | null>(new Date(), Validators.required),
     notes: this.fb.control<string | null>(null, Validators.maxLength(1000)),
+    sendSms: this.fb.control(false, { nonNullable: true }),
     lines: this.fb.array<LineForm>([]),
   });
 
@@ -122,9 +126,12 @@ export class OrderEditorPage implements OnInit {
     forkJoin({
       companies: this.api.get<DropdownItem[]>('/companies/dropdown'),
       order: id ? this.api.get<OrderDetail>(`${this.meta().api}/${id}`) : of(null),
+      // Not essential: without it the order still saves and the server applies the default.
+      settings: this.api.get<BusinessSettings>('/settings').pipe(catchError(() => of(null))),
     }).subscribe({
-      next: ({ companies, order }) => {
+      next: ({ companies, order, settings }) => {
         this.companies.set(companies);
+        this.settings.set(settings);
         if (order) {
           if (order.postingStatus !== 'DRAFT') {
             this.notify.error('Only DRAFT orders can be edited. This order is {status}.', { status: order.postingStatus });
@@ -135,6 +142,7 @@ export class OrderEditorPage implements OnInit {
         } else {
           // SRS 6.1: the first company is selected by default
           if (companies.length > 0) this.form.controls.companyUuid.setValue(companies[0].uuid);
+          this.form.controls.sendSms.setValue(settings?.smsOnNewOrders ?? false);
           this.addLine();
           this.loading.set(false);
         }
@@ -154,6 +162,7 @@ export class OrderEditorPage implements OnInit {
       paymentType: order.paymentType,
       orderDate: isoToDate(order.orderDate),
       notes: order.notes,
+      sendSms: order.sendSms,
     });
     const productIds = [...new Set(order.lines.map((l) => l.productUuid))];
     const products$ = productIds.length
@@ -432,6 +441,7 @@ export class OrderEditorPage implements OnInit {
       orderDate: dateToIso(v.orderDate),
       notes: v.notes,
       revision: this.order()?.revision ?? null,
+      sendSms: v.sendSms,
       lines: v.lines.map((l) => ({
         ...l,
         boxQuantity: l.quantityType === 'BOX' ? l.boxQuantity : null,

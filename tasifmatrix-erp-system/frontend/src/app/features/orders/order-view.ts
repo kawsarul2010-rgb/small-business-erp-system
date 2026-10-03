@@ -10,6 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
@@ -30,7 +31,7 @@ import { TParams, t } from '../../core/i18n/i18n';
 
 @Component({
   selector: 'app-order-view',
-  imports: [TranslatePipe, RouterLink, DatePipe, MatTableModule, MatButtonModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule, StatusChip, MoneyPipe, QtyPipe, LabelPipe],
+  imports: [TranslatePipe, RouterLink, DatePipe, MatTableModule, MatButtonModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule, MatSlideToggleModule, StatusChip, MoneyPipe, QtyPipe, LabelPipe],
   templateUrl: './order-view.html',
   styleUrl: './order-view.scss',
 })
@@ -80,7 +81,8 @@ export class OrderViewPage implements OnInit {
       : 'Stock for {n} line item(s) will be added to inventory.';
     this.notify.confirm({
       title: t('Finalize #{no}?', { no: o.orderNumber }),
-      message: t(stockSentence, { n: o.lines.length }) + '\n' + t('After finalizing, the order and its lines can no longer be edited. Payments can still be added.'),
+      message: t(stockSentence, { n: o.lines.length }) + '\n' + t('After finalizing, the order and its lines can no longer be edited. Payments can still be added.')
+        + (this.smsActive() ? '\n' + t('{mobile} gets an SMS.', { mobile: o.party.mobileNumber }) : ''),
       confirmText: 'Finalize',
     }).subscribe((ok) => {
       if (!ok) return;
@@ -105,6 +107,30 @@ export class OrderViewPage implements OnInit {
         next: () => { this.notify.success('Draft deleted.'); void this.router.navigate([this.meta().route]); },
         error: (e) => { this.notify.error(e); this.busy.set(false); this.reloadOnConflict(e); },
       });
+    });
+  }
+
+  /** SMS really goes out for this order: switched on, and not blocked by the business or the party. */
+  readonly smsActive = computed(() => {
+    const o = this.order();
+    return !!o && o.sendSms && !o.smsBlockedReason;
+  });
+
+  setSms(on: boolean): void {
+    const o = this.order()!;
+    this.busy.set(true);
+    this.api.post<OrderDetail>(`${this.meta().api}/${o.uuid}/sms`, { sendSms: on, revision: o.revision }).subscribe({
+      next: (updated) => {
+        this.order.set(updated);
+        this.notify.success(on ? 'SMS turned on for this order.' : 'SMS turned off for this order.');
+        this.busy.set(false);
+      },
+      error: (e: unknown) => {
+        this.notify.error(e);
+        this.order.set({ ...o }); // puts the switch back where the server has it
+        this.busy.set(false);
+        this.reloadOnConflict(e);
+      },
     });
   }
 
@@ -228,7 +254,10 @@ export class OrderViewPage implements OnInit {
           </div>
           <mat-form-field class="span-2"><mat-label>{{ 'Note' | t }}</mat-label><input matInput formControlName="paymentNote" [placeholder]="'e.g. bKash TrxID' | t" /></mat-form-field>
         </div>
-        <p class="muted" style="margin: 0">{{ 'An SMS with the amount and remaining due will be sent to {mobile}.' | t: { mobile: data.order.party.mobileNumber } }}</p>
+        <p class="muted" style="margin: 0">
+          @if (data.order.sendSms && !data.order.smsBlockedReason) { {{ 'An SMS with the payment and the account balance will be sent to {mobile}.' | t: { mobile: data.order.party.mobileNumber } }} }
+          @else { {{ 'No SMS is sent for this payment.' | t }} }
+        </p>
         @if (error()) { <p class="negative">{{ error() | t }}</p> }
       </mat-dialog-content>
       <mat-dialog-actions align="end">

@@ -51,7 +51,10 @@ users out on their next request; reactivating restores everything as it was.
 - Companies, customers, suppliers (auto codes from 100001 per business), products in PCS, BOX (of PCS, KG or LITRE), KG or LITRE
 - Purchase and sales orders: DRAFT → FINAL → VOID, line calculations, stock checks, row-locked atomic finalize/void, revision-based concurrency (HTTP 409)
 - Stock balance, stock ledger, stock adjustments (opening stock, damage, loss, correction)
-- Payments on FINAL orders with overpayment protection; SMS to Bangladesh numbers via an outbox + retry worker
+- Payments on FINAL orders with overpayment protection
+- Two SMS to the customer or supplier (Bangladesh numbers, outbox + retry worker): when an order is finalized and when a payment is added, each with the running account (total, paid, due)
+- SMS switches: sent only when all three are on - the business (Settings, admin), the customer or supplier (on by default), and the order ("Send SMS", off by default; a business can make new orders start with it on)
+- SMS billing per business: the super admin's Businesses page counts each business's sent SMS (this month, last month, 12-month history) in operator SMS parts, and with a price per SMS shows the amount to invoice
 - PDF invoices, purchase orders and reports under each business's own name; share by WhatsApp or email
 - Dashboard, customer / supplier / company / due reports
 - Soft delete everywhere, full audit columns
@@ -217,10 +220,11 @@ Base path `/api/v1`, JSON (camelCase, enums as `UPPER_SNAKE_CASE`), errors as RF
 | Area | Endpoints |
 |---|---|
 | Auth | `POST auth/register` (needs `businessCode`), `POST auth/login, refresh, logout, forgot-password, reset-password, change-password` · `GET auth/me` |
-| Platform (SUPER_ADMIN) | `GET platform/summary` · `platform/businesses`: list, get, create (returns the first admin's temporary password once), update, `POST {id}/suspend`, `POST {id}/activate`, `POST {id}/admins`, `POST {id}/admins/{userId}/reset-password` |
+| Platform (SUPER_ADMIN) | `GET platform/summary` · `platform/businesses`: list, get, create (returns the first admin's temporary password once), update, `POST {id}/suspend`, `POST {id}/activate`, `POST {id}/admins`, `POST {id}/admins/{userId}/reset-password`, `GET {id}/sms-usage?months=12` |
 | Master data | `companies`, `customers`, `suppliers`, `products` (list, `dropdown`, get, create, update, delete) |
 | Users | `users` (ADMIN) + `POST users/{id}/unlock` |
 | Stock | `GET stock/balances`, `GET stock/ledger`, `GET/POST stock/adjustments` |
 | Orders | `purchase-orders`, `sales-orders`: list, get, create, update (draft), delete (draft), `DELETE {id}/lines/{lineId}`, `POST {id}/finalize`, `POST {id}/void`, `POST {id}/payments`, `DELETE {id}/payments/{paymentId}`, `GET {id}/pdf` |
 | Reports | `GET reports/customers`, `reports/suppliers`, `reports/companies`, `GET dashboard` |
-| SMS | `GET sms`, `POST sms/{id}/retry` (ADMIN) |
+| SMS | `GET sms`, `POST sms/{id}/retry` (ADMIN) · orders: `POST {id}/sms` `{ sendSms, revision }` |
+| Settings | `GET settings` (ADMIN, MANAGER), `PUT settings` (ADMIN): `smsEnabled`, `smsOnNewOrders` |

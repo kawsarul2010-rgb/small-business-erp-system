@@ -64,6 +64,9 @@ public sealed class PurchaseOrdersController(PurchaseOrderService service, PdfMa
     [HttpPost("{id:guid}/void"), Authorize(Roles = Roles.Admin)]
     public Task<OrderDetailDto> Void(Guid id, VoidOrderRequest r, CancellationToken ct) => service.VoidAsync(id, r, ct);
 
+    [HttpPost("{id:guid}/sms"), Authorize(Roles = Roles.Admin)]
+    public Task<OrderDetailDto> SetSms(Guid id, OrderSmsRequest r, CancellationToken ct) => service.SetSmsAsync(id, r, ct);
+
     [HttpPost("{id:guid}/payments"), Authorize(Roles = Roles.Admin)]
     public Task<OrderDetailDto> AddPayment(Guid id, AddPaymentRequest r, CancellationToken ct) => service.AddPaymentAsync(id, r, ct);
 
@@ -129,6 +132,9 @@ public sealed class SalesOrdersController(SalesOrderService service, PdfMailer m
 
     [HttpPost("{id:guid}/void"), Authorize(Roles = Roles.Admin)]
     public Task<OrderDetailDto> Void(Guid id, VoidOrderRequest r, CancellationToken ct) => service.VoidAsync(id, r, ct);
+
+    [HttpPost("{id:guid}/sms"), Authorize(Roles = Roles.AdminOrManager)]
+    public Task<OrderDetailDto> SetSms(Guid id, OrderSmsRequest r, CancellationToken ct) => service.SetSmsAsync(id, r, ct);
 
     [HttpPost("{id:guid}/payments"), Authorize(Roles = Roles.AdminOrManager)]
     public Task<OrderDetailDto> AddPayment(Guid id, AddPaymentRequest r, CancellationToken ct) => service.AddPaymentAsync(id, r, ct);

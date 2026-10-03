@@ -378,15 +378,95 @@ public static class LineCalculator
              .ToDictionary(g => g.Key, g => g.Sum(l => l.TotalQuantity));
 }
 
+/// <summary>A customer's or supplier's running account with the business: all its FINAL orders of one kind.</summary>
+public sealed record AccountTotals(decimal Total, decimal Paid)
+{
+    public decimal Due => Total - Paid;
+}
+
+/// <summary>
+/// The two SMS a customer or supplier receives: when an order is finalized and when a payment is added.
+/// Both carry the running account (total, paid, due) so the person always sees where they stand.
+/// Kept in plain English so a message fits one 160-character SMS part in the usual case.
+/// </summary>
 public static class SmsTemplates
 {
-    public static string Payment(TransactionType type, string companyName, string orderNumber, decimal amount, decimal due)
+    public static string OrderFinalized(TransactionType type, string companyName, string orderNumber, decimal orderTotal, AccountTotals account)
     {
-        var amountText = amount.ToString("#,##0.##", CultureInfo.InvariantCulture);
-        var dueText = due.ToString("#,##0.##", CultureInfo.InvariantCulture);
-        var company = companyName.Length > 30 ? companyName[..30] : companyName;
-        return type == TransactionType.Sales
-            ? $"{company}: Payment of Tk {amountText} received for Sales #{orderNumber}. Due: Tk {dueText}. Thank you."
-            : $"{company}: Payment of Tk {amountText} made for Purchase #{orderNumber}. Due: Tk {dueText}. Thank you.";
+        var what = type == TransactionType.Sales
+            ? $"Invoice #{orderNumber} of Tk {Amount(orderTotal)} confirmed."
+            : $"Purchase #{orderNumber} of Tk {Amount(orderTotal)} recorded.";
+        return Compose(companyName, what, account);
     }
+
+    public static string Payment(TransactionType type, string companyName, string orderNumber, decimal amount, AccountTotals account)
+    {
+        var what = type == TransactionType.Sales
+            ? $"Received Tk {Amount(amount)} for Invoice #{orderNumber}."
+            : $"Paid Tk {Amount(amount)} for Purchase #{orderNumber}.";
+        return Compose(companyName, what, account);
+    }
+
+    private static string Compose(string companyName, string what, AccountTotals account)
+    {
+        var company = companyName.Length > 30 ? companyName[..30] : companyName;
+        var text = $"{company}: {what} Your account: total Tk {Amount(account.Total)}, paid Tk {Amount(account.Paid)}, due Tk {Amount(account.Due)}.";
+        // The courtesy line only when it does not make the message cost an extra SMS part.
+        var polite = text + " Thank you.";
+        return SmsParts.Count(polite) <= SmsParts.Count(text) ? polite : text;
+    }
+
+    private static string Amount(decimal value) => value.ToString("#,##0.##", CultureInfo.InvariantCulture);
+}
+
+
+/// <summary>
+/// How many SMS parts an operator charges for a message - the unit SMS is billed in.
+/// Plain text (the GSM 7-bit alphabet) fits 160 characters in one part, or 153 per part when longer.
+/// Any other character - Bangla, for instance - makes the whole message Unicode: 70 in one part,
+/// or 67 per part when longer.
+/// </summary>
+public static class SmsParts
+{
+    public const int Max = 20;
+
+    private const string Gsm =
+        "@\u00a3$\u00a5\u00e8\u00e9\u00f9\u00ec\u00f2\u00c7\n\u00d8\u00f8\r\u00c5\u00e5\u0394_\u03a6\u0393\u039b\u03a9\u03a0\u03a8\u03a3\u0398\u039e\u00c6\u00e6\u00df\u00c9" +
+        " !\"#\u00a4%&'()*+,-./0123456789:;<=>?\u00a1ABCDEFGHIJKLMNOPQRSTUVWXYZ\u00c4\u00d6\u00d1\u00dc\u00a7" +
+        "\u00bfabcdefghijklmnopqrstuvwxyz\u00e4\u00f6\u00f1\u00fc\u00e0";
+
+    /// <summary>Characters that take two places in plain text (an escape and the character).</summary>
+    private const string GsmExtended = "^{}\\[~]|\u20ac\f";
+
+    public static int Count(string? message)
+    {
+        if (string.IsNullOrEmpty(message)) return 1;
+        var septets = 0;
+        foreach (var c in message)
+        {
+            if (Gsm.Contains(c)) septets += 1;
+            else if (GsmExtended.Contains(c)) septets += 2;
+            else return Parts(message.Length, single: 70, multi: 67); // UTF-16 units, as UCS-2 counts them
+        }
+        return Parts(septets, single: 160, multi: 153);
+    }
+
+    private static int Parts(int length, int single, int multi) =>
+        Math.Min(Max, length <= single ? 1 : (length + multi - 1) / multi);
+}
+
+/// <summary>
+/// Who gets an SMS: only when the order asks for it, the customer or supplier accepts SMS and the
+/// business has SMS on. Any one switch off and nothing is queued.
+/// </summary>
+public static class SmsRules
+{
+    public static bool ShouldSend(bool orderSendSms, bool partySmsEnabled, bool businessSmsEnabled) =>
+        orderSendSms && partySmsEnabled && businessSmsEnabled;
+
+    /// <summary>Why an order's SMS would not go out even when switched on; null when it would.</summary>
+    public static string? BlockedReason(bool businessSmsEnabled, bool partySmsEnabled, TransactionType type) =>
+        !businessSmsEnabled ? "SMS is turned off in the business settings."
+        : !partySmsEnabled ? (type == TransactionType.Sales ? "SMS is turned off for this customer." : "SMS is turned off for this supplier.")
+        : null;
 }

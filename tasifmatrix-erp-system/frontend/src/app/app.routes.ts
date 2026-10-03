@@ -48,6 +48,7 @@ export const routes: Routes = [
 
       // administration
       { path: 'users', title: 'Users', canActivate: [roleGuard], data: { roles: ['ADMIN'] }, loadComponent: () => import('./features/users/users').then((m) => m.UsersPage) },
+      { path: 'settings', title: 'Settings', canActivate: [roleGuard], data: { roles: ['ADMIN'] }, loadComponent: () => import('./features/settings/settings').then((m) => m.SettingsPage) },
       { path: 'sms', title: 'SMS log', canActivate: [roleGuard], data: { roles: ['ADMIN'] }, loadComponent: () => import('./features/sms/sms-log').then((m) => m.SmsLogPage) },
 
       // platform (super admin only). Every business route above lists its roles or uses

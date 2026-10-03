@@ -17,6 +17,7 @@ import { ListState } from '../../shared/list-state';
 import { StatusChip } from '../../shared/status-chip';
 import { BusinessDialog, showCredentials } from './platform-dialogs';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { MoneyPipe } from '../../shared/pipes';
 
 /**
  * The super admin's home: every business using the system, with how much each one uses it.
@@ -24,7 +25,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
  */
 @Component({
   selector: 'app-businesses',
-  imports: [TranslatePipe, DatePipe, RouterLink, MatTableModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, ListFooter, StatusChip],
+  imports: [TranslatePipe, MoneyPipe, DatePipe, RouterLink, MatTableModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, ListFooter, StatusChip],
   template: `
     <div class="page">
       <div class="page-header">
@@ -45,6 +46,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
           <div class="card stat"><span class="icon-badge teal"><mat-icon>check_circle</mat-icon></span><span class="body"><span class="label">{{ 'Active' | t }}</span><strong class="positive">{{ s.activeBusinesses }}</strong></span></div>
           <div class="card stat"><span class="icon-badge rose"><mat-icon>block</mat-icon></span><span class="body"><span class="label">{{ 'Suspended' | t }}</span><strong [class.negative]="s.suspendedBusinesses > 0">{{ s.suspendedBusinesses }}</strong></span></div>
           <div class="card stat"><span class="icon-badge violet"><mat-icon>receipt_long</mat-icon></span><span class="body"><span class="label">{{ 'Orders this month' | t }}</span><strong>{{ s.ordersThisMonth }}</strong><span class="hint">{{ (s.activeUsers === 1 ? '{n} active user' : '{n} active users') | t: { n: s.activeUsers } }}</span></span></div>
+          <div class="card stat"><span class="icon-badge amber"><mat-icon>sms</mat-icon></span><span class="body"><span class="label">{{ 'SMS this month' | t }}</span><strong>{{ s.smsPartsThisMonth }}</strong><span class="hint">{{ '{n} messages' | t: { n: s.smsThisMonth } }}@if (s.smsAmountThisMonth > 0) { · {{ s.smsAmountThisMonth | money }} }</span></span></div>
         </div>
       }
 
@@ -75,7 +77,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                   <app-status [value]="b.status" />
                 </div>
                 <div class="m-sub usage">
-                  {{ (b.usage.activeUsers === 1 ? '{n} user' : '{n} users') | t: { n: b.usage.activeUsers } }} · {{ (b.usage.ordersThisMonth === 1 ? '{n} order this month' : '{n} orders this month') | t: { n: b.usage.ordersThisMonth } }}
+                  {{ (b.usage.activeUsers === 1 ? '{n} user' : '{n} users') | t: { n: b.usage.activeUsers } }} · {{ (b.usage.ordersThisMonth === 1 ? '{n} order this month' : '{n} orders this month') | t: { n: b.usage.ordersThisMonth } }} · {{ '{n} SMS this month' | t: { n: b.usage.smsPartsThisMonth } }}
                   @if (b.contactName) { · {{ b.contactName }} }
                 </div>
               </a>
@@ -95,6 +97,10 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
               </ng-container>
               <ng-container matColumnDef="users"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Users' | t }}</th><td mat-cell *matCellDef="let b" class="num">{{ b.usage.activeUsers }}</td></ng-container>
               <ng-container matColumnDef="orders"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Orders this month' | t }}</th><td mat-cell *matCellDef="let b" class="num">{{ b.usage.ordersThisMonth }}</td></ng-container>
+              <ng-container matColumnDef="sms">
+                <th mat-header-cell *matHeaderCellDef class="num">{{ 'SMS this month' | t }}</th>
+                <td mat-cell *matCellDef="let b" class="num">{{ b.usage.smsPartsThisMonth }}@if (b.smsPrice != null && b.usage.smsPartsThisMonth > 0) { <div class="muted">{{ b.usage.smsPartsThisMonth * b.smsPrice | money }}</div> }</td>
+              </ng-container>
               <ng-container matColumnDef="lastSignIn">
                 <th mat-header-cell *matHeaderCellDef>{{ 'Last sign-in' | t }}</th>
                 <td mat-cell *matCellDef="let b">{{ b.usage.lastSignInDate ? (b.usage.lastSignInDate | date: 'd MMM yyyy') : ('Never' | t) }}</td>
@@ -147,7 +153,7 @@ export class BusinessesPage implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
 
-  readonly columns = ['name', 'status', 'contact', 'users', 'orders', 'lastSignIn', 'created'];
+  readonly columns = ['name', 'status', 'contact', 'users', 'orders', 'sms', 'lastSignIn', 'created'];
   readonly status = signal<BusinessStatus | null>(null);
   readonly summary = signal<PlatformSummary | null>(null);
   readonly list = new ListState<BusinessListItem>((q) =>

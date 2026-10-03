@@ -71,6 +71,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Users', icon: 'manage_accounts', link: '/users', roles: ['ADMIN'] },
       { label: 'SMS log', icon: 'sms', link: '/sms', roles: ['ADMIN'] },
+      { label: 'Settings', icon: 'settings', link: '/settings', roles: ['ADMIN'] },
     ],
   },
 ];

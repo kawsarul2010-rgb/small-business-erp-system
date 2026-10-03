@@ -355,22 +355,104 @@ public class MeasuredUnitTests
 
 public class SmsTemplateTests
 {
+    private static readonly AccountTotals Account = new(148200m, 120000m);
+
     [Fact]
-    public void Sales_message_contains_amount_and_due_and_fits_one_segment()
+    public void Finalized_sales_message_has_order_and_account_and_fits_one_segment()
     {
-        var text = SmsTemplates.Payment(TransactionType.Sales, "Sompriti Enterprise", "100023", 1500m, 2500.5m);
-        Assert.Contains("Tk 1,500", text);
-        Assert.Contains("Due: Tk 2,500.5", text);
-        Assert.Contains("#100023", text);
+        var text = SmsTemplates.OrderFinalized(TransactionType.Sales, "Sompriti Enterprise", "100042", 12450m, Account);
+        Assert.Equal("Sompriti Enterprise: Invoice #100042 of Tk 12,450 confirmed. Your account: total Tk 148,200, paid Tk 120,000, due Tk 28,200. Thank you.", text);
         Assert.True(text.Length <= 160, $"length {text.Length}");
     }
 
     [Fact]
-    public void Purchase_message_uses_supplier_wording()
+    public void Finalized_purchase_message_uses_supplier_wording()
     {
-        var text = SmsTemplates.Payment(TransactionType.Purchase, "A very long company name that goes on and on", "100001", 10m, 0m);
-        Assert.Contains("made for Purchase #100001", text);
-        Assert.True(text.Length <= 160);
+        var text = SmsTemplates.OrderFinalized(TransactionType.Purchase, "Sompriti Enterprise", "200015", 9800m, new AccountTotals(9800m, 0m));
+        Assert.Contains("Purchase #200015 of Tk 9,800 recorded.", text);
+        Assert.Contains("due Tk 9,800", text);
+    }
+
+    [Fact]
+    public void Payment_message_has_amount_and_running_account()
+    {
+        var text = SmsTemplates.Payment(TransactionType.Sales, "Sompriti Enterprise", "100023", 1500m, new AccountTotals(4000.5m, 1500m));
+        Assert.Contains("Received Tk 1,500 for Invoice #100023.", text);
+        Assert.Contains("total Tk 4,000.5, paid Tk 1,500, due Tk 2,500.5", text);
+        Assert.True(text.Length <= 160, $"length {text.Length}");
+    }
+
+    [Fact]
+    public void Purchase_payment_uses_supplier_wording()
+    {
+        var text = SmsTemplates.Payment(TransactionType.Purchase, "Sompriti Enterprise", "200001", 10m, new AccountTotals(10m, 10m));
+        Assert.Contains("Paid Tk 10 for Purchase #200001.", text);
+        Assert.Contains("due Tk 0.", text);
+    }
+
+    [Fact]
+    public void Long_names_and_big_amounts_drop_the_courtesy_line_before_spilling_over()
+    {
+        var text = SmsTemplates.Payment(TransactionType.Sales, "A very long company name that goes on and on", "100001",
+            1234567.89m, new AccountTotals(98765432.1m, 87654321.12m));
+        Assert.StartsWith("A very long company name that : ", text);
+        Assert.DoesNotContain("Thank you", text);
+    }
+}
+
+public class SmsPartsTests
+{
+    [Theory]
+    [InlineData(1, "")]
+    [InlineData(1, "Hello")]
+    [InlineData(1, 160)]
+    [InlineData(2, 161)]
+    [InlineData(2, 306)]
+    [InlineData(3, 307)]
+    public void Plain_text_is_160_per_part_or_153_when_longer(int expected, object text) =>
+        Assert.Equal(expected, SmsParts.Count(text as string ?? new string('a', (int)text)));
+
+    [Fact]
+    public void Extended_characters_count_twice()
+    {
+        Assert.Equal(1, SmsParts.Count(new string('a', 158) + "{"));
+        Assert.Equal(2, SmsParts.Count(new string('a', 159) + "{"));
+    }
+
+    [Fact]
+    public void Bangla_makes_the_message_unicode_70_per_part_or_67_when_longer()
+    {
+        Assert.Equal(1, SmsParts.Count("\u09a7\u09a8\u09cd\u09af\u09ac\u09be\u09a6"));
+        Assert.Equal(1, SmsParts.Count(new string('a', 69) + "\u09a7"));
+        Assert.Equal(2, SmsParts.Count(new string('a', 70) + "\u09a7"));
+        Assert.Equal(3, SmsParts.Count(new string('a', 134) + "\u09a7"));
+    }
+
+    [Fact]
+    public void Order_messages_are_one_part()
+    {
+        var text = SmsTemplates.OrderFinalized(TransactionType.Sales, "Sompriti Enterprise", "100042", 12450m, new AccountTotals(148200m, 120000m));
+        Assert.Equal(1, SmsParts.Count(text));
+    }
+}
+
+public class SmsRulesTests
+{
+    [Theory]
+    [InlineData(true, true, true, true)]
+    [InlineData(false, true, true, false)]
+    [InlineData(true, false, true, false)]
+    [InlineData(true, true, false, false)]
+    public void Sms_goes_out_only_when_order_party_and_business_all_allow_it(bool order, bool party, bool business, bool expected) =>
+        Assert.Equal(expected, SmsRules.ShouldSend(order, party, business));
+
+    [Fact]
+    public void Blocked_reason_names_the_switch_that_is_off()
+    {
+        Assert.Null(SmsRules.BlockedReason(true, true, TransactionType.Sales));
+        Assert.Equal("SMS is turned off in the business settings.", SmsRules.BlockedReason(false, false, TransactionType.Sales));
+        Assert.Equal("SMS is turned off for this customer.", SmsRules.BlockedReason(true, false, TransactionType.Sales));
+        Assert.Equal("SMS is turned off for this supplier.", SmsRules.BlockedReason(true, false, TransactionType.Purchase));
     }
 }
 

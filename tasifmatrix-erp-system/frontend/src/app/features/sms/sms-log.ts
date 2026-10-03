@@ -25,7 +25,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
       <div class="page-header">
         <div>
           <h1>{{ 'SMS log' | t }}</h1>
-          <div class="subtitle">{{ 'Payment notifications sent to Bangladesh mobile numbers. Failed messages retry automatically up to 5 times.' | t }}</div>
+          <div class="subtitle">{{ 'Messages sent to customers and suppliers when an order is finalized and when a payment is added. Failed messages retry automatically up to 5 times.' | t }}</div>
         </div>
         <div class="actions"><button mat-stroked-button (click)="list.reload()"><mat-icon>refresh</mat-icon>{{ 'Refresh' | t }}</button></div>
       </div>
