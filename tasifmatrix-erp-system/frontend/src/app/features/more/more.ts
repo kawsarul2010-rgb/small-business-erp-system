@@ -40,6 +40,7 @@ const GROUP_TONES: Record<string, string> = {
             <div class="tags">
               <span class="role">{{ user.role | label }}</span>
               @if (user.businessName) { <span class="biz"><mat-icon>storefront</mat-icon>{{ user.businessName }}</span> }
+              @if (user.role === 'ADMIN' && user.businessCode) { <span class="biz code"><mat-icon>key</mat-icon>{{ user.businessCode }}</span> }
             </div>
           </div>
         </section>

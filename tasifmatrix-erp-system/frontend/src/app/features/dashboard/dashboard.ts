@@ -15,11 +15,12 @@ import { ThemeService } from '../../core/theme.service';
 import { Dashboard, DropdownItem, OrderListItem } from '../../core/models';
 import { MoneyPipe, QtyPipe, formatMoney } from '../../shared/pipes';
 import { StatusChip } from '../../shared/status-chip';
+import { InviteStaff } from '../../shared/invite-staff';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [TranslatePipe, RouterLink, DatePipe, NgTemplateOutlet, ReactiveFormsModule, MatButtonModule, MatIconModule, MatProgressBarModule, MatFormFieldModule, MatSelectModule, MoneyPipe, QtyPipe, StatusChip],
+  imports: [TranslatePipe, RouterLink, DatePipe, NgTemplateOutlet, ReactiveFormsModule, MatButtonModule, MatIconModule, MatProgressBarModule, MatFormFieldModule, MatSelectModule, MoneyPipe, QtyPipe, StatusChip, InviteStaff],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
@@ -44,6 +45,16 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
     // English keys with a {name} param, translated at render.
     return h < 12 ? 'Good morning, {name}' : h < 17 ? 'Good afternoon, {name}' : 'Good evening, {name}';
   });
+  /** The staff invitation stays on the admin's dashboard until they hide it (per device and business). */
+  private readonly inviteKey = computed(() => `tasifmatrix.inviteHidden.${this.auth.user()?.businessCode ?? ''}`);
+  private readonly inviteHidden = signal(readFlag(this.inviteKey()));
+  readonly showInvite = computed(() => this.auth.isAdmin() && !!this.auth.user()?.businessCode && !this.inviteHidden());
+
+  hideInvite(): void {
+    this.inviteHidden.set(true);
+    try { localStorage.setItem(this.inviteKey(), '1'); } catch { /* private mode: hidden for this visit only */ }
+  }
+
   readonly firstName = computed(() => (this.auth.user()?.userName ?? '').trim().split(/\s+/)[0] ?? '');
   readonly last30Total = computed(() => (this.data()?.salesLast30Days ?? []).reduce((sum, x) => sum + x.total, 0));
   readonly unlinkedUser = computed(() => {
@@ -207,4 +218,8 @@ function compact(v: number): string {
   if (Math.abs(v) >= 1_000_000) return `${+(v / 1_000_000).toFixed(1)}M`;
   if (Math.abs(v) >= 1_000) return `${+(v / 1_000).toFixed(1)}k`;
   return String(v);
+}
+
+function readFlag(key: string): boolean {
+  try { return localStorage.getItem(key) === '1'; } catch { return false; }
 }

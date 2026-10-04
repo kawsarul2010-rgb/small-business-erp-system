@@ -259,8 +259,9 @@ export class RegisterPage {
     const body = this.businessForm.getRawValue();
     this.auth.registerBusiness(body).subscribe({
       next: () => {
-        this.notify.success('Welcome! {name} is ready. Start by adding your company details.', { name: body.businessName.trim() });
-        void this.router.navigateByUrl('/companies');
+        // The business's company is set up from these details; the dashboard then shows how to invite staff.
+        this.notify.success('Welcome! {name} is ready.', { name: body.businessName.trim() });
+        void this.router.navigateByUrl('/');
       },
       error: (e) => {
         this.error.set(applyServerErrors(this.businessForm, e));

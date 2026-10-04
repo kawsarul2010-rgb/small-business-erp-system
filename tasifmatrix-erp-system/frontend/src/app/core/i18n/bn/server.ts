@@ -98,6 +98,7 @@ export const BN_SERVER: Record<string, string> = {
   "This company is used by draft orders. Finalize, void or delete those drafts first.": "এই কোম্পানি খসড়া অর্ডারে ব্যবহার হচ্ছে। আগে সেই খসড়াগুলো চূড়ান্ত, বাতিল বা মুছে ফেলুন।",
   "This customer is linked to a user account. Remove the link first.": "এই গ্রাহক একটি ব্যবহারকারী অ্যাকাউন্টের সাথে যুক্ত। আগে সংযোগটি সরান।",
   "This customer is used by draft orders. Finalize, void or delete those drafts first.": "এই গ্রাহক খসড়া অর্ডারে ব্যবহার হচ্ছে। আগে সেই খসড়াগুলো চূড়ান্ত, বাতিল বা মুছে ফেলুন।",
+  "This is your business's only company and cannot be deleted. Edit it to change the details.": "এটি আপনার ব্যবসার একমাত্র কোম্পানি, তাই মোছা যাবে না। তথ্য বদলাতে সম্পাদনা করুন।",
   "This product is used by draft orders. Finalize, void or delete those drafts first.": "এই পণ্য খসড়া অর্ডারে ব্যবহার হচ্ছে। আগে সেই খসড়াগুলো চূড়ান্ত, বাতিল বা মুছে ফেলুন।",
   "This record was changed by someone else. Please reload and try again.": "অন্য কেউ এই রেকর্ডটি বদলেছেন। পাতাটি রিলোড করে আবার চেষ্টা করুন।",
   "This reset link is invalid or has expired.": "এই রিসেট লিংকটি সঠিক নয় বা মেয়াদ শেষ।",
@@ -114,5 +115,6 @@ export const BN_SERVER: Record<string, string> = {
   "You cannot delete your own account.": "আপনি নিজের অ্যাকাউন্ট মুছতে পারবেন না।",
   "You do not have permission to perform this action.": "এই কাজটি করার অনুমতি আপনার নেই।",
   "You must change your password before continuing.": "চালিয়ে যাওয়ার আগে পাসওয়ার্ড পরিবর্তন করতে হবে।",
+  "Your business already has its company. Edit it to change the details.": "আপনার ব্যবসার কোম্পানি আগে থেকেই আছে। তথ্য বদলাতে সেটি সম্পাদনা করুন।",
   "Your password has been reset. You can now log in.": "আপনার পাসওয়ার্ড রিসেট হয়েছে। এখন লগ ইন করতে পারবেন।",
 };

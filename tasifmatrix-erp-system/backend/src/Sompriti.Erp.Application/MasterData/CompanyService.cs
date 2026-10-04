@@ -3,6 +3,7 @@ using Sompriti.Erp.Application.Common;
 using Sompriti.Erp.Domain.Common;
 using Sompriti.Erp.Domain.Entities;
 using Sompriti.Erp.Domain.Enums;
+using Sompriti.Erp.Domain.Rules;
 
 namespace Sompriti.Erp.Application.MasterData;
 
@@ -56,8 +57,25 @@ public sealed class CompanyService(IAppDbContext db)
         return ToDto(c.OrNotFound("Company"));
     }
 
+    /// <summary>
+    /// A business's own company, made from its details when the business is created. Each business
+    /// has one company, so it is set up for the owner instead of being left to them.
+    /// </summary>
+    public static Company NewForBusiness(Tenant tenant) => new()
+    {
+        Uuid = Guid.NewGuid(),
+        TenantUuid = tenant.Uuid,
+        CompanyName = tenant.TenantName,
+        CompanyCode = TenantCodes.CompanyCode(tenant.TenantCode),
+        PhoneNumber = tenant.ContactPhone is { } phone ? BdMobile.ToDisplay(phone) : null,
+        Email = tenant.ContactEmail,
+    };
+
     public async Task<CompanyDto> CreateAsync(CompanySaveRequest r, CancellationToken ct)
     {
+        // One business, one company: its name and details go on every order and printed document.
+        if (await db.Companies.AnyAsync(x => x.Status == RecordStatus.Active, ct))
+            throw DomainException.Rule(ErrorCodes.BusinessRule, "Your business already has its company. Edit it to change the details.");
         Validate(r);
         var code = r.CompanyCode!.Trim();
         if (await db.Companies.AnyAsync(x => x.CompanyCode == code, ct))
@@ -86,6 +104,8 @@ public sealed class CompanyService(IAppDbContext db)
     {
         var c = (await db.Companies.FirstOrDefaultAsync(x => x.Uuid == id && x.Status == RecordStatus.Active, ct)).OrNotFound("Company");
         RevisionGuard.Check(db, c, revision);
+        if (!await db.Companies.AnyAsync(x => x.Status == RecordStatus.Active && x.Uuid != id, ct))
+            throw DomainException.Rule(ErrorCodes.BusinessRule, "This is your business's only company and cannot be deleted. Edit it to change the details.");
         var inDraft = await db.PurchaseOrders.AnyAsync(o => o.CompanyUuid == id && o.Status == RecordStatus.Active && o.PostingStatus == PostingStatus.Draft, ct)
                    || await db.SalesOrders.AnyAsync(o => o.CompanyUuid == id && o.Status == RecordStatus.Active && o.PostingStatus == PostingStatus.Draft, ct);
         if (inDraft)

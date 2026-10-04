@@ -150,6 +150,7 @@ public sealed class AuthService(
         db.Tenants.Add(tenant);
         await db.SaveChangesAsync(ct);
         db.Users.Add(user);
+        db.Companies.Add(MasterData.CompanyService.NewForBusiness(tenant));
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 

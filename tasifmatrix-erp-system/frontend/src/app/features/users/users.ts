@@ -24,11 +24,12 @@ import { ListState } from '../../shared/list-state';
 import { SearchSelect } from '../../shared/search-select';
 import { StatusChip } from '../../shared/status-chip';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { InviteStaff } from '../../shared/invite-staff';
 import { t } from '../../core/i18n/i18n';
 
 @Component({
   selector: 'app-users',
-  imports: [TranslatePipe, DatePipe, ReactiveFormsModule, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatCheckboxModule, MatProgressBarModule, MatTooltipModule, MatMenuModule, ListFooter, StatusChip],
+  imports: [InviteStaff, TranslatePipe, DatePipe, ReactiveFormsModule, MatTableModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatCheckboxModule, MatProgressBarModule, MatTooltipModule, MatMenuModule, ListFooter, StatusChip],
   template: `
     <div class="page">
       <div class="page-header">
@@ -42,6 +43,8 @@ import { t } from '../../core/i18n/i18n';
           <div class="actions"><button mat-flat-button (click)="edit()"><mat-icon>person_add</mat-icon>{{ 'New user' | t }}</button></div>
         }
       </div>
+
+      <app-invite-staff />
 
       <div class="card">
         <div class="toolbar">

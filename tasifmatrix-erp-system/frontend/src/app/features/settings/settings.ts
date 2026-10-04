@@ -8,6 +8,7 @@ import { AuthService } from '../../core/auth.service';
 import { BusinessSettings } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { InviteStaff } from '../../shared/invite-staff';
 
 /**
  * The business's own settings (ADMIN). Each switch saves as soon as it is changed.
@@ -16,7 +17,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
  */
 @Component({
   selector: 'app-settings',
-  imports: [TranslatePipe, RouterLink, MatIconModule, MatProgressBarModule, MatSlideToggleModule],
+  imports: [TranslatePipe, InviteStaff, RouterLink, MatIconModule, MatProgressBarModule, MatSlideToggleModule],
   template: `
     <div class="page narrow">
       <div class="page-header">
@@ -28,6 +29,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
           </div>
         </div>
       </div>
+
+      <app-invite-staff />
 
       @if (loading()) { <mat-progress-bar mode="indeterminate" /> }
       @if (error()) { <div class="card card-pad negative">{{ error() | t }}</div> }

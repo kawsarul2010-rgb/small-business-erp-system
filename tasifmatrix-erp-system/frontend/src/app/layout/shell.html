@@ -100,6 +100,9 @@
         <span class="ws-text">
           <span class="ws-label">{{ (auth.isSuperAdmin() ? 'Platform' : 'Business') | t }}</span>
           <span class="ws-name" [title]="workspace()">{{ workspace() }}</span>
+          @if (auth.isAdmin() && auth.user()?.businessCode; as code) {
+            <span class="ws-code" [title]="'Business code - share it with your staff so they can join' | t">{{ 'Code: {code}' | t: { code: code } }}</span>
+          }
         </span>
       </div>
 

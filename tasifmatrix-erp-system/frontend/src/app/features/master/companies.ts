@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
@@ -32,10 +32,17 @@ import { t } from '../../core/i18n/i18n';
             <div class="subtitle">{{ 'Companies shown on purchase and sales orders and printed documents' | t }}</div>
           }
         </div>
-        @if (!layout.isHandset()) {
+        @if (!layout.isHandset() && canAdd()) {
           <div class="actions"><button mat-flat-button (click)="edit()"><mat-icon>add</mat-icon>{{ 'New company' | t }}</button></div>
         }
       </div>
+
+      @if (companyCount() > 0) {
+        <div class="card card-pad one-company">
+          <mat-icon>info</mat-icon>
+          <span>{{ 'A business has one company. Its name and details are printed on your orders and invoices - edit it to change them.' | t }}</span>
+        </div>
+      }
 
       <div class="card">
         <div class="toolbar">
@@ -59,7 +66,7 @@ import { t } from '../../core/i18n/i18n';
                   <button mat-icon-button [matMenuTriggerFor]="menu" [attr.aria-label]="'Actions' | t"><mat-icon>more_vert</mat-icon></button>
                   <mat-menu #menu="matMenu">
                     <button mat-menu-item (click)="edit(c)"><mat-icon>edit</mat-icon>{{ 'Edit' | t }}</button>
-                    <button mat-menu-item (click)="remove(c)"><mat-icon>delete</mat-icon>{{ 'Delete' | t }}</button>
+                    @if (companyCount() > 1) { <button mat-menu-item (click)="remove(c)"><mat-icon>delete</mat-icon>{{ 'Delete' | t }}</button> }
                   </mat-menu>
                 </div>
                 @if (c.addressLine || c.city) { <div class="m-sub address">{{ c.addressLine }}@if (c.addressLine && c.city) {, }{{ c.city }}</div> }
@@ -79,7 +86,7 @@ import { t } from '../../core/i18n/i18n';
                 <th mat-header-cell *matHeaderCellDef></th>
                 <td mat-cell *matCellDef="let c" class="num nowrap">
                   <button mat-icon-button [matTooltip]="'Edit' | t" (click)="edit(c)"><mat-icon>edit</mat-icon></button>
-                  <button mat-icon-button [matTooltip]="'Delete' | t" (click)="remove(c)"><mat-icon>delete</mat-icon></button>
+                  @if (companyCount() > 1) { <button mat-icon-button [matTooltip]="'Delete' | t" (click)="remove(c)"><mat-icon>delete</mat-icon></button> }
                 </td>
               </ng-container>
               <tr mat-header-row *matHeaderRowDef="columns"></tr>
@@ -92,12 +99,17 @@ import { t } from '../../core/i18n/i18n';
         <app-list-footer [list]="list" [pageSizes]="[10, 20, 50]" />
       </div>
 
-      @if (layout.isHandset()) {
+      @if (layout.isHandset() && canAdd()) {
         <button mat-fab class="fab" [attr.aria-label]="'New company' | t" (click)="edit()"><mat-icon>add</mat-icon></button>
       }
     </div>
   `,
-  styles: `.address { margin-top: 8px; }`,
+  styles: `
+    .address { margin-top: 8px; }
+    .one-company { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 16px; font-size: 13.5px; line-height: 1.5;
+      background: var(--erp-tint-indigo-bg); color: var(--erp-tint-indigo-fg); border-color: transparent; }
+    .one-company mat-icon { flex: none; font-size: 20px; width: 20px; height: 20px; }
+  `,
 })
 export class CompaniesPage implements OnInit {
   readonly layout = inject(LayoutService);
@@ -106,14 +118,25 @@ export class CompaniesPage implements OnInit {
   private readonly notify = inject(NotifyService);
   readonly columns = ['companyCode', 'companyName', 'city', 'phone', 'license', 'actions'];
   readonly list = new ListState<Company>((q) => this.api.get<Paged<Company>>('/companies', { ...q }));
+  /** Active companies of the business, whatever the search shows. -1 until known. */
+  readonly companyCount = signal(-1);
+  /** One business, one company: adding is offered only while it has none. */
+  readonly canAdd = computed(() => this.companyCount() === 0);
 
   ngOnInit(): void {
     this.list.reload();
+    this.countCompanies();
+  }
+
+  private countCompanies(): void {
+    this.api.get<unknown[]>('/companies/dropdown').subscribe({ next: (all) => this.companyCount.set(all.length), error: () => this.companyCount.set(-1) });
   }
 
   edit(company?: Company): void {
     this.dialog.open(CompanyDialog, this.layout.dialog(company ?? null)).afterClosed().subscribe((saved) => {
-      if (saved) this.list.resetToFirstPage();
+      if (!saved) return;
+      this.list.resetToFirstPage();
+      this.countCompanies();
     });
   }
 
@@ -122,7 +145,7 @@ export class CompaniesPage implements OnInit {
       .subscribe((ok) => {
         if (!ok) return;
         this.api.delete(`/companies/${c.uuid}`, { revision: c.revision }).subscribe({
-          next: () => { this.notify.success('Company deleted.'); this.list.resetToFirstPage(); },
+          next: () => { this.notify.success('Company deleted.'); this.list.resetToFirstPage(); this.countCompanies(); },
           error: (e) => this.notify.error(e),
         });
       });

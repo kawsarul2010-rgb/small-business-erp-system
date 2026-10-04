@@ -68,6 +68,14 @@ public class TenantCodeTests
     public void Normalises_what_people_type() => Assert.Equal("sompriti", TenantCodes.Normalize("  Sompriti "));
 
     [Fact]
+    public void Company_code_comes_from_the_business_code()
+    {
+        Assert.Equal("RAHIM-STORE", TenantCodes.CompanyCode("rahim-store"));
+        Assert.Equal("TASIF-MATRIX-VERY-LO", TenantCodes.CompanyCode("tasif-matrix-very-long-code-x"));
+        Assert.Equal("ABCDEFGHIJKLMNOPQRS", TenantCodes.CompanyCode("abcdefghijklmnopqrs-tuv")); // no hyphen left at the end
+    }
+
+    [Fact]
     public void Suggests_a_code_from_the_business_name()
     {
         Assert.Equal("rahim-store-co", TenantCodes.Suggest("Rahim Store & Co."));

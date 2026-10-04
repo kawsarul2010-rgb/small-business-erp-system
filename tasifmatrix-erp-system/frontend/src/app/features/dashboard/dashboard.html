@@ -19,6 +19,8 @@
     }
   </section>
 
+  @if (showInvite()) { <app-invite-staff [dismissible]="true" (dismissed)="hideInvite()" /> }
+
   @if (!auth.isUser() && companies().length > 1) {
     <div class="dash-filter">
       <span class="muted">{{ 'Showing' | t }}</span>

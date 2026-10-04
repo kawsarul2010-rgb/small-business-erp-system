@@ -205,6 +205,18 @@ public static partial class TenantCodes
         if (code.Length > 30) code = code[..30].TrimEnd('-');
         return code;
     }
+
+    /// <summary>
+    /// The code of a business's own company, made from the business code: "rahim-store" -> "RAHIM-STORE".
+    /// Company codes are at most 20 characters.
+    /// </summary>
+    public static string CompanyCode(string tenantCode)
+    {
+        var code = tenantCode.Trim().ToUpperInvariant();
+        if (code.Length > 20) code = code[..20];
+        code = code.Trim('-');
+        return code.Length == 0 ? "MAIN" : code;
+    }
 }
 
 /// <summary>
