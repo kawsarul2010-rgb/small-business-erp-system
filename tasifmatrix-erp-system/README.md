@@ -39,7 +39,9 @@ fails if a business entity is added without it.
 | `MANAGER` | one business | Sales, customers, products, stock. |
 | `USER` | one business | Their own orders and reports, once linked to a customer or supplier. |
 
-**Onboarding a business:** super admin → **Businesses → New business** (name, code, first admin). The
+**Onboarding a business:** either the owner signs up at **Create account → Register my business**
+(business name, code, their own admin account; active straight away, signed in at once), or the super
+admin creates it at **Businesses → New business** (name, code, first admin). There the
 admin's temporary password is shown once; they change it at first sign-in. Staff then register at
 `/register?business=<code>` and the business admin assigns their role. Suspending a business signs its
 users out on their next request; reactivating restores everything as it was.
@@ -219,7 +221,7 @@ Base path `/api/v1`, JSON (camelCase, enums as `UPPER_SNAKE_CASE`), errors as RF
 
 | Area | Endpoints |
 |---|---|
-| Auth | `POST auth/register` (needs `businessCode`), `POST auth/login, refresh, logout, forgot-password, reset-password, change-password` · `GET auth/me` |
+| Auth | `POST auth/register` (needs `businessCode`), `POST auth/register-business` (new business + its admin; off with `App__AllowBusinessSignup=false`), `GET auth/signup-options`, `POST auth/login, refresh, logout, forgot-password, reset-password, change-password` · `GET auth/me` |
 | Platform (SUPER_ADMIN) | `GET platform/summary` · `platform/businesses`: list, get, create (returns the first admin's temporary password once), update, `POST {id}/suspend`, `POST {id}/activate`, `POST {id}/admins`, `POST {id}/admins/{userId}/reset-password`, `GET {id}/sms-usage?months=12` |
 | Master data | `companies`, `customers`, `suppliers`, `products` (list, `dropdown`, get, create, update, delete) |
 | Users | `users` (ADMIN) + `POST users/{id}/unlock` |

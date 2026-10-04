@@ -33,6 +33,7 @@ export const ICON_CODEPOINTS: Readonly<Record<string, string>> = {
   edit_note: '\ue745',
   error: '\ue000',
   expand_more: '\ue5cf',
+  group_add: '\ue7f0',
   groups: '\uf233',
   history: '\ue28e',
   info: '\ue88e',

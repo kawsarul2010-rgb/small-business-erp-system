@@ -12,6 +12,7 @@ export const BN_SERVER: Record<string, string> = {
   "Box quantity must be greater than 0.": "বক্সের সংখ্যা 0-এর বেশি হতে হবে।",
   "Business admin": "ব্যবসার অ্যাডমিন",
   "Business code is required. Ask your business for it.": "ব্যবসার কোড আবশ্যক। আপনার ব্যবসার কাছ থেকে জেনে নিন।",
+  "Business code must be 3 to 30 characters: lowercase letters, numbers and hyphens, not starting or ending with a hyphen.": "ব্যবসার কোড 3 থেকে 30 অক্ষরের হতে হবে: ছোট হাতের ইংরেজি অক্ষর, সংখ্যা ও হাইফেন; শুরু বা শেষে হাইফেন নয়।",
   "Cannot void: the purchased stock has already been used.": "বাতিল করা যাবে না: কেনা স্টক ইতিমধ্যে ব্যবহার হয়ে গেছে।",
   "Choose ADMIN, MANAGER or USER.": "অ্যাডমিন, ম্যানেজার বা ব্যবহারকারী বেছে নিন।",
   "Choose whether new orders send SMS.": "নতুন অর্ডারে SMS যাবে কি না বেছে নিন।",

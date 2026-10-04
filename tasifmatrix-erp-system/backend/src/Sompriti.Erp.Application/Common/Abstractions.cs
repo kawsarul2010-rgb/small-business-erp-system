@@ -141,4 +141,10 @@ public sealed class AppOptions
     /// "contact support" line. Each business's documents carry that business's name instead.
     /// </summary>
     public string ProductName { get; set; } = "Tasif Matrix ERP";
+
+    /// <summary>
+    /// Whether anyone may register a new business from the sign-up page (they become its admin).
+    /// Set App__AllowBusinessSignup=false to allow only the super admin to create businesses.
+    /// </summary>
+    public bool AllowBusinessSignup { get; set; } = true;
 }

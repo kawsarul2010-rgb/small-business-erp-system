@@ -33,6 +33,7 @@ export const BN_SERVER_PATTERNS: [RegExp, (m: RegExpExecArray) => string][] = [
   [/^Product (.+) has no box size, so BOX cannot be used\.$/, (m) => `পণ্য ${m[1]}-এর বক্সের মাপ নেই, তাই বক্স ব্যবহার করা যাবে না।`],
   [/^Product (.+) is stocked in (\w+), so (\w+) cannot be used\.$/, (m) => `পণ্য ${m[1]}-এর স্টক ${enumWord(m[2])} এককে, তাই ${enumWord(m[3])} ব্যবহার করা যাবে না।`],
   [/^These products are deleted: (.+)\. Remove them from the order\.$/, (m) => `এই পণ্যগুলো মুছে ফেলা হয়েছে: ${m[1]}। অর্ডার থেকে এগুলো সরান।`],
+  [/^Registering a new business is turned off\. Please contact (.+) support\.$/, (m) => `নতুন ব্যবসা নিবন্ধন এখন বন্ধ আছে। ${m[1]} সাপোর্টে যোগাযোগ করুন।`],
   [/^This business account is suspended\. Please contact (.+) support\.$/, (m) => `এই ব্যবসার অ্যাকাউন্ট স্থগিত আছে। ${m[1]} সাপোর্টে যোগাযোগ করুন।`],
   [/^This product still has (.+) pcs in stock\. Adjust stock to 0 before deleting\.$/, (m) => `এই পণ্যের এখনও ${m[1]} পিস স্টকে আছে। মোছার আগে স্টক সমন্বয় করে ০ করুন।`],
   [/^Too many failed attempts\. Try again in (\d+) minute\(s\)\.$/, (m) => `অনেকবার ভুল চেষ্টা হয়েছে। ${m[1]} মিনিট পর আবার চেষ্টা করুন।`],

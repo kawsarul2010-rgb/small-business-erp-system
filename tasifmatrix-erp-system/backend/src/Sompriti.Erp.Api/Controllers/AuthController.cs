@@ -12,6 +12,15 @@ public sealed class AuthController(AuthService auth) : ControllerBase
     [HttpPost("register"), AllowAnonymous, EnableRateLimiting("auth")]
     public Task<AuthResponse> Register(RegisterRequest request, CancellationToken ct) => auth.RegisterAsync(request, ct);
 
+    /// <summary>Registers a new business with the caller as its admin, and signs them in.</summary>
+    [HttpPost("register-business"), AllowAnonymous, EnableRateLimiting("signup")]
+    public Task<AuthResponse> RegisterBusiness(RegisterBusinessRequest request, CancellationToken ct) =>
+        auth.RegisterBusinessAsync(request, ct);
+
+    /// <summary>What the sign-up page offers (whether businesses may register themselves).</summary>
+    [HttpGet("signup-options"), AllowAnonymous]
+    public SignupOptionsDto SignupOptions() => auth.SignupOptions();
+
     [HttpPost("login"), AllowAnonymous, EnableRateLimiting("auth")]
     public Task<AuthResponse> Login(LoginRequest request, CancellationToken ct) => auth.LoginAsync(request, ct);
 

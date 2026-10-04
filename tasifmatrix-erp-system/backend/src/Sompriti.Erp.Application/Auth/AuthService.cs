@@ -14,6 +14,14 @@ namespace Sompriti.Erp.Application.Auth;
 
 /// <summary>Self-registration. BusinessCode names the business the person is joining.</summary>
 public sealed record RegisterRequest(string? UserName, string? Email, string? PhoneNumber, string? Password, string? BusinessCode = null);
+/// <summary>
+/// Registers a new business with the person as its first admin. BusinessCode may be left out:
+/// it is then made from the business name.
+/// </summary>
+public sealed record RegisterBusinessRequest(string? BusinessName, string? BusinessCode, string? UserName, string? Email,
+    string? PhoneNumber, string? Password);
+/// <summary>What the sign-up page may offer.</summary>
+public sealed record SignupOptionsDto(bool BusinessSignup);
 public sealed record LoginRequest(string? Email, string? Password);
 public sealed record RefreshRequest(string? RefreshToken);
 public sealed record ForgotPasswordRequest(string? Email);
@@ -81,6 +89,71 @@ public sealed class AuthService(
         db.SetAuditUser(user.Uuid, user.UserName);
         db.Users.Add(user);
         await db.SaveChangesAsync(ct);
+        return await IssueAsync(user, ct);
+    }
+
+    public SignupOptionsDto SignupOptions() => new(appOptions.Value.AllowBusinessSignup);
+
+    /// <summary>
+    /// Creates a business and its first admin from the sign-up page, and signs the admin in.
+    /// The business is active straight away; the super admin sees it on the Businesses page and
+    /// can suspend it like any other.
+    /// </summary>
+    public async Task<AuthResponse> RegisterBusinessAsync(RegisterBusinessRequest r, CancellationToken ct)
+    {
+        if (!appOptions.Value.AllowBusinessSignup)
+            throw DomainException.Rule(ErrorCodes.BusinessRule,
+                $"Registering a new business is turned off. Please contact {business.ProductName} support.");
+
+        // Business and personal fields are checked together, so the form marks every problem at once.
+        var name = Validator.Clean(r.BusinessName);
+        var code = TenantCodes.Normalize(string.IsNullOrWhiteSpace(r.BusinessCode) ? TenantCodes.Suggest(name) : r.BusinessCode);
+        var v = new Validator()
+            .Required("businessName", name, "Business name", 150)
+            .Required("businessCode", code, "Business code", 30)
+            .When(code is not null && !TenantCodes.IsValid(code), "businessCode",
+                "Business code must be " + TenantCodes.Description.ToLowerInvariant());
+        var phone = AddProfileRules(v, r.UserName, r.Email, r.PhoneNumber, r.Password, passwordRequired: true);
+        v.ThrowIfInvalid();
+
+        var emailNorm = r.Email!.Trim().ToLowerInvariant();
+        if (await AllUsers.AnyAsync(u => u.Email.ToLower() == emailNorm, ct))
+            throw DomainException.Validation("email", "An account with this email already exists.");
+        if (await db.Tenants.AnyAsync(t => t.TenantCode == code, ct))
+            throw DomainException.Validation("businessCode", "Another business already uses this code.");
+
+        var tenant = new Tenant
+        {
+            Uuid = Guid.NewGuid(),
+            TenantCode = code!,
+            TenantName = name!,
+            ContactName = r.UserName!.Trim(),
+            ContactEmail = emailNorm,
+            ContactPhone = phone,
+        };
+        var user = new AppUser
+        {
+            Uuid = Guid.NewGuid(),
+            TenantUuid = tenant.Uuid,
+            UserName = r.UserName!.Trim(),
+            Email = emailNorm,
+            PhoneNumber = phone!,
+            PasswordHash = hasher.Hash(r.Password!),
+            Role = Role.Admin,          // the owner runs the business's account
+            MustChangePassword = false, // they chose the password themselves
+            LastLoginDate = clock.GetUtcNow(),
+        };
+
+        // As in PlatformService.CreateAsync: the business row first, then its admin, in one transaction.
+        db.SetAuditUser(user.Uuid, user.UserName);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        db.Tenants.Add(tenant);
+        await db.SaveChangesAsync(ct);
+        db.Users.Add(user);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+
+        logger.LogInformation("Business {Code} registered from the sign-up page by {Email}", tenant.TenantCode, user.Email);
         return await IssueAsync(user, ct);
     }
 
@@ -320,8 +393,16 @@ public sealed class AuthService(
     /// <summary>Validates name/email/phone/password; returns the normalized phone.</summary>
     internal static string ValidateProfile(string? userName, string? emailAddress, string? phone, string? password, bool passwordRequired = true)
     {
-        var v = new Validator()
-            .Required("userName", userName, "Name", 100)
+        var v = new Validator();
+        var normalized = AddProfileRules(v, userName, emailAddress, phone, password, passwordRequired);
+        v.ThrowIfInvalid();
+        return normalized!;
+    }
+
+    /// <summary>Adds the name/email/phone/password rules to <paramref name="v"/>; returns the normalized phone (null if invalid).</summary>
+    private static string? AddProfileRules(Validator v, string? userName, string? emailAddress, string? phone, string? password, bool passwordRequired)
+    {
+        v.Required("userName", userName, "Name", 100)
             .Required("email", emailAddress, "Email", 200)
             .Required("phoneNumber", phone, "Phone number");
         v.When(!string.IsNullOrWhiteSpace(emailAddress) && !IsEmail(emailAddress), "email", "Email is not valid.");
@@ -329,8 +410,7 @@ public sealed class AuthService(
         v.When(!string.IsNullOrWhiteSpace(phone) && normalized is null, "phoneNumber", "Enter a valid Bangladesh mobile number, e.g. 01712345678.");
         if (passwordRequired || !string.IsNullOrEmpty(password))
             v.When(!PasswordPolicy.IsValid(password), "password", PasswordPolicy.Description);
-        v.ThrowIfInvalid();
-        return normalized!;
+        return normalized;
     }
 
     private static bool IsEmail(string value) => Validator.IsEmail(value);

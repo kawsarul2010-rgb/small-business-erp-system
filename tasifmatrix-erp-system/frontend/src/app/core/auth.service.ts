@@ -57,6 +57,19 @@ export class AuthService {
     );
   }
 
+  /** Registers a new business with this person as its admin, and signs them in. */
+  registerBusiness(body: { businessName: string; businessCode: string; userName: string; email: string; phoneNumber: string; password: string }): Observable<CurrentUser> {
+    return this.http.post<AuthResponse>(`${API_BASE}/auth/register-business`, body).pipe(
+      tap((r) => this.store(r)),
+      map((r) => r.user),
+    );
+  }
+
+  /** Whether the sign-up page may offer "Register a business". */
+  signupOptions(): Observable<{ businessSignup: boolean }> {
+    return this.http.get<{ businessSignup: boolean }>(`${API_BASE}/auth/signup-options`);
+  }
+
   /** Refreshes the access token once for all concurrent callers. */
   refresh(): Observable<string> {
     const current = this.session();

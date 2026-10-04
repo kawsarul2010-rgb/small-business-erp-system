@@ -12,9 +12,9 @@ Everything below is done in the Railway dashboard at <https://railway.com>. Roug
 
 ## Before you start
 
-- The repository is `kawsarul2010-rgb/small-business-erp-system`, branch `main`.
-- The app lives in the **`tasifmatrix-erp-system` subfolder** of that repository, so Railway's Root Directory is
-  `tasifmatrix-erp-system` (step 2).
+- This folder is its own git repository. Create a new, **private** GitHub repository for it
+  (e.g. `tasifmatrix-erp-system`) and push it — it must not go into the Sompriti repository.
+- The app is at the **top level** of this repository, so Railway's Root Directory stays empty (step 2).
 - Have ready: a JWT signing key (see step 4) and your super admin email and password.
   Use a **different** Railway project from Sompriti's, with its own database.
 
@@ -82,13 +82,13 @@ Open the app service → **Settings**:
 
 | Setting | Value |
 | --- | --- |
-| **Root Directory** | `tasifmatrix-erp-system` |
+| **Root Directory** | *(leave empty)* |
 | Branch | `main` |
 | Builder | Dockerfile (detected from `railway.json`) |
 
-**Root Directory is the step people miss.** The `Dockerfile` and `railway.json` are inside
-`tasifmatrix-erp-system/`, not at the top of the repository. Without it the build fails with "no Dockerfile
-found".
+The `Dockerfile` and `railway.json` are at the top of this repository, so no Root Directory is
+needed. (If you ever put this project inside a subfolder of another repository, set Root Directory
+to that subfolder, or the build fails with "no Dockerfile found".)
 
 ## 3. Generate the public domain
 
@@ -114,6 +114,7 @@ SEED_SUPERADMIN_PHONE=01700000000
 
 App__PublicBaseUrl=https://${{RAILWAY_PUBLIC_DOMAIN}}
 App__ProductName=Tasif Matrix ERP
+App__AllowBusinessSignup=true
 
 Cors__AllowedOrigins=https://localhost,capacitor://localhost,http://localhost
 
@@ -139,6 +140,9 @@ Notes on the ones that matter:
   characters with a letter and a number. Created only on the first start; the app forces a password
   change at first login. It belongs to no business and cannot see any business's data — it manages
   the businesses themselves. Use an email you will never also use as a business user.
+- **`App__AllowBusinessSignup`** — `true` lets anyone register their own business from the sign-up
+  page (they become its admin; you see it on the Businesses page and can suspend it). Set `false` to
+  hide that option, so only you create businesses. Joining a business with its code always works.
 - **`App__PublicBaseUrl`** — `${{RAILWAY_PUBLIC_DOMAIN}}` fills itself in from step 3. It is used in
   password-reset links.
 - **`Cors__AllowedOrigins`** — only the Android app needs this; the website is served from the same
