@@ -3,7 +3,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, catchError, finalize, map, of, shareReplay, tap, throwError } from 'rxjs';
 import { API_BASE } from './api.service';
-import { AuthResponse, CurrentUser, Role } from './models';
+import { AuthResponse, CurrentUser, Role, SignupOptions } from './models';
 
 const STORAGE_KEY = 'tasifmatrix.auth';
 
@@ -58,7 +58,7 @@ export class AuthService {
   }
 
   /** Registers a new business with this person as its admin, and signs them in. */
-  registerBusiness(body: { businessName: string; businessCode: string; userName: string; email: string; phoneNumber: string; password: string }): Observable<CurrentUser> {
+  registerBusiness(body: { businessName: string; businessCode: string; userName: string; email: string; phoneNumber: string; password: string; businessSizeUuid: string | null }): Observable<CurrentUser> {
     return this.http.post<AuthResponse>(`${API_BASE}/auth/register-business`, body).pipe(
       tap((r) => this.store(r)),
       map((r) => r.user),
@@ -66,8 +66,8 @@ export class AuthService {
   }
 
   /** Whether the sign-up page may offer "Register a business". */
-  signupOptions(): Observable<{ businessSignup: boolean }> {
-    return this.http.get<{ businessSignup: boolean }>(`${API_BASE}/auth/signup-options`);
+  signupOptions(): Observable<SignupOptions> {
+    return this.http.get<SignupOptions>(`${API_BASE}/auth/signup-options`);
   }
 
   /** Refreshes the access token once for all concurrent callers. */

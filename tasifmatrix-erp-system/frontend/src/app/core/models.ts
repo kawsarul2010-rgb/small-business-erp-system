@@ -410,6 +410,7 @@ export interface BusinessListItem {
   revision: string;
   /** Taka charged per SMS part; null when not charged. */
   smsPrice: number | null;
+  subscription: BusinessSubscription | null;
 }
 
 export interface BusinessAdmin {
@@ -443,6 +444,7 @@ export interface BusinessDetail {
   smsPrice: number | null;
   /** The business's own SMS switch in its Settings. */
   smsEnabledByBusiness: boolean;
+  subscription: BusinessSubscription | null;
 }
 
 /** One month of a business's sent SMS; month is "yyyy-MM". amount is null when the business has no SMS price. */
@@ -481,4 +483,148 @@ export interface PlatformSummary {
   smsPartsThisMonth: number;
   /** SMS parts this month times each business's SMS price. */
   smsAmountThisMonth: number;
+}
+
+// ---------------------------------------------------------------- subscriptions & billing
+export type SubscriptionState = 'NOT_BILLED' | 'TRIAL' | 'ACTIVE' | 'GRACE_PERIOD' | 'EXPIRED';
+export type BillingPaymentStatus = 'INITIATED' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+export type BillingProvider = 'BKASH' | 'MANUAL';
+
+/** A business's subscription now. showReminder: the banner should be visible. frozen: only paying works. */
+export interface SubscriptionStatus {
+  state: SubscriptionState;
+  endsAt: string | null;
+  graceEndsAt: string | null;
+  daysLeft: number | null;
+  onTrial: boolean;
+  planName: string | null;
+  sizeName: string | null;
+  showReminder: boolean;
+  frozen: boolean;
+}
+
+export interface SizeOption {
+  uuid: string;
+  name: string;
+  description: string | null;
+}
+
+/** A package the business can buy, priced for its size. */
+export interface PlanOption {
+  uuid: string;
+  name: string;
+  description: string | null;
+  durationMonths: number;
+  price: number;
+  perMonth: number;
+}
+
+export interface BillingOverview {
+  status: SubscriptionStatus;
+  sizeUuid: string | null;
+  sizeName: string | null;
+  plans: PlanOption[];
+  billingEnabled: boolean;
+  canPayOnline: boolean;
+  /** The signed-in person may pay (admins). */
+  canPay: boolean;
+  supportPhone: string | null;
+  supportEmail: string | null;
+  graceDays: number;
+  businessCode: string;
+  /** Sizes to choose from - only when the business has none yet. */
+  sizes: SizeOption[];
+}
+
+export interface BillingPayment {
+  uuid: string;
+  businessUuid: string;
+  businessName: string | null;
+  invoiceNumber: string;
+  planName: string;
+  sizeName: string | null;
+  durationMonths: number;
+  amount: number;
+  provider: BillingProvider;
+  status: BillingPaymentStatus;
+  trxId: string | null;
+  payerAccount: string | null;
+  statusMessage: string | null;
+  note: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  createdDate: string;
+  completedDate: string | null;
+  createdByUserName: string;
+}
+
+export interface PlanPrice {
+  sizeUuid: string;
+  price: number;
+}
+
+/** A package as shown on the sign-up page: its price per size. */
+export interface PlanOffer {
+  uuid: string;
+  name: string;
+  description: string | null;
+  durationMonths: number;
+  prices: PlanPrice[];
+}
+
+export interface SignupOptions {
+  businessSignup: boolean;
+  billingEnabled: boolean;
+  trialDays: number;
+  sizes: SizeOption[] | null;
+  plans: PlanOffer[] | null;
+}
+
+// ---- super admin
+export interface BillingSettings {
+  billingEnabled: boolean;
+  trialDays: number;
+  graceDays: number;
+  reminderDays: number;
+  supportPhone: string | null;
+  supportEmail: string | null;
+  bkashEnabled: boolean;
+  bkashSandbox: boolean;
+  bkashAppKey: string | null;
+  hasBkashAppSecret: boolean;
+  bkashUsername: string | null;
+  hasBkashPassword: boolean;
+  bkashReady: boolean;
+  updatedDate: string;
+  updatedByUserName: string;
+}
+
+export interface SizeAdmin {
+  uuid: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  businesses: number;
+  revision: string;
+}
+
+export interface PlanAdmin {
+  uuid: string;
+  name: string;
+  description: string | null;
+  durationMonths: number;
+  sortOrder: number;
+  isActive: boolean;
+  prices: PlanPrice[];
+  revision: string;
+}
+
+export interface BusinessSubscription {
+  status: SubscriptionStatus;
+  sizeUuid: string | null;
+  sizeName: string | null;
+  planUuid: string | null;
+  planName: string | null;
+  billingExempt: boolean;
 }

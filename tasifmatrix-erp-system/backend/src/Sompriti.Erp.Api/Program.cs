@@ -117,6 +117,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<PlatformBoundaryMiddleware>();
 app.UseMiddleware<PasswordChangeRequiredMiddleware>();
+app.UseMiddleware<SubscriptionGateMiddleware>();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");

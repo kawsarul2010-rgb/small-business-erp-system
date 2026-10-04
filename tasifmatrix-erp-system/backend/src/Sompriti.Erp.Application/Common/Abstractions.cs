@@ -54,6 +54,11 @@ public interface IAppDbContext
     DbSet<PasswordResetToken> PasswordResetTokens { get; }
     DbSet<SmsOutbox> SmsOutbox { get; }
     DbSet<BusinessSetting> BusinessSettings { get; }
+    DbSet<BusinessSize> BusinessSizes { get; }
+    DbSet<SubscriptionPlan> SubscriptionPlans { get; }
+    DbSet<SubscriptionPlanPrice> SubscriptionPlanPrices { get; }
+    DbSet<BillingSettings> BillingSettings { get; }
+    DbSet<BillingPayment> BillingPayments { get; }
 
     DbSet<TEntity> Set<TEntity>() where TEntity : class;
     DatabaseFacade Database { get; }

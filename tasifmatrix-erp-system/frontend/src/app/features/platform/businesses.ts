@@ -74,7 +74,10 @@ import { MoneyPipe } from '../../shared/pipes';
                     <div class="m-title">{{ b.name }}</div>
                     <div class="m-sub code">{{ b.code }}</div>
                   </div>
-                  <app-status [value]="b.status" />
+                  <span class="m-chips">
+                    <app-status [value]="b.status" />
+                    @if (b.subscription && !b.subscription.billingExempt && b.subscription.status.state !== 'NOT_BILLED') { <app-status [value]="b.subscription.status.state" /> }
+                  </span>
                 </div>
                 <div class="m-sub usage">
                   {{ (b.usage.activeUsers === 1 ? '{n} user' : '{n} users') | t: { n: b.usage.activeUsers } }} · {{ (b.usage.ordersThisMonth === 1 ? '{n} order this month' : '{n} orders this month') | t: { n: b.usage.ordersThisMonth } }} · {{ '{n} SMS this month' | t: { n: b.usage.smsPartsThisMonth } }}
@@ -97,6 +100,19 @@ import { MoneyPipe } from '../../shared/pipes';
               </ng-container>
               <ng-container matColumnDef="users"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Users' | t }}</th><td mat-cell *matCellDef="let b" class="num">{{ b.usage.activeUsers }}</td></ng-container>
               <ng-container matColumnDef="orders"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Orders this month' | t }}</th><td mat-cell *matCellDef="let b" class="num">{{ b.usage.ordersThisMonth }}</td></ng-container>
+              <ng-container matColumnDef="subscription">
+                <th mat-header-cell *matHeaderCellDef>{{ 'Subscription' | t }}</th>
+                <td mat-cell *matCellDef="let b">
+                  @if (b.subscription; as s) {
+                    @if (s.billingExempt) { <span class="muted">{{ 'Never billed' | t }}</span> }
+                    @else if (s.status.state === 'NOT_BILLED') { <span class="muted">—</span> }
+                    @else {
+                      <app-status [value]="s.status.state" />
+                      @if (s.status.endsAt) { <div class="muted small">{{ (s.status.state === 'EXPIRED' || s.status.state === 'GRACE_PERIOD' ? 'ended {date}' : 'until {date}') | t: { date: (s.status.endsAt | date: 'd MMM yyyy') } }}</div> }
+                    }
+                  }
+                </td>
+              </ng-container>
               <ng-container matColumnDef="sms">
                 <th mat-header-cell *matHeaderCellDef class="num">{{ 'SMS this month' | t }}</th>
                 <td mat-cell *matCellDef="let b" class="num">{{ b.usage.smsPartsThisMonth }}@if (b.smsPrice != null && b.usage.smsPartsThisMonth > 0) { <div class="muted">{{ b.usage.smsPartsThisMonth * b.smsPrice | money }}</div> }</td>
@@ -137,6 +153,8 @@ import { MoneyPipe } from '../../shared/pipes';
     .clickable { cursor: pointer; }
     .clickable:hover { background: var(--erp-hover); }
     .usage { margin-top: 8px; }
+    .small { font-size: 12px; }
+    .m-chips { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
     a.m-card { display: block; color: inherit; text-decoration: none; }
     @media (max-width: 840px) {
       .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -153,7 +171,7 @@ export class BusinessesPage implements OnInit {
   private readonly dialog = inject(MatDialog);
   private readonly router = inject(Router);
 
-  readonly columns = ['name', 'status', 'contact', 'users', 'orders', 'sms', 'lastSignIn', 'created'];
+  readonly columns = ['name', 'status', 'subscription', 'contact', 'users', 'orders', 'sms', 'lastSignIn', 'created'];
   readonly status = signal<BusinessStatus | null>(null);
   readonly summary = signal<PlatformSummary | null>(null);
   readonly list = new ListState<BusinessListItem>((q) =>

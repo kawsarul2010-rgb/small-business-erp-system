@@ -46,6 +46,90 @@ public class Tenant : AuditedEntity
     public string? SuspendReason { get; set; }
     /// <summary>What the platform owner charges this business per SMS part, in taka. Null: not charged.</summary>
     public decimal? SmsPrice { get; set; }
+
+    // ---- the business's one subscription
+    public Guid? BusinessSizeUuid { get; set; }
+    /// <summary>The package last paid for.</summary>
+    public Guid? SubscriptionPlanUuid { get; set; }
+    /// <summary>Paid (or trial) until. Null while billing has never applied to this business.</summary>
+    public DateTimeOffset? SubscriptionEndsAt { get; set; }
+    public bool OnTrial { get; set; }
+    /// <summary>Never billed.</summary>
+    public bool BillingExempt { get; set; }
+}
+
+/// <summary>Small / Medium / Large ...: decides which price a business pays.</summary>
+public class BusinessSize : AuditedEntity
+{
+    public string SizeName { get; set; } = "";
+    public string? Description { get; set; }
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>A package: how long one payment lasts. Its price depends on the business size.</summary>
+public class SubscriptionPlan : AuditedEntity
+{
+    public string PlanName { get; set; } = "";
+    public string? Description { get; set; }
+    public int DurationMonths { get; set; } = 1;
+    public int SortOrder { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+/// <summary>What a package costs for one business size. No row: not offered to that size.</summary>
+public class SubscriptionPlanPrice
+{
+    public Guid PlanUuid { get; set; }
+    public Guid SizeUuid { get; set; }
+    public decimal Price { get; set; }
+}
+
+/// <summary>The platform's billing configuration (a single row). Secrets are stored encrypted.</summary>
+public class BillingSettings
+{
+    public const int SingletonId = 1;
+    public int Id { get; set; } = SingletonId;
+    public bool BillingEnabled { get; set; }
+    public int TrialDays { get; set; } = 30;
+    public int GraceDays { get; set; } = 7;
+    public int ReminderDays { get; set; } = 7;
+    public string? SupportPhone { get; set; }
+    public string? SupportEmail { get; set; }
+    public bool BkashEnabled { get; set; }
+    public bool BkashSandbox { get; set; } = true;
+    public string? BkashAppKey { get; set; }
+    public string? BkashAppSecret { get; set; }
+    public string? BkashUsername { get; set; }
+    public string? BkashPassword { get; set; }
+    public DateTimeOffset UpdatedDate { get; set; }
+    public string UpdatedByUserName { get; set; } = "";
+}
+
+/// <summary>One payment attempt for a business's subscription (bKash, or recorded by hand).</summary>
+public class BillingPayment : ITenantOwned
+{
+    public Guid Uuid { get; set; }
+    public Guid TenantUuid { get; set; }
+    public Guid? PlanUuid { get; set; }
+    public string PlanName { get; set; } = "";
+    public string? SizeName { get; set; }
+    public int DurationMonths { get; set; }
+    public decimal Amount { get; set; }
+    public BillingProvider Provider { get; set; }
+    public BillingPaymentStatus Status { get; set; } = BillingPaymentStatus.Initiated;
+    public string InvoiceNumber { get; set; } = "";
+    public string? ProviderPaymentId { get; set; }
+    public string? TrxId { get; set; }
+    public string? PayerAccount { get; set; }
+    public string? StatusMessage { get; set; }
+    public string? Note { get; set; }
+    public DateTimeOffset? PeriodStart { get; set; }
+    public DateTimeOffset? PeriodEnd { get; set; }
+    public DateTimeOffset CreatedDate { get; set; }
+    public DateTimeOffset? CompletedDate { get; set; }
+    public Guid CreatedByUserUuid { get; set; }
+    public string CreatedByUserName { get; set; } = "";
 }
 
 /// <summary>A business's own settings, changed by its admins. Missing row: the defaults below.</summary>

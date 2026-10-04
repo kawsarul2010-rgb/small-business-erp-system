@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Sompriti.Erp.Application.Billing;
 using Sompriti.Erp.Application.Common;
 using Sompriti.Erp.Domain.Common;
 using Sompriti.Erp.Domain.Entities;
@@ -19,9 +20,13 @@ public sealed record RegisterRequest(string? UserName, string? Email, string? Ph
 /// it is then made from the business name.
 /// </summary>
 public sealed record RegisterBusinessRequest(string? BusinessName, string? BusinessCode, string? UserName, string? Email,
-    string? PhoneNumber, string? Password);
-/// <summary>What the sign-up page may offer.</summary>
-public sealed record SignupOptionsDto(bool BusinessSignup);
+    string? PhoneNumber, string? Password, Guid? BusinessSizeUuid = null);
+/// <summary>
+/// What the sign-up page offers: whether a business may register itself, and - when billing is on -
+/// the sizes to choose from, the free trial and the packages with their price for each size.
+/// </summary>
+public sealed record SignupOptionsDto(bool BusinessSignup, bool BillingEnabled = false, int TrialDays = 0,
+    IReadOnlyList<SizeOptionDto>? Sizes = null, IReadOnlyList<PlanOfferDto>? Plans = null);
 public sealed record LoginRequest(string? Email, string? Password);
 public sealed record RefreshRequest(string? RefreshToken);
 public sealed record ForgotPasswordRequest(string? Email);
@@ -53,7 +58,7 @@ public sealed class AuthOptions
 public sealed class AuthService(
     IAppDbContext db, ICurrentUser currentUser, IPasswordHasher hasher, ITokenService tokens, IEmailSender email,
     IOptions<AuthOptions> authOptions, IOptions<AppOptions> appOptions, IBusinessProfile business,
-    TimeProvider clock, ILogger<AuthService> logger)
+    TimeProvider clock, ILogger<AuthService> logger, BillingSettingsCache billingSettings)
 {
     private readonly AuthOptions _opt = authOptions.Value;
 
@@ -92,7 +97,24 @@ public sealed class AuthService(
         return await IssueAsync(user, ct);
     }
 
-    public SignupOptionsDto SignupOptions() => new(appOptions.Value.AllowBusinessSignup);
+    public async Task<SignupOptionsDto> SignupOptionsAsync(CancellationToken ct)
+    {
+        // Signed out: this context is the database owner, so the billing tables are readable.
+        var s = await billingSettings.GetAsync(db, ct);
+        var sizes = await db.BusinessSizes.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.SortOrder).ThenBy(x => x.SizeName)
+            .Select(x => new SizeOptionDto(x.Uuid, x.SizeName, x.Description)).ToListAsync(ct);
+        var plans = new List<PlanOfferDto>();
+        if (s.BillingEnabled)
+        {
+            var activePlans = await db.SubscriptionPlans.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.SortOrder).ThenBy(x => x.DurationMonths).ToListAsync(ct);
+            var sizeIds = sizes.Select(x => x.Uuid).ToList();
+            var prices = await db.SubscriptionPlanPrices.AsNoTracking().Where(x => sizeIds.Contains(x.SizeUuid)).ToListAsync(ct);
+            plans = activePlans.Select(p => new PlanOfferDto(p.Uuid, p.PlanName, p.Description, p.DurationMonths,
+                    prices.Where(x => x.PlanUuid == p.Uuid).Select(x => new PlanPriceDto(x.SizeUuid, x.Price)).ToList()))
+                .Where(p => p.Prices.Count > 0).ToList();
+        }
+        return new SignupOptionsDto(appOptions.Value.AllowBusinessSignup, s.BillingEnabled, s.BillingEnabled ? s.TrialDays : 0, sizes, plans);
+    }
 
     /// <summary>
     /// Creates a business and its first admin from the sign-up page, and signs the admin in.
@@ -114,6 +136,9 @@ public sealed class AuthService(
             .When(code is not null && !TenantCodes.IsValid(code), "businessCode",
                 "Business code must be " + TenantCodes.Description.ToLowerInvariant());
         var phone = AddProfileRules(v, r.UserName, r.Email, r.PhoneNumber, r.Password, passwordRequired: true);
+        var activeSizes = await db.BusinessSizes.AsNoTracking().Where(x => x.IsActive).Select(x => x.Uuid).ToListAsync(ct);
+        v.When(activeSizes.Count > 0 && r.BusinessSizeUuid is null, "businessSizeUuid", "Choose your business size.")
+         .When(r.BusinessSizeUuid is { } chosen && !activeSizes.Contains(chosen), "businessSizeUuid", "Choose your business size.");
         v.ThrowIfInvalid();
 
         var emailNorm = r.Email!.Trim().ToLowerInvariant();
@@ -130,7 +155,15 @@ public sealed class AuthService(
             ContactName = r.UserName!.Trim(),
             ContactEmail = emailNorm,
             ContactPhone = phone,
+            BusinessSizeUuid = r.BusinessSizeUuid,
         };
+        // With billing on, the free trial starts now (no trial: payment is due now, with the grace days to pay).
+        var billing = await billingSettings.GetAsync(db, ct);
+        if (billing.BillingEnabled)
+        {
+            tenant.SubscriptionEndsAt = clock.GetUtcNow().AddDays(billing.TrialDays);
+            tenant.OnTrial = billing.TrialDays > 0;
+        }
         var user = new AppUser
         {
             Uuid = Guid.NewGuid(),

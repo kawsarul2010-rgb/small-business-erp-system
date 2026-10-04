@@ -55,6 +55,7 @@ users out on their next request; reactivating restores everything as it was.
 - Stock balance, stock ledger, stock adjustments (opening stock, damage, loss, correction)
 - Payments on FINAL orders with overpayment protection
 - Two SMS to the customer or supplier (Bangladesh numbers, outbox + retry worker): when an order is finalized and when a payment is added, each with the running account (total, paid, due)
+- Subscriptions (super admin → **Subscriptions**): billing on/off, free trial, extra (grace) days, reminder days; packages (e.g. Monthly / 3 months / Yearly) with a price per business size; business sizes chosen at sign-up; bKash Tokenized Checkout (sandbox or live, credentials stored encrypted); every payment, payments recorded by hand, per-business "never billed", size and paid-until date. Businesses see a reminder banner, pay on **Billing** with bKash, and are paused (only Billing works) after the grace days
 - SMS switches: sent only when all three are on - the business (Settings, admin), the customer or supplier (on by default), and the order ("Send SMS", off by default; a business can make new orders start with it on)
 - SMS billing per business: the super admin's Businesses page counts each business's sent SMS (this month, last month, 12-month history) in operator SMS parts, and with a price per SMS shows the amount to invoice
 - PDF invoices, purchase orders and reports under each business's own name; share by WhatsApp or email
@@ -229,4 +230,5 @@ Base path `/api/v1`, JSON (camelCase, enums as `UPPER_SNAKE_CASE`), errors as RF
 | Orders | `purchase-orders`, `sales-orders`: list, get, create, update (draft), delete (draft), `DELETE {id}/lines/{lineId}`, `POST {id}/finalize`, `POST {id}/void`, `POST {id}/payments`, `DELETE {id}/payments/{paymentId}`, `GET {id}/pdf` |
 | Reports | `GET reports/customers`, `reports/suppliers`, `reports/companies`, `GET dashboard` |
 | SMS | `GET sms`, `POST sms/{id}/retry` (ADMIN) · orders: `POST {id}/sms` `{ sendSms, revision }` |
+| Billing | `GET billing`, `GET billing/status`, `GET billing/payments`, `POST billing/checkout`, `POST billing/size`, `POST billing/payments/{id}/verify`, `GET billing/bkash/callback` (bKash returns here) · super admin: `platform/billing/settings` (+ `test-bkash`), `sizes`, `plans`, `payments`, `businesses/{id}` (+ `/payments` to record a payment) |
 | Settings | `GET settings` (ADMIN, MANAGER), `PUT settings` (ADMIN): `smsEnabled`, `smsOnNewOrders` |

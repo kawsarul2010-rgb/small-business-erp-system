@@ -143,6 +143,11 @@ Notes on the ones that matter:
 - **`App__AllowBusinessSignup`** — `true` lets anyone register their own business from the sign-up
   page (they become its admin; you see it on the Businesses page and can suspend it). Set `false` to
   hide that option, so only you create businesses. Joining a business with its code always works.
+- **Subscriptions / bKash** - everything is set in the app as super admin (**Subscriptions**), not here.
+  Billing starts switched off. The bKash app secret and password are stored encrypted with a key made
+  from `Jwt__SigningKey` (or `Billing__EncryptionKey` if you set one); if you change that key, enter the
+  bKash secrets again. `App__PublicBaseUrl` must be your real https address: bKash returns payers to
+  `<PublicBaseUrl>/api/v1/billing/bkash/callback`.
 - **`App__PublicBaseUrl`** — `${{RAILWAY_PUBLIC_DOMAIN}}` fills itself in from step 3. It is used in
   password-reset links.
 - **`Cors__AllowedOrigins`** — only the Android app needs this; the website is served from the same

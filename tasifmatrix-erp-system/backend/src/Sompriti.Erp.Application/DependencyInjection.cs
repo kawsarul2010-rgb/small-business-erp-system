@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Sompriti.Erp.Application.Auth;
+using Sompriti.Erp.Application.Billing;
 using Sompriti.Erp.Application.Common;
 using Sompriti.Erp.Application.MasterData;
 using Sompriti.Erp.Application.Orders;
@@ -36,6 +37,11 @@ public static class DependencyInjection
         services.AddScoped<SmsService>();
         services.AddScoped<PlatformService>();
         services.AddScoped<BusinessSettingsService>();
+        services.AddMemoryCache();
+        services.AddSingleton<BillingSettingsCache>();
+        services.AddSingleton<SubscriptionLedger>();
+        services.AddScoped<BillingService>();
+        services.AddScoped<PlatformBillingService>();
         return services;
     }
 }

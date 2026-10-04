@@ -456,6 +456,60 @@ public class SmsRulesTests
     }
 }
 
+public class SubscriptionRulesTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void Billing_off_or_exempt_is_not_billed_and_never_frozen()
+    {
+        Assert.Equal(SubscriptionState.NotBilled, SubscriptionRules.Evaluate(false, false, Now.AddDays(-100), false, 7, Now).State);
+        var exempt = SubscriptionRules.Evaluate(true, true, Now.AddDays(-100), false, 7, Now);
+        Assert.Equal(SubscriptionState.NotBilled, exempt.State);
+        Assert.False(exempt.Frozen);
+    }
+
+    [Fact]
+    public void Trial_then_active_then_grace_then_expired()
+    {
+        var trial = SubscriptionRules.Evaluate(true, false, Now.AddDays(10), true, 7, Now);
+        Assert.Equal(SubscriptionState.Trial, trial.State);
+        Assert.Equal(10, trial.DaysLeft);
+
+        Assert.Equal(SubscriptionState.Active, SubscriptionRules.Evaluate(true, false, Now.AddHours(5), false, 7, Now).State);
+
+        var grace = SubscriptionRules.Evaluate(true, false, Now.AddDays(-3), false, 7, Now);
+        Assert.Equal(SubscriptionState.GracePeriod, grace.State);
+        Assert.Equal(4, grace.DaysLeft);
+        Assert.Equal(Now.AddDays(4), grace.GraceEndsAt);
+        Assert.False(grace.Frozen);
+
+        var expired = SubscriptionRules.Evaluate(true, false, Now.AddDays(-8), false, 7, Now);
+        Assert.Equal(SubscriptionState.Expired, expired.State);
+        Assert.True(expired.Frozen);
+    }
+
+    [Fact]
+    public void No_grace_days_freezes_straight_after_the_end()
+    {
+        Assert.Equal(SubscriptionState.Expired, SubscriptionRules.Evaluate(true, false, Now.AddMinutes(-1), false, 0, Now).State);
+    }
+
+    [Fact]
+    public void Paying_early_adds_to_the_time_left_and_paying_late_starts_today()
+    {
+        var early = SubscriptionRules.Extend(Now.AddDays(5), Now, 1);
+        Assert.Equal(Now.AddDays(5), early.Start);
+        Assert.Equal(Now.AddDays(5).AddMonths(1), early.End);
+
+        var late = SubscriptionRules.Extend(Now.AddDays(-3), Now, 12);
+        Assert.Equal(Now, late.Start);
+        Assert.Equal(Now.AddYears(1), late.End);
+
+        Assert.Equal(Now.AddMonths(3), SubscriptionRules.Extend(null, Now, 3).End);
+    }
+}
+
 public class BusinessClockTests
 {
     [Fact]

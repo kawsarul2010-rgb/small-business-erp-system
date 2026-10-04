@@ -59,6 +59,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<SmsOutbox> SmsOutbox => Set<SmsOutbox>();
     public DbSet<BusinessSetting> BusinessSettings => Set<BusinessSetting>();
+    public DbSet<BusinessSize> BusinessSizes => Set<BusinessSize>();
+    public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
+    public DbSet<SubscriptionPlanPrice> SubscriptionPlanPrices => Set<SubscriptionPlanPrice>();
+    public DbSet<BillingSettings> BillingSettings => Set<BillingSettings>();
+    public DbSet<BillingPayment> BillingPayments => Set<BillingPayment>();
 
     public void SetOriginalRevision(AuditedEntity entity, Guid revision) =>
         Entry(entity).Property(nameof(AuditedEntity.Revision)).OriginalValue = revision;
@@ -165,6 +170,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
         });
         b.Entity<Company>(e => { e.ToTable("company"); Audited(e); });
         b.Entity<BusinessSetting>(e => { e.ToTable("business_setting"); Audited(e); });
+        b.Entity<BusinessSize>(e => { e.ToTable("business_size"); Audited(e); });
+        b.Entity<SubscriptionPlan>(e => { e.ToTable("subscription_plan"); Audited(e); });
+        b.Entity<SubscriptionPlanPrice>(e => { e.ToTable("subscription_plan_price"); e.HasKey(x => new { x.PlanUuid, x.SizeUuid }); });
+        b.Entity<BillingSettings>(e => { e.ToTable("billing_settings"); e.HasKey(x => x.Id); e.Property(x => x.Id).ValueGeneratedNever(); });
+        b.Entity<BillingPayment>(e => { e.ToTable("billing_payment"); e.HasKey(x => x.Uuid); });
 
         b.Entity<Customer>(e =>
         {

@@ -482,3 +482,43 @@ public static class SmsRules
         : !partySmsEnabled ? (type == TransactionType.Sales ? "SMS is turned off for this customer." : "SMS is turned off for this supplier.")
         : null;
 }
+
+/// <summary>A business's subscription as of now, worked out from its paid-until date.</summary>
+public sealed record SubscriptionSnapshot(SubscriptionState State, DateTimeOffset? EndsAt, DateTimeOffset? GraceEndsAt, int? DaysLeft)
+{
+    /// <summary>Only paying is possible.</summary>
+    public bool Frozen => State == SubscriptionState.Expired;
+}
+
+/// <summary>Subscription arithmetic: the state on a given day, and the new paid-until date after a payment.</summary>
+public static class SubscriptionRules
+{
+    public static SubscriptionSnapshot Evaluate(bool billingEnabled, bool exempt, DateTimeOffset? endsAt, bool onTrial,
+        int graceDays, DateTimeOffset now)
+    {
+        if (!billingEnabled || exempt) return new SubscriptionSnapshot(SubscriptionState.NotBilled, endsAt, null, null);
+        // Billing on but never applied to this business (should not happen once switched on): treat as due now.
+        var ends = endsAt ?? now;
+        var graceEnds = ends.AddDays(Math.Max(0, graceDays));
+        if (now < ends)
+            return new SubscriptionSnapshot(onTrial ? SubscriptionState.Trial : SubscriptionState.Active, ends, graceEnds, DaysUntil(now, ends));
+        if (now < graceEnds)
+            return new SubscriptionSnapshot(SubscriptionState.GracePeriod, ends, graceEnds, DaysUntil(now, graceEnds));
+        return new SubscriptionSnapshot(SubscriptionState.Expired, ends, graceEnds, 0);
+    }
+
+    /// <summary>
+    /// The period a payment buys. Paying early adds to the time already paid for; paying late
+    /// (in the grace period or after) starts from the day of payment.
+    /// </summary>
+    public static (DateTimeOffset Start, DateTimeOffset End) Extend(DateTimeOffset? endsAt, DateTimeOffset now, int months)
+    {
+        // A paid package also starts after an unfinished free trial: the trial days are not lost.
+        var start = endsAt is { } e && e > now ? e : now;
+        return (start, start.AddMonths(months));
+    }
+
+    /// <summary>Whole days left, counting a part day as a day (ends tomorrow morning = 1 day).</summary>
+    public static int DaysUntil(DateTimeOffset now, DateTimeOffset until) =>
+        until <= now ? 0 : (int)Math.Ceiling((until - now).TotalDays);
+}

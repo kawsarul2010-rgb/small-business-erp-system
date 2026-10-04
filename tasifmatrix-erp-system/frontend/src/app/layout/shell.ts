@@ -19,13 +19,15 @@ import { LayoutService } from '../core/layout.service';
 import { ThemeMode, ThemeService } from '../core/theme.service';
 import { AppLogo } from '../shared/app-logo';
 import { LabelPipe } from '../shared/pipes';
-import { NAV_GROUPS, NavItem, bottomTabs, visibleGroups } from './navigation';
+import { FROZEN_GROUPS, NAV_GROUPS, NavItem, bottomTabs, visibleGroups } from './navigation';
+import { BillingStore } from '../core/billing';
+import { SubscriptionBanner } from './subscription-banner';
 
 @Component({
   selector: 'app-shell',
   imports: [
     RouterOutlet, RouterLink, RouterLinkActive, MatTooltipModule,
-    MatIconModule, MatButtonModule, MatMenuModule, MatDividerModule, LabelPipe, AppLogo, TranslatePipe,
+    MatIconModule, MatButtonModule, MatMenuModule, MatDividerModule, LabelPipe, AppLogo, TranslatePipe, SubscriptionBanner,
   ],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
@@ -73,7 +75,9 @@ export class Shell {
     return letters.toUpperCase();
   });
 
-  readonly groups = computed(() => visibleGroups(NAV_GROUPS, this.auth.user()));
+  readonly billing = inject(BillingStore);
+
+  readonly groups = computed(() => visibleGroups(this.billing.frozen() ? FROZEN_GROUPS : NAV_GROUPS, this.auth.user()));
 
   /** The business the person is working in, or the platform for the super admin. */
   readonly workspace = computed(() => {
@@ -81,7 +85,15 @@ export class Shell {
     if (!user) return this.app.name;
     return user.businessName ?? (user.role === 'SUPER_ADMIN' ? t('Platform administration') : this.app.name);
   });
-  readonly tabs = computed(() => bottomTabs(this.auth.user()));
+  readonly tabs = computed(() => {
+    const tabs = bottomTabs(this.auth.user());
+    if (!this.billing.frozen()) return tabs;
+    return [FROZEN_GROUPS[0].items[0], tabs[tabs.length - 1]]; // Billing and More
+  });
+
+  constructor() {
+    this.billing.load();
+  }
 
   /** Page title for the mobile top bar (set by the route's `title`). */
   readonly pageTitle = inject(AppTitleStrategy).pageTitle;

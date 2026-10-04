@@ -4,7 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Sompriti.Erp.Application.Billing;
 using Sompriti.Erp.Application.Common;
+using Sompriti.Erp.Infrastructure.Billing;
 using Sompriti.Erp.Application.Sms;
 using Sompriti.Erp.Infrastructure.Notifications;
 using Sompriti.Erp.Infrastructure.Pdf;
@@ -25,6 +27,11 @@ public static class DependencyInjection
             .AddInterceptors(tenantInterceptor));
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
         services.AddScoped<DatabaseInitializer>();
+
+        // Billing: owner-connection contexts, encrypted gateway secrets, bKash
+        services.AddScoped<ISystemDbFactory, SystemDbFactory>();
+        services.AddSingleton<ISecretProtector, AesSecretProtector>();
+        services.AddHttpClient<IBkashGateway, BkashGateway>(c => c.Timeout = TimeSpan.FromSeconds(30));
 
         services.Configure<JwtOptions>(config.GetSection(JwtOptions.Section));
         services.AddSingleton<JwtTokenService>();

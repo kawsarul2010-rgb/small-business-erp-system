@@ -9,7 +9,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { ApiService, problemOf } from '../../core/api.service';
 import { LayoutService } from '../../core/layout.service';
-import { BusinessAdmin, BusinessDetail, BusinessSmsUsage, IssuedCredentials } from '../../core/models';
+import { BillingPayment, BusinessAdmin, BusinessDetail, BusinessSmsUsage, BusinessSubscription, IssuedCredentials, Paged } from '../../core/models';
+import { ManualPaymentDialog, SubscriptionDialog } from './subscription-dialogs';
 import { NotifyService } from '../../core/notify.service';
 import { StatusChip } from '../../shared/status-chip';
 import { MoneyPipe } from '../../shared/pipes';
@@ -79,6 +80,43 @@ import { t } from '../../core/i18n/i18n';
           <div class="card stat"><span class="label">{{ 'SMS this month' | t }}</span><strong>{{ b.usage.smsPartsThisMonth }}</strong>
             <span class="hint">{{ 'Last month {n}' | t: { n: b.usage.smsPartsLastMonth } }}</span></div>
         </div>
+
+        @if (b.subscription; as s) {
+          <section class="card card-pad sub-card">
+            <div class="section-head">
+              <div>
+                <h2 class="card-title">{{ 'Subscription' | t }}</h2>
+                <div class="muted small">{{ 'What this business pays you for the app.' | t }}</div>
+              </div>
+              <div class="sub-actions">
+                <button mat-stroked-button (click)="editSubscription(b, s)"><mat-icon>tune</mat-icon>{{ 'Change' | t }}</button>
+                @if (!s.billingExempt) { <button mat-flat-button (click)="recordPayment(b, s)"><mat-icon>add_card</mat-icon>{{ 'Record payment' | t }}</button> }
+              </div>
+            </div>
+            <div class="sub-grid">
+              <div><span class="k">{{ 'Status' | t }}</span>
+                @if (s.billingExempt) { <span class="exempt">{{ 'Never billed' | t }}</span> } @else { <app-status [value]="s.status.state" /> }
+              </div>
+              <div><span class="k">{{ (s.status.onTrial ? 'Trial until' : 'Paid until') | t }}</span>
+                <strong>{{ s.status.endsAt ? (s.status.endsAt | date: 'd MMM yyyy') : '—' }}</strong>
+                @if (s.status.daysLeft !== null && (s.status.state === 'TRIAL' || s.status.state === 'ACTIVE')) { <span class="muted small">{{ '{n} days left' | t: { n: s.status.daysLeft } }}</span> }
+                @if (s.status.state === 'GRACE_PERIOD') { <span class="negative small">{{ 'paused on {date}' | t: { date: (s.status.graceEndsAt | date: 'd MMM yyyy') } }}</span> }
+              </div>
+              <div><span class="k">{{ 'Business size' | t }}</span><strong>{{ s.sizeName ?? ('Not set' | t) }}</strong></div>
+              <div><span class="k">{{ 'Package' | t }}</span><strong>{{ s.planName ?? '—' }}</strong></div>
+            </div>
+            @if (payments().length > 0) {
+              <div class="sub-payments">
+                @for (p of payments(); track p.uuid) {
+                  <div class="sub-pay">
+                    <span>{{ p.createdDate | date: 'd MMM yyyy' }} · {{ p.planName }} · {{ p.provider === 'BKASH' ? 'bKash' : ('By hand' | t) }}@if (p.trxId) { · {{ p.trxId }} }</span>
+                    <span class="nowrap"><app-status [value]="p.status" /> <strong>{{ p.amount | money }}</strong></span>
+                  </div>
+                }
+              </div>
+            }
+          </section>
+        }
 
         <div class="grid-2">
           <div class="card card-pad">
@@ -191,6 +229,16 @@ import { t } from '../../core/i18n/i18n';
     .small { font-size: 12.5px; }
     .warn-text { color: var(--erp-negative); }
     .sms-card { margin-top: 16px; }
+    .sub-card { margin-bottom: 16px; }
+    .sub-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .sub-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 20px; margin-top: 8px; }
+    .sub-grid > div { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+    .sub-grid .k { font-size: 12px; color: var(--erp-muted); }
+    .exempt { font-size: 12px; font-weight: 600; padding: 1px 10px; border-radius: 999px; background: var(--erp-chip-neutral-bg); color: var(--erp-chip-neutral-fg); }
+    .sub-payments { margin-top: 14px; border-top: 1px solid var(--erp-border); }
+    .sub-pay { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; font-size: 13px; border-bottom: 1px dashed var(--erp-border); }
+    .sub-pay:last-child { border-bottom: 0; }
+    @media (max-width: 840px) { .sub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sub-pay { flex-direction: column; gap: 2px; } }
     .sms-off-note { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12.5px; font-weight: 600; color: var(--erp-chip-warn-fg); }
     .sms-off-note mat-icon { font-size: 16px; width: 16px; height: 16px; }
     .sms-table { width: 100%; border-collapse: collapse; font-size: 14px; }
@@ -223,10 +271,33 @@ export class BusinessDetailPage implements OnInit {
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly sms = signal<BusinessSmsUsage | null>(null);
+  readonly payments = signal<BillingPayment[]>([]);
 
   ngOnInit(): void {
     this.load();
     this.loadSms();
+    this.loadPayments();
+  }
+
+  private loadPayments(): void {
+    this.api.get<Paged<BillingPayment>>('/platform/billing/payments', { businessUuid: this.id(), page: 1, pageSize: 5 }).subscribe({
+      next: (p) => this.payments.set(p.items),
+      error: () => this.payments.set([]),
+    });
+  }
+
+  editSubscription(b: BusinessDetail, s: BusinessSubscription): void {
+    this.dialog.open(SubscriptionDialog, this.layout.dialog({ business: b, subscription: s }, '520px')).afterClosed().subscribe((saved) => {
+      if (saved) this.load();
+    });
+  }
+
+  recordPayment(b: BusinessDetail, s: BusinessSubscription): void {
+    this.dialog.open(ManualPaymentDialog, this.layout.dialog({ business: b, subscription: s }, '520px')).afterClosed().subscribe((saved) => {
+      if (!saved) return;
+      this.load();
+      this.loadPayments();
+    });
   }
 
   loadSms(): void {

@@ -7,6 +7,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
@@ -16,6 +17,9 @@ import { AuthLayout } from '../../shared/auth-layout';
 import { BUSINESS_CODE_PATTERN, suggestBusinessCode } from '../../shared/business-code';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { t } from '../../core/i18n/i18n';
+import { SignupOptions } from '../../core/models';
+import { durationLabel } from '../../core/billing';
+import { formatMoney } from '../../shared/pipes';
 
 type Mode = 'business' | 'join';
 
@@ -28,7 +32,7 @@ type Mode = 'business' | 'join';
  */
 @Component({
   selector: 'app-register',
-  imports: [TranslatePipe, ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatProgressBarModule, AuthLayout, PasswordToggle],
+  imports: [TranslatePipe, ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule, MatIconModule, MatProgressBarModule, AuthLayout, PasswordToggle],
   template: `
     <app-auth-layout>
       @switch (mode()) {
@@ -76,6 +80,39 @@ type Mode = 'business' | 'join';
               <mat-hint>{{ 'Your staff enter this code to join your business.' | t }}</mat-hint>
               <mat-error>{{ codeError() }}</mat-error>
             </mat-form-field>
+            @if (sizes().length > 0) {
+              <mat-form-field subscriptSizing="dynamic" class="size-field">
+                <mat-label>{{ 'Business size' | t }}</mat-label>
+                <mat-select formControlName="businessSizeUuid" panelClass="size-panel">
+                  @for (z of sizes(); track z.uuid) {
+                    <mat-option [value]="z.uuid">
+                      <span class="opt-name">{{ z.name }}</span>
+                      @if (z.description) { <span class="opt-desc"> - {{ z.description }}</span> }
+                    </mat-option>
+                  }
+                </mat-select>
+                <mat-error>{{ errB('businessSizeUuid', 'Business size') }}</mat-error>
+              </mat-form-field>
+            }
+            @if (options()?.billingEnabled) {
+              <div class="pricing">
+                <mat-icon>sell</mat-icon>
+                <div>
+                  @if (options()!.trialDays > 0) {
+                    <strong>{{ (options()!.trialDays === 1 ? 'Free for the first day.' : 'Free for the first {n} days.') | t: { n: options()!.trialDays } }}</strong>
+                    {{ 'No payment needed to start.' | t }}
+                  }
+                  @if (priceLines().length > 0) {
+                    <div class="price-list">
+                      <span class="then">{{ (options()!.trialDays > 0 ? 'Then choose a package:' : 'Packages:') | t }}</span>
+                      @for (line of priceLines(); track line) { <span class="price-chip">{{ line }}</span> }
+                    </div>
+                  } @else if (sizes().length > 0 && !selectedSize()) {
+                    <div class="then">{{ 'Choose your business size to see the prices.' | t }}</div>
+                  }
+                </div>
+              </div>
+            }
 
             <div class="section">{{ 'You (admin)' | t }}</div>
             <mat-form-field>
@@ -171,6 +208,13 @@ type Mode = 'business' | 'join';
     .back:hover { text-decoration: underline; }
     .section { margin: 2px 0 10px; font-size: 12px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--erp-muted); }
     .section:not(:first-of-type) { margin-top: 8px; }
+    .size-field { margin-top: 14px; }
+    .opt-desc { color: var(--erp-muted); font-size: 13px; }
+    .pricing { display: flex; gap: 10px; align-items: flex-start; margin: 14px 0 6px; padding: 12px 14px; border-radius: var(--erp-radius-sm);
+      background: var(--erp-tint-teal-bg); color: var(--erp-tint-teal-fg); font-size: 13.5px; line-height: 1.5; }
+    .pricing mat-icon { flex: none; font-size: 20px; width: 20px; height: 20px; margin-top: 1px; }
+    .price-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
+    .price-chip { padding: 2px 10px; border-radius: 999px; background: var(--erp-card); color: var(--erp-text); font-size: 12.5px; font-weight: 600; border: 1px solid var(--erp-border); }
   `,
 })
 export class RegisterPage {
@@ -212,6 +256,24 @@ export class RegisterPage {
     email: ['', [Validators.required, Validators.email]],
     phoneNumber: ['', [Validators.required, bdMobileValidator]],
     password: ['', [Validators.required, passwordValidator]],
+    businessSizeUuid: [null as string | null],
+  });
+
+  /** What the server offers: business sign-up, sizes, free trial and package prices. */
+  readonly options = signal<SignupOptions | null>(null);
+  readonly sizes = computed(() => this.options()?.sizes ?? []);
+  private readonly sizeValue = toSignal(this.businessForm.controls.businessSizeUuid.valueChanges, { initialValue: null });
+  readonly selectedSize = computed(() => this.sizeValue());
+  /** "Monthly - 1 month: Tk 100" for each package offered to the chosen size. */
+  readonly priceLines = computed(() => {
+    const size = this.selectedSize();
+    if (!size) return [];
+    return (this.options()?.plans ?? []).flatMap((p) => {
+      const price = p.prices.find((x) => x.sizeUuid === size)?.price;
+      if (price === undefined) return [];
+      const length = durationLabel(p.durationMonths);
+      return [length === p.name ? `${p.name}: ${formatMoney(price)}` : `${p.name} (${length}): ${formatMoney(price)}`];
+    });
   });
 
   /** The code follows the business name until the person edits the code. */
@@ -219,7 +281,14 @@ export class RegisterPage {
 
   constructor() {
     this.auth.signupOptions().subscribe({
-      next: (o) => this.businessSignup.set(o.businessSignup),
+      next: (o) => {
+        this.businessSignup.set(o.businessSignup);
+        this.options.set(o);
+        if ((o.sizes ?? []).length > 0) {
+          this.businessForm.controls.businessSizeUuid.setValidators(Validators.required);
+          this.businessForm.controls.businessSizeUuid.updateValueAndValidity();
+        }
+      },
       error: () => { /* keep the default; the server still decides on submit */ },
     });
   }

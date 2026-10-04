@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, businessGuard, guestGuard, roleGuard } from './core/guards';
+import { subscriptionGuard } from './core/billing';
 
 export const routes: Routes = [
   // ---------------------------------------------------------------- public
@@ -7,11 +8,14 @@ export const routes: Routes = [
   { path: 'register', canActivate: [guestGuard], title: 'Create account', loadComponent: () => import('./features/auth/register').then((m) => m.RegisterPage) },
   { path: 'forgot-password', title: 'Forgot password', loadComponent: () => import('./features/auth/forgot-password').then((m) => m.ForgotPasswordPage) },
   { path: 'reset-password', title: 'Reset password', loadComponent: () => import('./features/auth/reset-password').then((m) => m.ResetPasswordPage) },
+  // Where bKash sends the payer back to - also in a browser outside the app, so no sign-in needed.
+  { path: 'payment-result', title: 'Payment', loadComponent: () => import('./features/billing/payment-result').then((m) => m.PaymentResultPage) },
 
   // ---------------------------------------------------------------- app shell
   {
     path: '',
     canActivate: [authGuard],
+    canActivateChild: [subscriptionGuard],
     loadComponent: () => import('./layout/shell').then((m) => m.Shell),
     children: [
       { path: '', pathMatch: 'full', title: 'Dashboard', canActivate: [businessGuard], loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.DashboardPage) },
@@ -48,6 +52,7 @@ export const routes: Routes = [
 
       // administration
       { path: 'users', title: 'Users', canActivate: [roleGuard], data: { roles: ['ADMIN'] }, loadComponent: () => import('./features/users/users').then((m) => m.UsersPage) },
+      { path: 'billing', title: 'Billing', canActivate: [roleGuard], data: { roles: ['ADMIN', 'MANAGER', 'USER'] }, loadComponent: () => import('./features/billing/billing').then((m) => m.BillingPage) },
       { path: 'settings', title: 'Settings', canActivate: [roleGuard], data: { roles: ['ADMIN'] }, loadComponent: () => import('./features/settings/settings').then((m) => m.SettingsPage) },
       { path: 'sms', title: 'SMS log', canActivate: [roleGuard], data: { roles: ['ADMIN'] }, loadComponent: () => import('./features/sms/sms-log').then((m) => m.SmsLogPage) },
 
@@ -55,6 +60,7 @@ export const routes: Routes = [
       // businessGuard, so the super admin never lands on a business screen.
       { path: 'platform', pathMatch: 'full', redirectTo: 'platform/businesses' },
       { path: 'platform/businesses', title: 'Businesses', canActivate: [roleGuard], data: { roles: ['SUPER_ADMIN'] }, loadComponent: () => import('./features/platform/businesses').then((m) => m.BusinessesPage) },
+      { path: 'platform/billing', title: 'Subscriptions', canActivate: [roleGuard], data: { roles: ['SUPER_ADMIN'] }, loadComponent: () => import('./features/platform/platform-billing').then((m) => m.PlatformBillingPage) },
       { path: 'platform/businesses/:id', title: 'Business', canActivate: [roleGuard], data: { roles: ['SUPER_ADMIN'] }, loadComponent: () => import('./features/platform/business-detail').then((m) => m.BusinessDetailPage) },
     ],
   },

@@ -33,3 +33,14 @@ public enum MovementType { PurchaseFinal, PurchaseVoid, SalesFinal, SalesVoid, A
 public enum ReferenceType { PurchaseOrder, SalesOrder, StockAdjustment }
 
 public enum SmsStatus { Pending, Sent, Failed, Skipped }
+
+/// <summary>
+/// Where a business stands with its subscription. NotBilled: billing is off or the business is
+/// exempt. GracePeriod: past its paid-until date but still working for a few days. Expired: frozen
+/// except for paying.
+/// </summary>
+public enum SubscriptionState { NotBilled, Trial, Active, GracePeriod, Expired }
+
+public enum BillingPaymentStatus { Initiated, Completed, Failed, Cancelled }
+
+public enum BillingProvider { Bkash, Manual }

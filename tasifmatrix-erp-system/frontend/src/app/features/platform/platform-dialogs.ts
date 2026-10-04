@@ -6,11 +6,12 @@ import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angu
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { Observable } from 'rxjs';
 import { ApiService } from '../../core/api.service';
 import { APP_INFO } from '../../core/app-info';
 import { LayoutService } from '../../core/layout.service';
-import { BusinessDetail, CreatedBusiness, IssuedCredentials } from '../../core/models';
+import { BusinessDetail, CreatedBusiness, IssuedCredentials, SizeAdmin } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { PlatformService } from '../../core/platform.service';
 import { applyServerErrors, bdMobileValidator, controlError } from '../../shared/form-errors';
@@ -22,7 +23,7 @@ import { BUSINESS_CODE_PATTERN, suggestBusinessCode } from '../../shared/busines
 
 @Component({
   selector: 'app-business-dialog',
-  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule],
+  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatButtonModule],
   template: `
     <h2 mat-dialog-title>{{ (data ? 'Edit business' : 'New business') | t }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
@@ -57,6 +58,16 @@ import { BUSINESS_CODE_PATTERN, suggestBusinessCode } from '../../shared/busines
             <mat-hint>{{ 'What you charge this business for each SMS it sends. Leave empty to not charge.' | t }}</mat-hint>
             <mat-error>{{ err('smsPrice', 'SMS price') }}</mat-error>
           </mat-form-field>
+          @if (!data && sizes().length > 0) {
+            <mat-form-field class="span-2">
+              <mat-label>{{ 'Business size' | t }}</mat-label>
+              <mat-select formControlName="businessSizeUuid">
+                <mat-option [value]="null">{{ 'Not set' | t }}</mat-option>
+                @for (z of sizes(); track z.uuid) { <mat-option [value]="z.uuid">{{ z.name }}</mat-option> }
+              </mat-select>
+              <mat-hint>{{ 'Decides which prices the business pays.' | t }}</mat-hint>
+            </mat-form-field>
+          }
           <mat-form-field class="span-2">
             <mat-label>{{ 'Notes (only you see these)' | t }}</mat-label>
             <textarea matInput rows="2" formControlName="notes"></textarea>
@@ -109,6 +120,13 @@ export class BusinessDialog {
   /** The code follows the name until the person edits the code themselves. */
   codeTouchedByUser = !!this.data;
 
+  /** Sizes for a new business (its size is changed later on its Subscription card). */
+  readonly sizes = signal<SizeAdmin[]>([]);
+
+  constructor() {
+    if (!this.data) this.api.get<SizeAdmin[]>('/platform/billing/sizes').subscribe({ next: (s) => this.sizes.set(s.filter((x) => x.isActive)), error: () => this.sizes.set([]) });
+  }
+
   readonly form = this.fb.group({
     name: [this.data?.name ?? '', [Validators.required, Validators.maxLength(150)]],
     code: [this.data?.code ?? '', [Validators.required, Validators.pattern(BUSINESS_CODE_PATTERN)]],
@@ -117,6 +135,7 @@ export class BusinessDialog {
     contactEmail: [this.data?.contactEmail ?? '', [Validators.email, Validators.maxLength(200)]],
     notes: [this.data?.notes ?? '', Validators.maxLength(1000)],
     smsPrice: [this.data?.smsPrice ?? (null as number | null), [Validators.min(0), Validators.max(1000)]],
+    businessSizeUuid: [null as string | null],
     admin: this.fb.group({
       userName: ['', this.data ? [] : [Validators.required, Validators.maxLength(100)]],
       email: ['', this.data ? [] : [Validators.required, Validators.email, Validators.maxLength(200)]],
@@ -150,7 +169,7 @@ export class BusinessDialog {
     const business = { code: v.code, name: v.name, contactName: v.contactName, contactPhone: v.contactPhone, contactEmail: v.contactEmail, notes: v.notes, smsPrice };
     const req: Observable<BusinessDetail | CreatedBusiness> = this.data
       ? this.api.put<BusinessDetail>(`/platform/businesses/${this.data.uuid}`, { ...business, revision: this.data.revision })
-      : this.api.post<CreatedBusiness>('/platform/businesses', { ...business, admin: v.admin });
+      : this.api.post<CreatedBusiness>('/platform/businesses', { ...business, admin: v.admin, businessSizeUuid: v.businessSizeUuid });
     req.subscribe({
       next: (result) => {
         this.notify.success(this.data ? 'Business saved.' : 'Business created.');

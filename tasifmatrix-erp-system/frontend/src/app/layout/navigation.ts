@@ -25,7 +25,10 @@ const staffOrLinkedSupplier = (u: CurrentUser) => u.role !== 'USER' || !!u.suppl
 export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'Platform',
-    items: [{ label: 'Businesses', short: 'Businesses', icon: 'storefront', link: '/platform/businesses', roles: ['SUPER_ADMIN'] }],
+    items: [
+      { label: 'Businesses', short: 'Businesses', icon: 'storefront', link: '/platform/businesses', roles: ['SUPER_ADMIN'] },
+      { label: 'Subscriptions', short: 'Billing', icon: 'credit_card', link: '/platform/billing', roles: ['SUPER_ADMIN'] },
+    ],
   },
   {
     title: 'Overview',
@@ -71,6 +74,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Users', icon: 'manage_accounts', link: '/users', roles: ['ADMIN'] },
       { label: 'SMS log', icon: 'sms', link: '/sms', roles: ['ADMIN'] },
+      { label: 'Billing', icon: 'credit_card', link: '/billing', roles: ['ADMIN'] },
       { label: 'Settings', icon: 'settings', link: '/settings', roles: ['ADMIN'] },
     ],
   },
@@ -89,10 +93,15 @@ export function bottomTabs(user: CurrentUser | null): NavItem[] {
   const all = visibleGroups(NAV_GROUPS, user).flatMap((g) => g.items);
   const pick = (link: string) => all.find((i) => i.link === link);
   const wanted =
-    user.role === 'SUPER_ADMIN' ? ['/platform/businesses']
+    user.role === 'SUPER_ADMIN' ? ['/platform/businesses', '/platform/billing']
     : user.role === 'ADMIN' ? ['/', '/sales-orders', '/purchase-orders', '/stock']
       : user.role === 'MANAGER' ? ['/', '/sales-orders', '/customers', '/stock']
         : ['/', '/sales-orders', '/purchase-orders', '/reports/dues'];
   const tabs = wanted.map(pick).filter((i): i is NavItem => !!i).slice(0, 4);
   return [...tabs, { label: 'More', short: 'More', icon: 'apps', link: '/more', roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'USER'], exact: true }];
 }
+
+/** A business whose subscription ran out sees only Billing (and the More tab on a phone). */
+export const FROZEN_GROUPS: NavGroup[] = [
+  { title: 'Account', items: [{ label: 'Billing', short: 'Billing', icon: 'credit_card', link: '/billing', roles: ['ADMIN', 'MANAGER', 'USER'] }] },
+];

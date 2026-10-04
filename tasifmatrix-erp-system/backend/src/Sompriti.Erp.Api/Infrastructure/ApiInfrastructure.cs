@@ -8,7 +8,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Npgsql;
+using Sompriti.Erp.Application.Billing;
 using Sompriti.Erp.Application.Common;
+using Sompriti.Erp.Domain.Rules;
 using Sompriti.Erp.Domain.Common;
 using Sompriti.Erp.Domain.Enums;
 using Sompriti.Erp.Infrastructure.Persistence;
@@ -35,6 +37,8 @@ public static class ErpClaims
     public const string CustomerUuid = "customer_uuid";
     public const string MustChangePassword = "must_change_password";
     public const string TenantUuid = "tenant_uuid";
+    /// <summary>"true" when the business's subscription has run out (past the grace days).</summary>
+    public const string SubscriptionFrozen = "subscription_frozen";
 }
 
 /// <summary>Reads the current user from the claims created by <see cref="BearerAuthenticationHandler"/>.</summary>
@@ -57,7 +61,7 @@ public sealed class HttpCurrentUser(IHttpContextAccessor accessor) : ICurrentUse
 /// </summary>
 public sealed class BearerAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder,
-    JwtTokenService tokens, AppDbContext db)
+    JwtTokenService tokens, AppDbContext db, BillingSettingsCache billingSettings, TimeProvider clock)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     public const string SchemeName = "Bearer";
@@ -80,9 +84,20 @@ public sealed class BearerAuthenticationHandler(
         if (user is null) return AuthenticateResult.Fail("User is not active.");
 
         // A suspended business is stopped on its very next request, not when its token expires.
-        if (user.TenantUuid is { } tenantUuid
-            && !await db.Tenants.AsNoTracking().AnyAsync(t => t.Uuid == tenantUuid && t.Status == TenantStatus.Active, Context.RequestAborted))
-            return AuthenticateResult.Fail("The business account is suspended.");
+        var frozen = false;
+        if (user.TenantUuid is { } tenantUuid)
+        {
+            var tenant = await db.Tenants.AsNoTracking().Where(t => t.Uuid == tenantUuid)
+                .Select(t => new { t.Status, t.BillingExempt, t.SubscriptionEndsAt, t.OnTrial })
+                .FirstOrDefaultAsync(Context.RequestAborted);
+            if (tenant is null || tenant.Status != TenantStatus.Active)
+                return AuthenticateResult.Fail("The business account is suspended.");
+
+            // An unpaid subscription past its grace days freezes the business except for paying.
+            var billing = await billingSettings.GetAsync(db, Context.RequestAborted);
+            frozen = SubscriptionRules.Evaluate(billing.BillingEnabled, tenant.BillingExempt, tenant.SubscriptionEndsAt, tenant.OnTrial,
+                billing.GraceDays, clock.GetUtcNow()).Frozen;
+        }
 
         var list = new List<Claim>
         {
@@ -92,6 +107,7 @@ public sealed class BearerAuthenticationHandler(
             new(ErpClaims.MustChangePassword, user.MustChangePassword ? "true" : "false"),
         };
         if (user.TenantUuid is { } t) list.Add(new Claim(ErpClaims.TenantUuid, t.ToString()));
+        if (frozen) list.Add(new Claim(ErpClaims.SubscriptionFrozen, "true"));
         if (user.SupplierUuid is { } s) list.Add(new Claim(ErpClaims.SupplierUuid, s.ToString()));
         if (user.CustomerUuid is { } c) list.Add(new Claim(ErpClaims.CustomerUuid, c.ToString()));
 
@@ -302,5 +318,37 @@ public static class ControllerHelpers
             return c.File(bytes, "application/pdf");
         }
         return c.File(bytes, "application/pdf", fileName);
+    }
+}
+
+/// <summary>
+/// A business whose subscription has run out can still sign in and pay, and nothing else: every
+/// other API call answers 402 with code SUBSCRIPTION_EXPIRED, which the app turns into the
+/// Billing page.
+/// </summary>
+public sealed class SubscriptionGateMiddleware(RequestDelegate next)
+{
+    public const string ExpiredCode = "SUBSCRIPTION_EXPIRED";
+
+    public async Task InvokeAsync(HttpContext context)
+    {
+        var path = context.Request.Path;
+        if (context.User.FindFirstValue(ErpClaims.SubscriptionFrozen) == "true"
+            && path.StartsWithSegments("/api")
+            && !path.StartsWithSegments("/api/v1/auth")
+            && !path.StartsWithSegments("/api/v1/billing"))
+        {
+            const string message = "Your subscription has ended. Please renew it on the Billing page to continue.";
+            context.Response.StatusCode = StatusCodes.Status402PaymentRequired;
+            await context.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Status = 402,
+                Title = message,
+                Detail = message,
+                Extensions = { ["code"] = ExpiredCode },
+            });
+            return;
+        }
+        await next(context);
     }
 }

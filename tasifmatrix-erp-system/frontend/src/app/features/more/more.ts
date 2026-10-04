@@ -9,7 +9,8 @@ import { LANGUAGES, Lang, currentLang, setLang, t } from '../../core/i18n/i18n';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { AuthService } from '../../core/auth.service';
 import { ThemeMode, ThemeService } from '../../core/theme.service';
-import { NAV_GROUPS, visibleGroups } from '../../layout/navigation';
+import { FROZEN_GROUPS, NAV_GROUPS, visibleGroups } from '../../layout/navigation';
+import { BillingStore } from '../../core/billing';
 import { openAboutDialog } from '../../shared/about-dialog';
 import { AppLogo } from '../../shared/app-logo';
 import { LabelPipe } from '../../shared/pipes';
@@ -153,7 +154,8 @@ export class MorePage {
   readonly languages = LANGUAGES;
   readonly lang = currentLang;
   readonly role = PUBLISHER_LINE;
-  readonly groups = computed(() => visibleGroups(NAV_GROUPS, this.auth.user()));
+  private readonly billing = inject(BillingStore);
+  readonly groups = computed(() => visibleGroups(this.billing.frozen() ? FROZEN_GROUPS : NAV_GROUPS, this.auth.user()));
   readonly initials = computed(() => {
     const parts = (this.auth.user()?.userName ?? '').trim().split(/\s+/).filter(Boolean);
     return ((parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase() || '?';

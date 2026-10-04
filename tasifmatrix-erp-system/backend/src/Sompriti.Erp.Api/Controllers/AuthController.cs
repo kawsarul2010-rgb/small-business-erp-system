@@ -19,7 +19,7 @@ public sealed class AuthController(AuthService auth) : ControllerBase
 
     /// <summary>What the sign-up page offers (whether businesses may register themselves).</summary>
     [HttpGet("signup-options"), AllowAnonymous]
-    public SignupOptionsDto SignupOptions() => auth.SignupOptions();
+    public Task<SignupOptionsDto> SignupOptions(CancellationToken ct) => auth.SignupOptionsAsync(ct);
 
     [HttpPost("login"), AllowAnonymous, EnableRateLimiting("auth")]
     public Task<AuthResponse> Login(LoginRequest request, CancellationToken ct) => auth.LoginAsync(request, ct);

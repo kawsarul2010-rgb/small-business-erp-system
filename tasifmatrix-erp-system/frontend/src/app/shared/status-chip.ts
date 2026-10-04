@@ -27,7 +27,15 @@ export class StatusChip {
         return 'success';
       case 'DRAFT':
       case 'PENDING':
+      case 'TRIAL':
+      case 'INITIATED':
         return 'info';
+      case 'COMPLETED':
+        return 'success';
+      case 'GRACE_PERIOD':
+        return 'warn';
+      case 'EXPIRED':
+        return 'danger';
       case 'VOID':
       case 'SUSPENDED':
       case 'FAILED':

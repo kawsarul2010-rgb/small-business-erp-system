@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
+import { BillingStore } from './billing';
 
 const NO_AUTH = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/forgot-password', '/auth/reset-password', '/auth/logout'];
 
@@ -10,6 +11,7 @@ const NO_AUTH = ['/auth/login', '/auth/register', '/auth/refresh', '/auth/forgot
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
+  const billing = inject(BillingStore);
 
   const skip = NO_AUTH.some((p) => req.url.includes(p));
   const withToken = (r: HttpRequest<unknown>, token: string | null) =>
@@ -27,6 +29,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
             return throwError(() => refreshError);
           }),
         );
+      }
+
+      // The subscription ran out (past its grace days): only the Billing page works now.
+      if (error.status === 402 && error.error?.code === 'SUBSCRIPTION_EXPIRED') {
+        billing.markFrozen();
       }
 
       if (error.status === 403 && error.error?.code === 'PASSWORD_CHANGE_REQUIRED') {

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sompriti.Erp.Application.Auth;
+using Sompriti.Erp.Application.Billing;
 using Sompriti.Erp.Application.Common;
 using Sompriti.Erp.Domain.Common;
 using Sompriti.Erp.Domain.Entities;
@@ -20,7 +21,7 @@ public sealed record BusinessUsageDto(int ActiveUsers, int Companies, int SalesO
 
 public sealed record BusinessListItemDto(Guid Uuid, string Code, string Name, TenantStatus Status,
     string? ContactName, string? ContactPhone, string? ContactEmail, BusinessUsageDto Usage,
-    DateTimeOffset CreatedDate, Guid Revision, decimal? SmsPrice);
+    DateTimeOffset CreatedDate, Guid Revision, decimal? SmsPrice, BusinessSubscriptionDto? Subscription = null);
 
 public sealed record BusinessAdminDto(Guid Uuid, string UserName, string Email, string PhoneNumber,
     DateTimeOffset? LastLoginDate, bool IsLocked, bool MustChangePassword);
@@ -31,7 +32,8 @@ public sealed record BusinessDetailDto(Guid Uuid, string Code, string Name, Tena
     Guid Revision, DateTimeOffset CreatedDate, string CreatedByUserName, DateTimeOffset UpdatedDate, string UpdatedByUserName,
     decimal? SmsPrice,
     /// <summary>The business's own switch (its Settings); false means it sends no SMS.</summary>
-    bool SmsEnabledByBusiness);
+    bool SmsEnabledByBusiness,
+    BusinessSubscriptionDto? Subscription = null);
 
 /// <summary>A temporary password, shown to the super admin once and never stored in readable form.</summary>
 public sealed record IssuedCredentialsDto(Guid UserUuid, string UserName, string Email, string TemporaryPassword);
@@ -41,7 +43,7 @@ public sealed record CreatedBusinessDto(BusinessDetailDto Business, IssuedCreden
 public sealed record BusinessAdminRequest(string? UserName, string? Email, string? PhoneNumber);
 
 public sealed record CreateBusinessRequest(string? Code, string? Name, string? ContactName, string? ContactEmail,
-    string? ContactPhone, string? Notes, BusinessAdminRequest? Admin, decimal? SmsPrice = null);
+    string? ContactPhone, string? Notes, BusinessAdminRequest? Admin, decimal? SmsPrice = null, Guid? BusinessSizeUuid = null);
 
 public sealed record UpdateBusinessRequest(string? Code, string? Name, string? ContactName, string? ContactEmail,
     string? ContactPhone, string? Notes, Guid? Revision, decimal? SmsPrice = null);
@@ -74,7 +76,7 @@ public sealed record BusinessSmsUsageDto(decimal? SmsPrice, IReadOnlyList<SmsMon
 /// business's own records - only counts and its admin accounts.
 /// </summary>
 public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, IPasswordHasher hasher,
-    AuthService auth, TimeProvider clock)
+    AuthService auth, TimeProvider clock, BillingSettingsCache billingSettings)
 {
     private void EnsureSuperAdmin()
     {
@@ -121,8 +123,10 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
 
         var page = await tenants.OrderBy(t => t.TenantName).ToPagedAsync(q, t => t, ct);
         var usage = await UsageAsync(page.Items.Select(t => t.Uuid).ToList(), ct);
+        var subscriptions = await SubscriptionsAsync(page.Items, ct);
         var items = page.Items.Select(t => new BusinessListItemDto(t.Uuid, t.TenantCode, t.TenantName, t.Status,
-            t.ContactName, Phone(t.ContactPhone), t.ContactEmail, usage[t.Uuid], t.CreatedDate, t.Revision, t.SmsPrice)).ToList();
+            t.ContactName, Phone(t.ContactPhone), t.ContactEmail, usage[t.Uuid], t.CreatedDate, t.Revision, t.SmsPrice,
+            subscriptions[t.Uuid])).ToList();
         return new PagedResult<BusinessListItemDto>(items, page.Page, page.PageSize, page.TotalCount);
     }
 
@@ -143,7 +147,24 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
         return new BusinessDetailDto(t.Uuid, t.TenantCode, t.TenantName, t.Status, t.ContactName, t.ContactEmail,
             Phone(t.ContactPhone), t.Notes, t.SuspendedDate, t.SuspendReason, usage,
             admins.Select(a => a with { PhoneNumber = BdMobile.ToDisplay(a.PhoneNumber) }).ToList(),
-            t.Revision, t.CreatedDate, t.CreatedByUserName, t.UpdatedDate, t.UpdatedByUserName, t.SmsPrice, smsEnabled);
+            t.Revision, t.CreatedDate, t.CreatedByUserName, t.UpdatedDate, t.UpdatedByUserName, t.SmsPrice, smsEnabled,
+            (await SubscriptionsAsync([t], ct))[t.Uuid]);
+    }
+
+    /// <summary>Each business's subscription as of now, with size and package names.</summary>
+    private async Task<Dictionary<Guid, BusinessSubscriptionDto>> SubscriptionsAsync(IReadOnlyCollection<Tenant> tenants, CancellationToken ct)
+    {
+        var settings = await billingSettings.GetAsync(db, ct);
+        var sizes = await db.BusinessSizes.AsNoTracking().ToDictionaryAsync(x => x.Uuid, x => x.SizeName, ct);
+        var plans = await db.SubscriptionPlans.AsNoTracking().ToDictionaryAsync(x => x.Uuid, x => x.PlanName, ct);
+        var now = clock.GetUtcNow();
+        return tenants.ToDictionary(t => t.Uuid, t =>
+        {
+            var size = t.BusinessSizeUuid is { } s ? sizes.GetValueOrDefault(s) : null;
+            var plan = t.SubscriptionPlanUuid is { } p ? plans.GetValueOrDefault(p) : null;
+            return new BusinessSubscriptionDto(BillingMapping.Status(t, settings, now, plan, size), t.BusinessSizeUuid, size,
+                t.SubscriptionPlanUuid, plan, t.BillingExempt);
+        });
     }
 
     /// <summary>
@@ -257,7 +278,16 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
             ContactPhone = contactPhone,
             Notes = Validator.Clean(r.Notes),
             SmsPrice = smsPrice,
+            BusinessSizeUuid = r.BusinessSizeUuid,
         };
+        if (r.BusinessSizeUuid is { } sizeId && !await db.BusinessSizes.AnyAsync(x => x.Uuid == sizeId, ct))
+            throw DomainException.Validation("businessSizeUuid", "This size does not exist.");
+        var billing = await billingSettings.GetAsync(db, ct);
+        if (billing.BillingEnabled)
+        {
+            tenant.SubscriptionEndsAt = clock.GetUtcNow().AddDays(billing.TrialDays);
+            tenant.OnTrial = billing.TrialDays > 0;
+        }
         var (user, password) = NewAdmin(tenant.Uuid, admin);
 
         // Two saves inside one transaction: the admin row references the business, and EF Core only
