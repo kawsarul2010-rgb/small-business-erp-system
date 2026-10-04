@@ -219,6 +219,10 @@ public sealed class BkashGateway(HttpClient http) : IBkashGateway
     private static string? Str(JsonElement json, string name) =>
         json.ValueKind == JsonValueKind.Object && json.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
-    private static string Message(JsonElement json) =>
-        Str(json, "statusMessage") ?? Str(json, "errorMessage") ?? Str(json, "message") ?? Str(json, "msg") ?? "Unknown error from bKash.";
+    private static string Message(JsonElement json)
+    {
+        var text = Str(json, "statusMessage") ?? Str(json, "errorMessage") ?? Str(json, "message") ?? Str(json, "msg") ?? "Unknown error from bKash.";
+        var code = Str(json, "statusCode") ?? Str(json, "errorCode");
+        return code is null or "0000" ? text : $"{text} (code {code})";
+    }
 }

@@ -172,18 +172,39 @@ public sealed class BillingService(ICurrentUser currentUser, ISystemDbFactory sy
         if (payment is null) return new CallbackOutcome("failed", null);
         if (payment.Status == BillingPaymentStatus.Completed) return new CallbackOutcome("success", payment.InvoiceNumber);
 
-        switch (status?.Trim().ToLowerInvariant())
+        var outcome = status?.Trim().ToLowerInvariant();
+        logger.LogInformation("bKash callback for {Invoice}: paymentID {PaymentId}, status {Status}", payment.InvoiceNumber, paymentId, status);
+        if (outcome == "success")
         {
-            case "success":
-                var done = await ConfirmWithBkashAsync(sys, payment, execute: true, ct);
-                return new CallbackOutcome(done.Status == BillingPaymentStatus.Completed ? "success" : "failed", payment.InvoiceNumber);
-            case "cancel":
-                await ledger.FailAsync(sys, payment.Uuid, BillingPaymentStatus.Cancelled, "Cancelled on the bKash page.", ct);
-                return new CallbackOutcome("cancelled", payment.InvoiceNumber);
-            default:
-                await ledger.FailAsync(sys, payment.Uuid, BillingPaymentStatus.Failed, "The payment failed on the bKash page.", ct);
-                return new CallbackOutcome("failed", payment.InvoiceNumber);
+            var done = await ConfirmWithBkashAsync(sys, payment, execute: true, ct);
+            return new CallbackOutcome(done.Status == BillingPaymentStatus.Completed ? "success" : "failed", payment.InvoiceNumber);
         }
+
+        // Failure or cancel: ask bKash what happened, so the payment shows bKash's own reason
+        // (and is still recorded if it went through after all).
+        var reason = outcome == "cancel" ? "Cancelled on the bKash page." : "The payment failed on the bKash page.";
+        var credentials = BillingMapping.Bkash(await settingsCache.GetAsync(sys, ct), protector);
+        if (credentials is not null)
+        {
+            try
+            {
+                var check = await bkash.QueryAsync(credentials, paymentId, ct);
+                logger.LogInformation("bKash status of {Invoice}: {TransactionStatus} - {Message}", payment.InvoiceNumber, check.TransactionStatus, check.Message);
+                if (check.Completed)
+                {
+                    await ledger.CompleteAsync(sys, payment.Uuid, check.TrxId, check.PayerAccount, null, ct);
+                    return new CallbackOutcome("success", payment.InvoiceNumber);
+                }
+                var detail = string.Join(" - ", new[] { check.TransactionStatus, check.Message }.Where(x => !string.IsNullOrWhiteSpace(x)));
+                if (detail.Length > 0) reason = $"{reason} bKash: {detail}";
+            }
+            catch (BkashException e)
+            {
+                logger.LogWarning("bKash status query failed for {Invoice}: {Message}", payment.InvoiceNumber, e.Message);
+            }
+        }
+        await ledger.FailAsync(sys, payment.Uuid, outcome == "cancel" ? BillingPaymentStatus.Cancelled : BillingPaymentStatus.Failed, reason, ct);
+        return new CallbackOutcome(outcome == "cancel" ? "cancelled" : "failed", payment.InvoiceNumber);
     }
 
     /// <summary>"Check again": asks bKash about a payment still waiting (e.g. the browser closed before returning).</summary>
@@ -227,6 +248,7 @@ public sealed class BillingService(ICurrentUser currentUser, ISystemDbFactory sy
             logger.LogWarning("bKash query failed for {Invoice}: {Message}", payment.InvoiceNumber, e.Message);
             return payment; // unknown for now: stays "waiting" and can be checked again
         }
+        logger.LogInformation("bKash result for {Invoice}: {TransactionStatus} - {Message}", payment.InvoiceNumber, result.TransactionStatus, result.Message);
 
         if (result.Completed)
         {

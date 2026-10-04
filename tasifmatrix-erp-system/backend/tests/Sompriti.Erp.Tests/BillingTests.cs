@@ -103,7 +103,7 @@ public class BkashGatewayTests
         var fake = new FakeBkash { ExecuteReply = """{"statusCode":"2023","statusMessage":"Insufficient Balance"}""" };
         var result = await new BkashGateway(new HttpClient(fake)).ExecuteAsync(Creds("error-user"), "PAY1", CancellationToken.None);
         Assert.False(result.Completed);
-        Assert.Equal("Insufficient Balance", result.Message);
+        Assert.Equal("Insufficient Balance (code 2023)", result.Message);
     }
 }
 
