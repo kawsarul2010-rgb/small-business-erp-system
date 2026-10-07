@@ -59,6 +59,7 @@ public interface IAppDbContext
     DbSet<SubscriptionPlanPrice> SubscriptionPlanPrices { get; }
     DbSet<BillingSettings> BillingSettings { get; }
     DbSet<BillingPayment> BillingPayments { get; }
+    DbSet<SuperAdminPost> SuperAdminPosts { get; }
 
     DbSet<TEntity> Set<TEntity>() where TEntity : class;
     DatabaseFacade Database { get; }

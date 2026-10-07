@@ -2,7 +2,8 @@
 
 /** SUPER_ADMIN is the platform owner: it manages businesses and belongs to none. */
 export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'USER';
-export type BusinessStatus = 'ACTIVE' | 'SUSPENDED';
+/** CLOSED: the business's last admin deleted it; its records are gone and it cannot be reopened. */
+export type BusinessStatus = 'ACTIVE' | 'SUSPENDED' | 'CLOSED';
 export type RecordStatus = 'ACTIVE' | 'DELETED';
 export type Uom = 'PCS' | 'BOX' | 'KG' | 'LITRE';
 export type QuantityType = 'PCS' | 'BOX' | 'KG' | 'LITRE';
@@ -434,6 +435,8 @@ export interface BusinessDetail {
   notes: string | null;
   suspendedDate: string | null;
   suspendReason: string | null;
+  /** When its last admin closed it. */
+  closedDate?: string | null;
   usage: BusinessUsage;
   admins: BusinessAdmin[];
   revision: string;
@@ -627,4 +630,42 @@ export interface BusinessSubscription {
   planUuid: string | null;
   planName: string | null;
   billingExempt: boolean;
+}
+
+// ---------------------------------------------------------------- posts from the super admin
+/** Where a post appears: ALL (website and Android app), WEB (website only), APP (Android app only). */
+export type PostChannel = 'ALL' | 'WEB' | 'APP';
+
+/** A post as a business reads it. */
+export interface PostItem {
+  uuid: string;
+  title: string;
+  body: string;
+  isPinned: boolean;
+  publishedDate: string;
+  /** Published after the person last opened the Announcements page. */
+  unread: boolean;
+}
+
+export interface PostBusiness {
+  uuid: string;
+  name: string;
+  code: string;
+}
+
+/** A post as the super admin manages it. */
+export interface PlatformPost {
+  uuid: string;
+  title: string;
+  body: string;
+  showOn: PostChannel;
+  allBusinesses: boolean;
+  businesses: PostBusiness[];
+  adminsOnly: boolean;
+  isPinned: boolean;
+  isPublished: boolean;
+  publishedDate: string | null;
+  updatedDate: string;
+  updatedByUserName: string;
+  revision: string;
 }

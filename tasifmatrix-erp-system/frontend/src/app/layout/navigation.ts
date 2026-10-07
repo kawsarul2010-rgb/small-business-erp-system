@@ -10,6 +10,8 @@ export interface NavItem {
   exact?: boolean;
   /** Extra condition, e.g. a USER must be linked to a buyer. */
   show?: (user: CurrentUser) => boolean;
+  /** Shows a count next to the item: 'posts' is the number of unread announcements. */
+  badge?: 'posts';
 }
 
 export interface NavGroup {
@@ -28,11 +30,15 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Businesses', short: 'Businesses', icon: 'storefront', link: '/platform/businesses', roles: ['SUPER_ADMIN'] },
       { label: 'Subscriptions', short: 'Billing', icon: 'credit_card', link: '/platform/billing', roles: ['SUPER_ADMIN'] },
+      { label: 'Posts', short: 'Posts', icon: 'campaign', link: '/platform/posts', roles: ['SUPER_ADMIN'] },
     ],
   },
   {
     title: 'Overview',
-    items: [{ label: 'Dashboard', short: 'Home', icon: 'dashboard', link: '/', roles: ['ADMIN', 'MANAGER', 'USER'], exact: true }],
+    items: [
+      { label: 'Dashboard', short: 'Home', icon: 'dashboard', link: '/', roles: ['ADMIN', 'MANAGER', 'USER'], exact: true },
+      { label: 'Announcements', short: 'News', icon: 'campaign', link: '/announcements', roles: ['ADMIN', 'MANAGER', 'USER'], badge: 'posts' },
+    ],
   },
   {
     title: 'Transactions',
@@ -93,7 +99,7 @@ export function bottomTabs(user: CurrentUser | null): NavItem[] {
   const all = visibleGroups(NAV_GROUPS, user).flatMap((g) => g.items);
   const pick = (link: string) => all.find((i) => i.link === link);
   const wanted =
-    user.role === 'SUPER_ADMIN' ? ['/platform/businesses', '/platform/billing']
+    user.role === 'SUPER_ADMIN' ? ['/platform/businesses', '/platform/billing', '/platform/posts']
     : user.role === 'ADMIN' ? ['/', '/sales-orders', '/purchase-orders', '/stock']
       : user.role === 'MANAGER' ? ['/', '/sales-orders', '/customers', '/stock']
         : ['/', '/sales-orders', '/purchase-orders', '/reports/dues'];
@@ -101,7 +107,13 @@ export function bottomTabs(user: CurrentUser | null): NavItem[] {
   return [...tabs, { label: 'More', short: 'More', icon: 'apps', link: '/more', roles: ['SUPER_ADMIN', 'ADMIN', 'MANAGER', 'USER'], exact: true }];
 }
 
-/** A business whose subscription ran out sees only Billing (and the More tab on a phone). */
+/** A business whose subscription ran out sees only Billing and Announcements (and the More tab on a phone). */
 export const FROZEN_GROUPS: NavGroup[] = [
-  { title: 'Account', items: [{ label: 'Billing', short: 'Billing', icon: 'credit_card', link: '/billing', roles: ['ADMIN', 'MANAGER', 'USER'] }] },
+  {
+    title: 'Account',
+    items: [
+      { label: 'Billing', short: 'Billing', icon: 'credit_card', link: '/billing', roles: ['ADMIN', 'MANAGER', 'USER'] },
+      { label: 'Announcements', short: 'News', icon: 'campaign', link: '/announcements', roles: ['ADMIN', 'MANAGER', 'USER'], badge: 'posts' },
+    ],
+  },
 ];

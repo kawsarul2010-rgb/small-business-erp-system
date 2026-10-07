@@ -26,7 +26,9 @@ public sealed record RegisterBusinessRequest(string? BusinessName, string? Busin
 /// the sizes to choose from, the free trial and the packages with their price for each size.
 /// </summary>
 public sealed record SignupOptionsDto(bool BusinessSignup, bool BillingEnabled = false, int TrialDays = 0,
-    IReadOnlyList<SizeOptionDto>? Sizes = null, IReadOnlyList<PlanOfferDto>? Plans = null);
+    IReadOnlyList<SizeOptionDto>? Sizes = null, IReadOnlyList<PlanOfferDto>? Plans = null,
+    /// <summary>The support contact set by the super admin (shown on the privacy and account deletion pages).</summary>
+    string? SupportEmail = null, string? SupportPhone = null);
 public sealed record LoginRequest(string? Email, string? Password);
 public sealed record RefreshRequest(string? RefreshToken);
 public sealed record ForgotPasswordRequest(string? Email);
@@ -58,7 +60,7 @@ public sealed class AuthOptions
 public sealed class AuthService(
     IAppDbContext db, ICurrentUser currentUser, IPasswordHasher hasher, ITokenService tokens, IEmailSender email,
     IOptions<AuthOptions> authOptions, IOptions<AppOptions> appOptions, IBusinessProfile business,
-    TimeProvider clock, ILogger<AuthService> logger, BillingSettingsCache billingSettings)
+    TimeProvider clock, ILogger<AuthService> logger, BillingSettingsCache billingSettings, ISystemDbFactory systemDb)
 {
     private readonly AuthOptions _opt = authOptions.Value;
 
@@ -99,8 +101,9 @@ public sealed class AuthService(
 
     public async Task<SignupOptionsDto> SignupOptionsAsync(CancellationToken ct)
     {
-        // Signed out: this context is the database owner, so the billing tables are readable.
-        var s = await billingSettings.GetAsync(db, ct);
+        // The privacy and account deletion pages ask too, possibly signed in: the settings (which hold
+        // the bKash account) are not readable by a business, so they are read on the owner connection.
+        var s = await billingSettings.GetAsync(systemDb.Create(), ct);
         var sizes = await db.BusinessSizes.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.SortOrder).ThenBy(x => x.SizeName)
             .Select(x => new SizeOptionDto(x.Uuid, x.SizeName, x.Description)).ToListAsync(ct);
         var plans = new List<PlanOfferDto>();
@@ -113,7 +116,8 @@ public sealed class AuthService(
                     prices.Where(x => x.PlanUuid == p.Uuid).Select(x => new PlanPriceDto(x.SizeUuid, x.Price)).ToList()))
                 .Where(p => p.Prices.Count > 0).ToList();
         }
-        return new SignupOptionsDto(appOptions.Value.AllowBusinessSignup, s.BillingEnabled, s.BillingEnabled ? s.TrialDays : 0, sizes, plans);
+        return new SignupOptionsDto(appOptions.Value.AllowBusinessSignup, s.BillingEnabled, s.BillingEnabled ? s.TrialDays : 0, sizes, plans,
+            s.SupportEmail, s.SupportPhone);
     }
 
     /// <summary>
@@ -404,6 +408,8 @@ public sealed class AuthService(
     {
         if (user.TenantUuid is not { } tenantUuid) return; // super admin
         var status = await db.Tenants.AsNoTracking().Where(t => t.Uuid == tenantUuid).Select(t => (TenantStatus?)t.Status).FirstOrDefaultAsync(ct);
+        if (status == TenantStatus.Closed)
+            throw new DomainException(ErrorKind.Forbidden, ErrorCodes.BusinessSuspended, "This business account was closed.");
         if (status != TenantStatus.Active)
             throw new DomainException(ErrorKind.Forbidden, ErrorCodes.BusinessSuspended,
                 $"This business account is suspended. Please contact {business.ProductName} support.");

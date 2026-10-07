@@ -21,6 +21,7 @@ import { AppLogo } from '../shared/app-logo';
 import { LabelPipe } from '../shared/pipes';
 import { FROZEN_GROUPS, NAV_GROUPS, NavItem, bottomTabs, visibleGroups } from './navigation';
 import { BillingStore } from '../core/billing';
+import { PostsStore } from '../core/posts';
 import { SubscriptionBanner } from './subscription-banner';
 
 @Component({
@@ -88,11 +89,24 @@ export class Shell {
   readonly tabs = computed(() => {
     const tabs = bottomTabs(this.auth.user());
     if (!this.billing.frozen()) return tabs;
-    return [FROZEN_GROUPS[0].items[0], tabs[tabs.length - 1]]; // Billing and More
+    return [...FROZEN_GROUPS[0].items, tabs[tabs.length - 1]]; // Billing, Announcements and More
   });
+
+  readonly posts = inject(PostsStore);
+
+  /** Unread announcements, shown on the menu item that carries the badge. */
+  badgeOf(item: NavItem): number {
+    return item.badge === 'posts' ? this.posts.unread() : 0;
+  }
+
+  /** On a phone the More tab shows a dot when the unread announcements are only reachable through it. */
+  readonly moreDot = computed(() => this.posts.unread() > 0 && !this.tabs().some((tab) => tab.badge === 'posts'));
 
   constructor() {
     this.billing.load();
+    this.posts.loadUnread();
+    // New posts show up without signing in again: re-checked on navigation, at most every few minutes.
+    this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => this.posts.refreshIfStale());
   }
 
   /** Page title for the mobile top bar (set by the route's `title`). */

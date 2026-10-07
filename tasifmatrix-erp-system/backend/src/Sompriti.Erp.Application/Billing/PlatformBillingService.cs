@@ -311,6 +311,7 @@ public sealed class PlatformBillingService(IAppDbContext db, ICurrentUser curren
     {
         EnsureSuperAdmin();
         var t = (await db.Tenants.FirstOrDefaultAsync(x => x.Uuid == businessId, ct)).OrNotFound("Business");
+        Platform.PlatformService.EnsureNotClosed(t);
         if (r.SizeUuid is { } sid)
         {
             if (!await db.BusinessSizes.AnyAsync(x => x.Uuid == sid, ct)) throw DomainException.Validation("sizeUuid", "This size does not exist.");
@@ -332,6 +333,7 @@ public sealed class PlatformBillingService(IAppDbContext db, ICurrentUser curren
     {
         EnsureSuperAdmin();
         var t = (await db.Tenants.AsNoTracking().FirstOrDefaultAsync(x => x.Uuid == businessId, ct)).OrNotFound("Business");
+        Platform.PlatformService.EnsureNotClosed(t);
         var plan = r.PlanUuid is { } pid ? await db.SubscriptionPlans.AsNoTracking().FirstOrDefaultAsync(x => x.Uuid == pid, ct) : null;
         var months = plan?.DurationMonths ?? r.Months;
         new Validator()

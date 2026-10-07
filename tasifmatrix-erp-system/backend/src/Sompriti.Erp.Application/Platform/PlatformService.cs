@@ -33,7 +33,9 @@ public sealed record BusinessDetailDto(Guid Uuid, string Code, string Name, Tena
     decimal? SmsPrice,
     /// <summary>The business's own switch (its Settings); false means it sends no SMS.</summary>
     bool SmsEnabledByBusiness,
-    BusinessSubscriptionDto? Subscription = null);
+    BusinessSubscriptionDto? Subscription = null,
+    /// <summary>When the business's last admin closed it (its records were deleted).</summary>
+    DateTimeOffset? ClosedDate = null);
 
 /// <summary>A temporary password, shown to the super admin once and never stored in readable form.</summary>
 public sealed record IssuedCredentialsDto(Guid UserUuid, string UserName, string Email, string TemporaryPassword);
@@ -103,7 +105,7 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
         var prices = await db.Tenants.AsNoTracking().Where(t => t.SmsPrice != null)
             .ToDictionaryAsync(t => t.Uuid, t => t.SmsPrice!.Value, ct);
         var amount = sms.Sum(x => prices.TryGetValue(x.Tenant, out var price) ? x.Parts * price : 0m);
-        return new PlatformSummaryDto(statuses.Count, statuses.Count(s => s == TenantStatus.Active),
+        return new PlatformSummaryDto(statuses.Count(s => s != TenantStatus.Closed), statuses.Count(s => s == TenantStatus.Active),
             statuses.Count(s => s == TenantStatus.Suspended), users, sales + purchases,
             sms.Sum(x => x.Messages), sms.Sum(x => x.Parts), Money.Round(amount));
     }
@@ -148,7 +150,7 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
             Phone(t.ContactPhone), t.Notes, t.SuspendedDate, t.SuspendReason, usage,
             admins.Select(a => a with { PhoneNumber = BdMobile.ToDisplay(a.PhoneNumber) }).ToList(),
             t.Revision, t.CreatedDate, t.CreatedByUserName, t.UpdatedDate, t.UpdatedByUserName, t.SmsPrice, smsEnabled,
-            (await SubscriptionsAsync([t], ct))[t.Uuid]);
+            (await SubscriptionsAsync([t], ct))[t.Uuid], t.ClosedDate);
     }
 
     /// <summary>Each business's subscription as of now, with size and package names.</summary>
@@ -313,6 +315,7 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
         var smsPrice = ValidateSmsPrice(r.SmsPrice);
         var tenant = (await db.Tenants.FirstOrDefaultAsync(t => t.Uuid == id, ct)).OrNotFound("Business");
         RevisionGuard.Check(db, tenant, r.Revision ?? Guid.Empty);
+        EnsureNotClosed(tenant);
         await EnsureCodeFreeAsync(code, exceptId: id, ct);
 
         tenant.TenantCode = code;
@@ -337,6 +340,7 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
         new Validator().Required("reason", reason, "Reason", 500).ThrowIfInvalid();
         var tenant = (await db.Tenants.FirstOrDefaultAsync(t => t.Uuid == id, ct)).OrNotFound("Business");
         RevisionGuard.Check(db, tenant, r.Revision ?? Guid.Empty);
+        EnsureNotClosed(tenant);
         if (tenant.Status == TenantStatus.Suspended)
             throw DomainException.Rule(ErrorCodes.InvalidStatusTransition, "This business is already suspended.");
 
@@ -358,6 +362,7 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
         EnsureSuperAdmin();
         var tenant = (await db.Tenants.FirstOrDefaultAsync(t => t.Uuid == id, ct)).OrNotFound("Business");
         RevisionGuard.Check(db, tenant, r.Revision);
+        EnsureNotClosed(tenant);
         if (tenant.Status == TenantStatus.Active)
             throw DomainException.Rule(ErrorCodes.InvalidStatusTransition, "This business is already active.");
         tenant.Status = TenantStatus.Active;
@@ -371,7 +376,7 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
     public async Task<IssuedCredentialsDto> AddAdminAsync(Guid id, BusinessAdminRequest r, CancellationToken ct)
     {
         EnsureSuperAdmin();
-        if (!await db.Tenants.AnyAsync(t => t.Uuid == id, ct)) throw DomainException.NotFound("Business");
+        EnsureNotClosed((await db.Tenants.AsNoTracking().FirstOrDefaultAsync(t => t.Uuid == id, ct)).OrNotFound("Business"));
         var admin = await ValidateAdminAsync(r, "", ct);
         var (user, password) = NewAdmin(id, admin);
         db.Users.Add(user);
@@ -400,6 +405,13 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
     }
 
     // ------------------------------------------------------------------ helpers
+
+    /// <summary>A closed business was deleted by its last admin; it cannot be changed or reopened.</summary>
+    public static void EnsureNotClosed(Tenant tenant)
+    {
+        if (tenant.Status == TenantStatus.Closed)
+            throw DomainException.Rule(ErrorCodes.InvalidStatusTransition, "This business was closed by its admin and its records were deleted. It cannot be changed.");
+    }
 
     private sealed record ValidAdmin(string UserName, string Email, string Phone);
 

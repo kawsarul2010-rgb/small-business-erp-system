@@ -6,7 +6,7 @@ import { SubscriptionStatus } from './models';
 import { t } from './i18n/i18n';
 
 /** Screens a business can still open when its subscription has run out. */
-const OPEN_WHEN_FROZEN = ['/billing', '/profile', '/change-password', '/more', '/payment-result'];
+const OPEN_WHEN_FROZEN = ['/billing', '/announcements', '/profile', '/change-password', '/more', '/payment-result'];
 
 /**
  * The signed-in business's subscription, shared by the shell (banner, menu), the Billing page and

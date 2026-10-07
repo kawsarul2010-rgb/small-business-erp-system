@@ -9,8 +9,11 @@ public enum RecordStatus { Active, Deleted }
 // Appended last so the existing members keep their numeric values.
 public enum Role { Admin, Manager, User, SuperAdmin }
 
-/// <summary>A suspended business cannot sign in; its data is kept untouched.</summary>
-public enum TenantStatus { Active, Suspended }
+/// <summary>
+/// A suspended business cannot sign in; its data is kept untouched. A closed business was deleted
+/// by its last admin: its records are gone and it cannot come back.
+/// </summary>
+public enum TenantStatus { Active, Suspended, Closed }
 
 public enum Uom { Pcs, Box, Kg, Litre }
 
@@ -44,3 +47,6 @@ public enum SubscriptionState { NotBilled, Trial, Active, GracePeriod, Expired }
 public enum BillingPaymentStatus { Initiated, Completed, Failed, Cancelled }
 
 public enum BillingProvider { Bkash, Manual }
+
+/// <summary>Where a super admin post appears: the website and the Android app, or only one of them.</summary>
+public enum PostChannel { All, Web, App }

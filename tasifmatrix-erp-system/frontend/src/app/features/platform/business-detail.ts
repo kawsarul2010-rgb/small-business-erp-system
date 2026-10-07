@@ -36,7 +36,8 @@ import { t } from '../../core/i18n/i18n';
             <div class="subtitle">{{ 'Business code' | t }} <span class="code">{{ b.code }}</span> · {{ 'since {date}' | t: { date: (b.createdDate | date: 'd MMM yyyy') } }}</div>
           </div>
           <div class="actions">
-            @if (layout.isHandset()) {
+            @if (b.status === 'CLOSED') {
+            } @else if (layout.isHandset()) {
               <button mat-icon-button [matMenuTriggerFor]="menu" [attr.aria-label]="'Actions' | t"><mat-icon>more_vert</mat-icon></button>
             } @else {
               <button mat-stroked-button (click)="edit(b)"><mat-icon>edit</mat-icon>{{ 'Edit' | t }}</button>
@@ -59,6 +60,15 @@ import { t } from '../../core/i18n/i18n';
         </div>
         @if (busy()) { <mat-progress-bar mode="indeterminate" class="busy" /> }
 
+        @if (b.status === 'CLOSED') {
+          <div class="card card-pad suspended">
+            <mat-icon>delete_forever</mat-icon>
+            <div>
+              <strong>{{ (b.closedDate ? 'Closed on {date}.' : 'Closed.') | t: { date: (b.closedDate | date: 'd MMM yyyy') } }}</strong>
+              {{ 'Its only admin deleted their account, which closed the business: its records and accounts were deleted. Its subscription payments are kept. It cannot be reopened.' | t }}
+            </div>
+          </div>
+        }
         @if (b.status === 'SUSPENDED') {
           <div class="card card-pad suspended">
             <mat-icon>block</mat-icon>
@@ -88,10 +98,12 @@ import { t } from '../../core/i18n/i18n';
                 <h2 class="card-title">{{ 'Subscription' | t }}</h2>
                 <div class="muted small">{{ 'What this business pays you for the app.' | t }}</div>
               </div>
-              <div class="sub-actions">
-                <button mat-stroked-button (click)="editSubscription(b, s)"><mat-icon>tune</mat-icon>{{ 'Change' | t }}</button>
-                @if (!s.billingExempt) { <button mat-flat-button (click)="recordPayment(b, s)"><mat-icon>add_card</mat-icon>{{ 'Record payment' | t }}</button> }
-              </div>
+              @if (b.status !== 'CLOSED') {
+                <div class="sub-actions">
+                  <button mat-stroked-button (click)="editSubscription(b, s)"><mat-icon>tune</mat-icon>{{ 'Change' | t }}</button>
+                  @if (!s.billingExempt) { <button mat-flat-button (click)="recordPayment(b, s)"><mat-icon>add_card</mat-icon>{{ 'Record payment' | t }}</button> }
+                </div>
+              }
             </div>
             <div class="sub-grid">
               <div><span class="k">{{ 'Status' | t }}</span>
@@ -134,7 +146,7 @@ import { t } from '../../core/i18n/i18n';
           <div class="card card-pad">
             <div class="section-head">
               <h2 class="card-title">{{ 'Admins' | t }}</h2>
-              @if (!layout.isHandset()) { <button mat-stroked-button (click)="addAdmin(b)"><mat-icon>person_add</mat-icon>{{ 'Add admin' | t }}</button> }
+              @if (!layout.isHandset() && b.status !== 'CLOSED') { <button mat-stroked-button (click)="addAdmin(b)"><mat-icon>person_add</mat-icon>{{ 'Add admin' | t }}</button> }
             </div>
             @for (a of b.admins; track a.uuid) {
               <div class="admin-row">

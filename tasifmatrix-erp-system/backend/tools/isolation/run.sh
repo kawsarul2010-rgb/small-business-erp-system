@@ -25,6 +25,15 @@ psql "$TARGET" -q -v ON_ERROR_STOP=1 -f "$here/audit-defaults.sql" -f "$here/see
 psql "$TARGET" -q -v ON_ERROR_STOP=1 -1 -f "$migrations"/0004_*.sql 2>&1 | grep -v NOTICE || true
 psql "$TARGET" -q -v ON_ERROR_STOP=1 -f "$here/audit-defaults.sql" >/dev/null
 out="$(psql "$TARGET" -q -f "$here/isolation-test.sql" 2>&1)"
+# Then the later migrations, and the account deletion checks on the same data.
+for f in "$migrations"/00*.sql; do
+  case "$(basename "$f")" in 000[1-4]_*) continue ;; esac
+  out="$out
+$(psql "$TARGET" -q -v ON_ERROR_STOP=1 -1 -f "$f" 2>&1 | grep -v NOTICE || true)"
+done
+psql "$TARGET" -q -v ON_ERROR_STOP=1 -f "$here/audit-defaults.sql" >/dev/null
+out="$out
+$(psql "$TARGET" -q -f "$here/account-deletion-test.sql" 2>&1)"
 echo "$out" | grep -E "PASS|FAIL|ERROR" | sed 's/^psql:[^:]*:[0-9]*: //; s/^NOTICE:  //; s/^ *//'
 pass=$(echo "$out" | grep -c PASS || true); bad=$(echo "$out" | grep -cE "FAIL|ERROR" || true)
 echo; echo "$pass passed, $bad failed"

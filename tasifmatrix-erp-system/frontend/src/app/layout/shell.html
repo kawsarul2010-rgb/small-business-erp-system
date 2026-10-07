@@ -78,7 +78,10 @@
     <nav class="bottom-nav" [attr.aria-label]="'Main' | t">
       @for (tab of tabs(); track tab.link + tab.label) {
         <a [routerLink]="tab.link" class="tab" [class.active]="isTabActive(tab)" [attr.aria-current]="isTabActive(tab) ? 'page' : null">
-          <span class="tab-icon"><mat-icon>{{ tab.icon }}</mat-icon></span>
+          <span class="tab-icon"><mat-icon>{{ tab.icon }}</mat-icon>
+            @if (badgeOf(tab); as n) { <span class="badge">{{ n > 9 ? '9+' : n }}</span> }
+            @else if (tab.link === '/more' && moreDot()) { <span class="dot" [attr.aria-label]="'New announcements' | t"></span> }
+          </span>
           <span class="tab-label">{{ (tab.short ?? tab.label) | t }}</span>
         </a>
       }
@@ -115,6 +118,7 @@
                [matTooltip]="collapsed() ? (item.label | t) : ''" matTooltipPosition="right">
               <mat-icon>{{ item.icon }}</mat-icon>
               <span class="label">{{ item.label | t }}</span>
+              @if (badgeOf(item); as n) { <span class="badge" [attr.aria-label]="'{n} unread' | t: { n: n }">{{ n > 9 ? '9+' : n }}</span> }
             </a>
           }
         }

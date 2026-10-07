@@ -6,6 +6,7 @@ using Sompriti.Erp.Application.Common;
 using Sompriti.Erp.Application.MasterData;
 using Sompriti.Erp.Application.Orders;
 using Sompriti.Erp.Application.Platform;
+using Sompriti.Erp.Application.Posts;
 using Sompriti.Erp.Application.Reports;
 using Sompriti.Erp.Application.Settings;
 using Sompriti.Erp.Application.Sms;
@@ -25,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<IBusinessProfile, BusinessProfile>();
         services.AddScoped<PdfMailer>();
         services.AddScoped<AuthService>();
+        services.AddScoped<AccountDeletionService>();
         services.AddScoped<UserService>();
         services.AddScoped<CompanyService>();
         services.AddScoped<CustomerService>();
@@ -42,6 +44,7 @@ public static class DependencyInjection
         services.AddSingleton<SubscriptionLedger>();
         services.AddScoped<BillingService>();
         services.AddScoped<PlatformBillingService>();
+        services.AddScoped<PostService>();
         return services;
     }
 }

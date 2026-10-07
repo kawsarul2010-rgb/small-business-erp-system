@@ -11,6 +11,7 @@ import { AuthService } from '../../core/auth.service';
 import { ThemeMode, ThemeService } from '../../core/theme.service';
 import { FROZEN_GROUPS, NAV_GROUPS, visibleGroups } from '../../layout/navigation';
 import { BillingStore } from '../../core/billing';
+import { PostsStore } from '../../core/posts';
 import { openAboutDialog } from '../../shared/about-dialog';
 import { AppLogo } from '../../shared/app-logo';
 import { LabelPipe } from '../../shared/pipes';
@@ -54,6 +55,7 @@ const GROUP_TONES: Record<string, string> = {
             <a class="row" [routerLink]="item.link">
               <span class="icon-badge" [class]="'icon-badge ' + tone(group.title)"><mat-icon>{{ item.icon }}</mat-icon></span>
               <span class="row-label">{{ item.label | t }}</span>
+              @if (item.badge === 'posts' && posts.unread(); as n) { <span class="row-badge">{{ n > 9 ? '9+' : n }}</span> }
               <mat-icon class="chev">chevron_right</mat-icon>
             </a>
           }
@@ -129,6 +131,8 @@ const GROUP_TONES: Record<string, string> = {
     .row .icon-badge mat-icon { font-size: 19px; width: 19px; height: 19px; }
     .row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .chev { color: var(--erp-faint); font-size: 20px; width: 20px; height: 20px; }
+    .row-badge { min-width: 20px; height: 20px; padding: 0 6px; box-sizing: border-box; display: grid; place-items: center; border-radius: 999px;
+      font-size: 11px; font-weight: 700; color: #fff; background: var(--erp-negative); }
     .logout .row-label { color: var(--erp-negative); }
 
     .appearance { padding: 10px; }
@@ -146,6 +150,7 @@ const GROUP_TONES: Record<string, string> = {
 })
 export class MorePage {
   readonly auth = inject(AuthService);
+  readonly posts = inject(PostsStore);
   readonly theme = inject(ThemeService);
   private readonly dialog = inject(MatDialog);
 

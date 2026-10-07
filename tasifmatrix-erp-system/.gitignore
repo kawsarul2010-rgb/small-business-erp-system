@@ -18,6 +18,9 @@ coverage/
 .DS_Store
 Thumbs.db
 
+# Release bundles (build-aab.sh)
+/release/
+
 # Local secrets
 .env
 appsettings.*.local.json

@@ -44,6 +44,8 @@ public class Tenant : AuditedEntity
     public string? Notes { get; set; }
     public DateTimeOffset? SuspendedDate { get; set; }
     public string? SuspendReason { get; set; }
+    /// <summary>When the last admin closed the business and its records were deleted.</summary>
+    public DateTimeOffset? ClosedDate { get; set; }
     /// <summary>What the platform owner charges this business per SMS part, in taka. Null: not charged.</summary>
     public decimal? SmsPrice { get; set; }
 
@@ -65,6 +67,25 @@ public class BusinessSize : AuditedEntity
     public string? Description { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
+}
+
+/// <summary>
+/// A message from the super admin to the businesses (news, maintenance, how to renew...).
+/// Not owned by a business: TargetBusinessUuids picks who sees it (null: everyone).
+/// </summary>
+public class SuperAdminPost : AuditedEntity
+{
+    public string Title { get; set; } = "";
+    /// <summary>Plain text; line breaks are kept and web addresses become links.</summary>
+    public string Body { get; set; } = "";
+    public PostChannel ShowOn { get; set; } = PostChannel.All;
+    /// <summary>Null: every business. Otherwise only these businesses.</summary>
+    public Guid[]? TargetBusinessUuids { get; set; }
+    public bool AdminsOnly { get; set; }
+    public bool IsPinned { get; set; }
+    public bool IsPublished { get; set; } = true;
+    /// <summary>When it was first published (null while a draft).</summary>
+    public DateTimeOffset? PublishedDate { get; set; }
 }
 
 /// <summary>A package: how long one payment lasts. Its price depends on the business size.</summary>
@@ -157,6 +178,8 @@ public class AppUser : SoftDeletableEntity
     public int FailedLoginCount { get; set; }
     public DateTimeOffset? LockoutEndDate { get; set; }
     public bool MustChangePassword { get; set; }
+    /// <summary>When the person last opened the Announcements page; newer posts are unread.</summary>
+    public DateTimeOffset? PostsSeenAt { get; set; }
 
     /// <summary>Reserved user used for seed data and background jobs.</summary>
     public static readonly Guid SystemUserUuid = new("00000000-0000-0000-0000-000000000001");

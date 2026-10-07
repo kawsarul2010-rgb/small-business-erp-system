@@ -7,7 +7,7 @@ namespace Sompriti.Erp.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/auth")]
-public sealed class AuthController(AuthService auth) : ControllerBase
+public sealed class AuthController(AuthService auth, AccountDeletionService deletion) : ControllerBase
 {
     [HttpPost("register"), AllowAnonymous, EnableRateLimiting("auth")]
     public Task<AuthResponse> Register(RegisterRequest request, CancellationToken ct) => auth.RegisterAsync(request, ct);
@@ -50,6 +50,18 @@ public sealed class AuthController(AuthService auth) : ControllerBase
 
     [HttpGet("me"), Authorize]
     public Task<CurrentUserDto> Me(CancellationToken ct) => auth.MeAsync(ct);
+
+    /// <summary>What deleting the signed-in account involves (whether it closes the business).</summary>
+    [HttpGet("delete-account"), Authorize]
+    public Task<AccountDeletionInfoDto> DeletionInfo(CancellationToken ct) => deletion.InfoAsync(ct);
+
+    /// <summary>Deletes the signed-in account (or closes the business, for its only admin). Open while frozen.</summary>
+    [HttpPost("delete-account"), Authorize, EnableRateLimiting("auth")]
+    public async Task<IActionResult> DeleteAccount(DeleteAccountRequest request, CancellationToken ct)
+    {
+        await deletion.DeleteAsync(request, ct);
+        return NoContent();
+    }
 
     [HttpPost("change-password"), Authorize]
     public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken ct)

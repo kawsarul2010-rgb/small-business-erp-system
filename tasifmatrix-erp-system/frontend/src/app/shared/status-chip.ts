@@ -38,6 +38,7 @@ export class StatusChip {
         return 'danger';
       case 'VOID':
       case 'SUSPENDED':
+      case 'CLOSED':
       case 'FAILED':
       case 'DELETED':
       case 'DECREASE':

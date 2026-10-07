@@ -1,3 +1,4 @@
+import { environment } from '../../environments/environment';
 import { t } from './i18n/i18n';
 
 /**
@@ -31,4 +32,19 @@ export function copyrightLine(now: Date = new Date()): string {
   const year = now.getFullYear();
   const span = year > APP_INFO.since ? `${APP_INFO.since}-${year}` : `${APP_INFO.since}`;
   return t('© {years} {name}. All rights reserved.', { years: span, name: APP_INFO.publisher.name });
+}
+
+/**
+ * The product's website. Inside the Android app that is the server the app talks to (set in
+ * environment.mobile.ts, so it follows a move to a new domain); in a browser it is the address
+ * the page was opened from.
+ */
+export function websiteUrl(): string {
+  const base = environment.apiBaseUrl || (typeof window !== 'undefined' ? window.location.origin : '');
+  return base.replace(/\/+$/, '');
+}
+
+/** "tasifmatrix.com" - the website without https:// for display. */
+export function websiteLabel(url: string = websiteUrl()): string {
+  return url.replace(/^https?:\/\//, '').replace(/^www\./, '');
 }

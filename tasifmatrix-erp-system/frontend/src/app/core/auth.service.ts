@@ -109,6 +109,12 @@ export class AuthService {
     if (redirect) void this.router.navigate(['/login']);
   }
 
+  /** The account (or the whole business) was just deleted: forget the session and say so. */
+  accountDeleted(businessClosed: boolean): void {
+    this.clear();
+    void this.router.navigate(['/delete-account'], { queryParams: { done: businessClosed ? 'business' : 'account' } });
+  }
+
   /** Called when the session can no longer be refreshed. */
   expire(): void {
     this.clear();

@@ -12,6 +12,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 import { NotifyService } from '../../core/notify.service';
+import { PlatformService } from '../../core/platform.service';
 import { applyServerErrors, bdMobileValidator, controlError, passwordValidator } from '../../shared/form-errors';
 import { AuthLayout } from '../../shared/auth-layout';
 import { BUSINESS_CODE_PATTERN, suggestBusinessCode } from '../../shared/business-code';
@@ -94,20 +95,21 @@ type Mode = 'business' | 'join';
                 <mat-error>{{ errB('businessSizeUuid', 'Business size') }}</mat-error>
               </mat-form-field>
             }
-            @if (options()?.billingEnabled) {
+            <!-- In the Android app only the free trial is mentioned: prices and paying stay on the website (Google Play rules). -->
+            @if (options()?.billingEnabled && (!inApp || options()!.trialDays > 0)) {
               <div class="pricing">
                 <mat-icon>sell</mat-icon>
                 <div>
                   @if (options()!.trialDays > 0) {
                     <strong>{{ (options()!.trialDays === 1 ? 'Free for the first day.' : 'Free for the first {n} days.') | t: { n: options()!.trialDays } }}</strong>
-                    {{ 'No payment needed to start.' | t }}
+                    @if (!inApp) { {{ 'No payment needed to start.' | t }} }
                   }
-                  @if (priceLines().length > 0) {
+                  @if (!inApp && priceLines().length > 0) {
                     <div class="price-list">
                       <span class="then">{{ (options()!.trialDays > 0 ? 'Then choose a package:' : 'Packages:') | t }}</span>
                       @for (line of priceLines(); track line) { <span class="price-chip">{{ line }}</span> }
                     </div>
-                  } @else if (sizes().length > 0 && !selectedSize()) {
+                  } @else if (!inApp && sizes().length > 0 && !selectedSize()) {
                     <div class="then">{{ 'Choose your business size to see the prices.' | t }}</div>
                   }
                 </div>
@@ -141,6 +143,7 @@ type Mode = 'business' | 'join';
             @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() | t }}</span></div> }
             @if (busy()) { <mat-progress-bar mode="indeterminate" /> }
             <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">{{ 'Create business account' | t }}</button>
+            <p class="consent">{{ 'By creating an account you agree to our' | t }} <a routerLink="/privacy" target="_blank">{{ 'Privacy policy' | t }}</a>.</p>
             <div class="links"><span></span><a routerLink="/login">{{ 'I already have an account' | t }}</a></div>
           </form>
         }
@@ -182,6 +185,7 @@ type Mode = 'business' | 'join';
             @if (error()) { <div class="alert error" role="alert"><mat-icon>error</mat-icon><span>{{ error() | t }}</span></div> }
             @if (busy()) { <mat-progress-bar mode="indeterminate" /> }
             <button mat-flat-button class="full-width submit cta" type="submit" [disabled]="busy()">{{ 'Create account' | t }}</button>
+            <p class="consent">{{ 'By creating an account you agree to our' | t }} <a routerLink="/privacy" target="_blank">{{ 'Privacy policy' | t }}</a>.</p>
             <div class="links"><span></span><a routerLink="/login">{{ 'I already have an account' | t }}</a></div>
           </form>
         }
@@ -213,12 +217,16 @@ type Mode = 'business' | 'join';
     .pricing { display: flex; gap: 10px; align-items: flex-start; margin: 14px 0 6px; padding: 12px 14px; border-radius: var(--erp-radius-sm);
       background: var(--erp-tint-teal-bg); color: var(--erp-tint-teal-fg); font-size: 13.5px; line-height: 1.5; }
     .pricing mat-icon { flex: none; font-size: 20px; width: 20px; height: 20px; margin-top: 1px; }
+    .consent { margin: 10px 0 0; text-align: center; font-size: 12.5px; color: var(--erp-muted); }
+    .consent a { color: var(--erp-brand); font-weight: 550; }
     .price-list { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
     .price-chip { padding: 2px 10px; border-radius: 999px; background: var(--erp-card); color: var(--erp-text); font-size: 12.5px; font-weight: 600; border: 1px solid var(--erp-border); }
   `,
 })
 export class RegisterPage {
   private readonly auth = inject(AuthService);
+  /** Inside the Android app: no prices (see the pricing block). */
+  readonly inApp = inject(PlatformService).isNative;
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly notify = inject(NotifyService);

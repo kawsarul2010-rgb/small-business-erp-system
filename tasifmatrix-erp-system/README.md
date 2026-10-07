@@ -56,6 +56,11 @@ users out on their next request; reactivating restores everything as it was.
 - Payments on FINAL orders with overpayment protection
 - Two SMS to the customer or supplier (Bangladesh numbers, outbox + retry worker): when an order is finalized and when a payment is added, each with the running account (total, paid, due)
 - Subscriptions (super admin → **Subscriptions**): billing on/off, free trial, extra (grace) days, reminder days; packages (e.g. Monthly / 3 months / Yearly) with a price per business size; business sizes chosen at sign-up; bKash Tokenized Checkout (sandbox or live, credentials stored encrypted); every payment, payments recorded by hand, per-business "never billed", size and paid-until date. Businesses see a reminder banner, pay on **Billing** with bKash, and are paused (only Billing works) after the grace days
+- Inside the Android app there is no paying: the Billing page and the reminder banner show only the status and dates, and the sign-up page shows no prices. Google Play does not allow paying for the app's own subscription outside Google Play billing, nor pointing users to another way to pay; packages, prices and bKash stay on the website
+- Posts (super admin → **Posts**): messages for the businesses (news, maintenance, how to renew). Each post is shown on the website and app, the website only, or the app only; goes to all businesses or chosen ones, optionally to admins only; can be pinned or kept as a draft. Businesses read them on **Announcements** (unread count in the menu; open even when the subscription has ended). Put anything about paying in a **Website only** post
+- About shows the website link (the server address set in `environment.mobile.ts` inside the app)
+- Delete account (**My profile → Delete account**, also on the website): erases the person's name, email, mobile and password, ends their sessions and removes their name from the business's records (which stay with the business). The only admin of a business closes it instead, after typing its code: every business record and account is deleted; the business name, code and subscription payments are kept. Done by the database functions `app_forget_user` / `app_close_business` (migration 0010); `tools/isolation/run.sh` checks them
+- Public pages for Google Play, readable without signing in: **/privacy** (privacy policy) and **/delete-account** (how to delete an account and what is kept), in English and Bangla. They show the support email and phone set in **Subscriptions → Billing**. The text is in `frontend/src/app/features/legal/legal-content.ts`
 - SMS switches: sent only when all three are on - the business (Settings, admin), the customer or supplier (on by default), and the order ("Send SMS", off by default; a business can make new orders start with it on)
 - SMS billing per business: the super admin's Businesses page counts each business's sent SMS (this month, last month, 12-month history) in operator SMS parts, and with a price per SMS shows the amount to invoice
 - PDF invoices, purchase orders and reports under each business's own name; share by WhatsApp or email
@@ -103,12 +108,19 @@ npm run android:apk       # build + sync + ./gradlew assembleDebug
 # APK: frontend/android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Copy that file to an Android phone and open it (allow "install unknown apps"). For Play Store or a signed release build:
+Copy that file to an Android phone and open it (allow "install unknown apps").
+
+**Build for Google Play (signed .aab)**
 
 ```bash
-keytool -genkey -v -keystore tasifmatrix.keystore -alias tasifmatrix -keyalg RSA -keysize 2048 -validity 10000
-cd android && ./gradlew assembleRelease   # configure signing in android/app/build.gradle first
+./build-aab.sh            # from the repository root
+# -> release/tasifmatrix-erp-<version>-<code>.aab
 ```
+
+The first run creates the upload key in `~/tasifmatrix-keys` (back that folder up: every Play update must be signed
+with it). Each run gets a higher version code automatically; the version name comes from `APP_INFO.version` in
+`frontend/src/app/core/app-info.ts`. If the Android project was generated under an older package name, the script
+recreates it as the `appId` in `capacitor.config.ts` (the package name can never change once on Google Play).
 
 `npm run android:open` opens the project in Android Studio, where you can run it on an emulator or a connected phone.
 
@@ -231,4 +243,6 @@ Base path `/api/v1`, JSON (camelCase, enums as `UPPER_SNAKE_CASE`), errors as RF
 | Reports | `GET reports/customers`, `reports/suppliers`, `reports/companies`, `GET dashboard` |
 | SMS | `GET sms`, `POST sms/{id}/retry` (ADMIN) · orders: `POST {id}/sms` `{ sendSms, revision }` |
 | Billing | `GET billing`, `GET billing/status`, `GET billing/payments`, `POST billing/checkout`, `POST billing/size`, `POST billing/payments/{id}/verify`, `GET billing/bkash/callback` (bKash returns here) · super admin: `platform/billing/settings` (+ `test-bkash`), `sizes`, `plans`, `payments`, `businesses/{id}` (+ `/payments` to record a payment) |
+| Posts | `GET posts?channel=web\|app`, `GET posts/unread-count?channel=`, `POST posts/seen` · super admin: `GET/POST platform/posts`, `PUT/DELETE platform/posts/{id}`, `GET platform/posts/businesses` |
+| Account | `GET auth/delete-account` (what deleting involves), `POST auth/delete-account` (password; the only admin also `closeBusiness` + `businessCode`) |
 | Settings | `GET settings` (ADMIN, MANAGER), `PUT settings` (ADMIN): `smsEnabled`, `smsOnNewOrders` |

@@ -7,6 +7,7 @@ import { NavigationEnd, Router, RouterLink } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
 import { AuthService } from '../core/auth.service';
 import { BillingStore } from '../core/billing';
+import { PlatformService } from '../core/platform.service';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 
 /** Written as icon: '...' so the icon font build includes them. */
@@ -21,6 +22,9 @@ const BANNER_ICONS: Record<string, { icon: string }> = {
  * The reminder above every screen while a business's trial or package is ending, during the
  * grace days, and after it has run out. Trial and "ending soon" reminders can be hidden for the
  * rest of the visit; the grace-period warning cannot.
+ *
+ * Inside the Android app it only states the dates: Google Play does not allow asking people to pay
+ * for the app outside Google Play billing, so "pay" and "renew" wording stays on the website.
  */
 @Component({
   selector: 'app-subscription-banner',
@@ -34,25 +38,29 @@ const BANNER_ICONS: Record<string, { icon: string }> = {
             @switch (s.state) {
               @case ('TRIAL') {
                 <strong>{{ (s.daysLeft === 1 ? 'Free trial: 1 day left.' : 'Free trial: {n} days left.') | t: { n: s.daysLeft } }}</strong>
-                {{ 'Choose a package before {date} to keep using the app.' | t: { date: (s.endsAt | date: 'd MMM yyyy') } }}
+                {{ (inApp ? 'Your free trial ends on {date}.' : 'Choose a package before {date} to keep using the app.') | t: { date: (s.endsAt | date: 'd MMM yyyy') } }}
               }
               @case ('ACTIVE') {
                 <strong>{{ (s.daysLeft === 1 ? 'Your package ends tomorrow.' : 'Your package ends in {n} days.') | t: { n: s.daysLeft } }}</strong>
-                {{ 'Renew before {date} to avoid any interruption.' | t: { date: (s.endsAt | date: 'd MMM yyyy') } }}
+                {{ (inApp ? 'It ends on {date}.' : 'Renew before {date} to avoid any interruption.') | t: { date: (s.endsAt | date: 'd MMM yyyy') } }}
               }
               @case ('GRACE_PERIOD') {
                 <strong>{{ 'Your subscription ended on {date}.' | t: { date: (s.endsAt | date: 'd MMM yyyy') } }}</strong>
-                {{ (s.daysLeft === 1 ? 'Please pay your bill within 1 day, otherwise the app will stop working on {date}.' : 'Please pay your bill within {n} days, otherwise the app will stop working on {date}.') | t: { n: s.daysLeft, date: (s.graceEndsAt | date: 'd MMM yyyy') } }}
+                @if (inApp) {
+                  {{ 'The app will stop working on {date}.' | t: { date: (s.graceEndsAt | date: 'd MMM yyyy') } }}
+                } @else {
+                  {{ (s.daysLeft === 1 ? 'Please pay your bill within 1 day, otherwise the app will stop working on {date}.' : 'Please pay your bill within {n} days, otherwise the app will stop working on {date}.') | t: { n: s.daysLeft, date: (s.graceEndsAt | date: 'd MMM yyyy') } }}
+                }
               }
               @case ('EXPIRED') {
                 <strong>{{ 'Your subscription has ended.' | t }}</strong>
-                {{ 'The app is paused until the bill is paid. Your data is safe.' | t }}
+                {{ (inApp ? 'The app is paused. Your data is safe.' : 'The app is paused until the bill is paid. Your data is safe.') | t }}
               }
             }
-            @if (!isAdmin()) { <span class="ask">{{ 'Please ask your admin to renew.' | t }}</span> }
+            @if (!isAdmin()) { <span class="ask">{{ (inApp ? 'Please contact your admin.' : 'Please ask your admin to renew.') | t }}</span> }
           </div>
           @if (!onBilling()) {
-            <a mat-flat-button class="go" routerLink="/billing">{{ (isAdmin() ? (s.state === 'TRIAL' ? 'See packages' : 'Pay now') : 'Details') | t }}</a>
+            <a mat-flat-button class="go" routerLink="/billing">{{ (isAdmin() && !inApp ? (s.state === 'TRIAL' ? 'See packages' : 'Pay now') : 'Details') | t }}</a>
           }
           @if (s.state === 'TRIAL' || s.state === 'ACTIVE') {
             <button mat-icon-button class="close" (click)="hidden.set(true)" [attr.aria-label]="'Hide' | t"><mat-icon>close</mat-icon></button>
@@ -85,6 +93,7 @@ export class SubscriptionBanner {
   private readonly store = inject(BillingStore);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  readonly inApp = inject(PlatformService).isNative;
 
   /** Hidden for this visit (trial / ending soon only). */
   readonly hidden = signal(false);

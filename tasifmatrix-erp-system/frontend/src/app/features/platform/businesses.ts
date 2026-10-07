@@ -61,6 +61,7 @@ import { MoneyPipe } from '../../shared/pipes';
             <mat-button-toggle [value]="null">{{ 'All' | t }}</mat-button-toggle>
             <mat-button-toggle value="ACTIVE">{{ 'Active' | t }}</mat-button-toggle>
             <mat-button-toggle value="SUSPENDED">{{ 'Suspended' | t }}</mat-button-toggle>
+            <mat-button-toggle value="CLOSED">{{ 'Closed' | t }}</mat-button-toggle>
           </mat-button-toggle-group>
         </div>
         @if (list.loading()) { <mat-progress-bar mode="indeterminate" /> }

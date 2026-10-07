@@ -32,6 +32,10 @@ const STATE_ICONS: Record<string, { icon: string }> = {
 /**
  * The business's subscription: where it stands, the packages for its size with their price, paying
  * with bKash (admins), and the payment history. Stays open when the subscription has run out.
+ *
+ * Inside the Android app only where the subscription stands and past payments are shown: Google
+ * Play does not allow paying for the app's own subscription outside Google Play billing, nor
+ * pointing people to another way to pay. Packages, prices and bKash stay on the website.
  */
 @Component({
   selector: 'app-billing',
@@ -41,7 +45,7 @@ const STATE_ICONS: Record<string, { icon: string }> = {
       <div class="page-header">
         <div>
           <h1>{{ 'Billing' | t }}</h1>
-          <div class="subtitle">{{ 'Your subscription to {product} and its payments.' | t: { product: 'Tasif Matrix ERP' } }}</div>
+          <div class="subtitle">{{ (inApp ? 'Your subscription to {product}.' : 'Your subscription to {product} and its payments.') | t: { product: 'Tasif Matrix ERP' } }}</div>
         </div>
       </div>
 
@@ -59,7 +63,7 @@ const STATE_ICONS: Record<string, { icon: string }> = {
                   @case ('NOT_BILLED') { {{ 'No payment needed' | t }} }
                   @case ('TRIAL') { {{ 'Free trial' | t }} }
                   @case ('ACTIVE') { {{ d.status.planName ?? ('Active' | t) }} }
-                  @case ('GRACE_PERIOD') { {{ 'Payment overdue' | t }} }
+                  @case ('GRACE_PERIOD') { {{ (inApp ? 'Grace period' : 'Payment overdue') | t }} }
                   @case ('EXPIRED') { {{ 'Subscription ended' | t }} }
                 }
               </h2>
@@ -70,8 +74,8 @@ const STATE_ICONS: Record<string, { icon: string }> = {
                 @case ('NOT_BILLED') { {{ 'Your business can use the app without a subscription right now.' | t }} }
                 @case ('TRIAL') { {{ (d.status.daysLeft === 1 ? 'Free until {date} - 1 day left.' : 'Free until {date} - {n} days left.') | t: { date: (d.status.endsAt | date: 'd MMMM yyyy'), n: d.status.daysLeft } }} }
                 @case ('ACTIVE') { {{ (d.status.daysLeft === 1 ? 'Paid until {date} - 1 day left.' : 'Paid until {date} - {n} days left.') | t: { date: (d.status.endsAt | date: 'd MMMM yyyy'), n: d.status.daysLeft } }} }
-                @case ('GRACE_PERIOD') { {{ 'Ended on {date}. The app keeps working until {grace} - please pay before then.' | t: { date: (d.status.endsAt | date: 'd MMMM yyyy'), grace: (d.status.graceEndsAt | date: 'd MMMM yyyy') } }} }
-                @case ('EXPIRED') { {{ 'Ended on {date}. Everything is paused until the bill is paid - your data is safe and nothing is deleted.' | t: { date: (d.status.endsAt | date: 'd MMMM yyyy') } }} }
+                @case ('GRACE_PERIOD') { {{ (inApp ? 'Ended on {date}. The app keeps working until {grace}.' : 'Ended on {date}. The app keeps working until {grace} - please pay before then.') | t: { date: (d.status.endsAt | date: 'd MMMM yyyy'), grace: (d.status.graceEndsAt | date: 'd MMMM yyyy') } }} }
+                @case ('EXPIRED') { {{ (inApp ? 'Ended on {date}. Everything is paused - your data is safe and nothing is deleted.' : 'Ended on {date}. Everything is paused until the bill is paid - your data is safe and nothing is deleted.') | t: { date: (d.status.endsAt | date: 'd MMMM yyyy') } }} }
               }
             </p>
             <div class="facts">
@@ -81,7 +85,8 @@ const STATE_ICONS: Record<string, { icon: string }> = {
           </div>
         </section>
 
-        @if (d.billingEnabled && d.status.state !== 'NOT_BILLED') {
+        <!-- packages, prices and paying: website only (see the class comment) -->
+        @if (!inApp && d.billingEnabled && d.status.state !== 'NOT_BILLED') {
           <!-- ---------------------------------------------------------- size, when not chosen yet -->
           @if (!d.sizeUuid) {
             <section class="card card-pad size-pick">
@@ -142,7 +147,7 @@ const STATE_ICONS: Record<string, { icon: string }> = {
         }
 
         <!-- ---------------------------------------------------------- help -->
-        @if (d.supportPhone || d.supportEmail) {
+        @if (!inApp && (d.supportPhone || d.supportEmail)) {
           <p class="help"><mat-icon>support_agent</mat-icon>
             <span>{{ 'Questions about billing?' | t }}
               @if (d.supportPhone) { <a [href]="'tel:' + d.supportPhone">{{ d.supportPhone }}</a> }
@@ -170,7 +175,7 @@ const STATE_ICONS: Record<string, { icon: string }> = {
                 </div>
                 <div class="pay-side">
                   <strong class="nowrap">{{ p.amount | money }}</strong>
-                  @if (p.status === 'INITIATED' && p.provider === 'BKASH') {
+                  @if (!inApp && p.status === 'INITIATED' && p.provider === 'BKASH') {
                     <button mat-stroked-button (click)="verify(p)" [disabled]="busy()" [matTooltip]="'Ask bKash whether this payment went through' | t">{{ 'Check again' | t }}</button>
                   }
                 </div>
@@ -242,6 +247,8 @@ export class BillingPage implements OnInit, OnDestroy {
   private readonly store = inject(BillingStore);
   private readonly notify = inject(NotifyService);
   private readonly platform = inject(PlatformService);
+  /** Inside the Android app: no packages, prices or paying (see the class comment). */
+  readonly inApp = this.platform.isNative;
 
   readonly data = signal<BillingOverview | null>(null);
   readonly payments = signal<BillingPayment[]>([]);
@@ -264,7 +271,7 @@ export class BillingPage implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.load();
-    // In the Android app bKash opens in the phone's browser; refresh when the person comes back.
+    // In the Android app, refresh when the person comes back (a renewal made on the website shows at once).
     if (this.platform.isNative) {
       void CapacitorApp.addListener('resume', () => this.load()).then((h) => (this.resumeListener = h));
     }
@@ -311,15 +318,7 @@ export class BillingPage implements OnInit, OnDestroy {
   pay(plan: PlanOption): void {
     this.busy.set(true);
     this.api.post<{ redirectUrl: string; invoiceNumber: string }>('/billing/checkout', { planUuid: plan.uuid }).subscribe({
-      next: (r) => {
-        if (this.platform.isNative) {
-          window.open(r.redirectUrl, '_system');
-          this.busy.set(false);
-          this.notify.success('Complete the payment in bKash, then come back to the app.');
-        } else {
-          window.location.href = r.redirectUrl;
-        }
-      },
+      next: (r) => { window.location.href = r.redirectUrl; },
       error: (e) => { this.busy.set(false); this.notify.error(e); },
     });
   }

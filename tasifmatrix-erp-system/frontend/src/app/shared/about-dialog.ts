@@ -2,7 +2,8 @@ import { Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { APP_INFO, PUBLISHER_LINE, copyrightLine } from '../core/app-info';
+import { RouterLink } from '@angular/router';
+import { APP_INFO, PUBLISHER_LINE, copyrightLine, websiteLabel, websiteUrl } from '../core/app-info';
 import { AppLogo } from './app-logo';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 
@@ -12,7 +13,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
  */
 @Component({
   selector: 'app-about-dialog',
-  imports: [TranslatePipe, MatDialogModule, MatButtonModule, MatIconModule, AppLogo],
+  imports: [TranslatePipe, RouterLink, MatDialogModule, MatButtonModule, MatIconModule, AppLogo],
   template: `
     <mat-dialog-content class="about">
       <div class="identity">
@@ -27,6 +28,16 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
         <div class="role">{{ role | t }}</div>
       </div>
 
+      <a class="website" [href]="website" target="_blank" rel="noopener noreferrer">
+        <mat-icon>language</mat-icon>
+        <span>
+          <span class="web-label">{{ 'Website' | t }}</span>
+          <span class="web-url">{{ websiteText }}</span>
+        </span>
+        <mat-icon class="open">open_in_new</mat-icon>
+      </a>
+
+      <p class="legal"><a routerLink="/privacy" mat-dialog-close>{{ 'Privacy policy' | t }}</a></p>
       <p class="copyright">{{ copyright() }}</p>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
@@ -44,13 +55,26 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
     .credit .who { margin-top: 6px; font-size: 16px; font-weight: 650; }
     .credit .role { margin-top: 2px; font-size: 13px; color: var(--erp-muted); }
 
-    .copyright { margin: 14px 0 0; font-size: 11.5px; color: var(--erp-faint); }
+    .website { display: flex; align-items: center; gap: 12px; margin: 10px 0 0; padding: 12px 14px; border-radius: 14px; text-align: left;
+      border: 1px solid var(--erp-border); color: inherit; text-decoration: none; transition: background-color .15s ease, border-color .15s ease; }
+    .website:hover { background: var(--erp-card-2); border-color: var(--erp-brand); }
+    .website > mat-icon { flex: none; color: var(--erp-brand); }
+    .website > span { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .web-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--erp-faint); }
+    .web-url { font-size: 14.5px; font-weight: 600; color: var(--erp-brand); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .website .open { font-size: 18px; width: 18px; height: 18px; color: var(--erp-faint); }
+
+    .legal { margin: 14px 0 0; font-size: 13px; }
+    .legal a { color: var(--erp-brand); font-weight: 550; }
+    .copyright { margin: 6px 0 0; font-size: 11.5px; color: var(--erp-faint); }
   `,
 })
 export class AboutDialog {
   readonly app = APP_INFO;
   readonly role = PUBLISHER_LINE;
   readonly copyright = () => copyrightLine();
+  readonly website = websiteUrl();
+  readonly websiteText = websiteLabel(this.website);
 }
 
 /**

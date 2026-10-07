@@ -9,6 +9,9 @@ export const routes: Routes = [
   { path: 'forgot-password', title: 'Forgot password', loadComponent: () => import('./features/auth/forgot-password').then((m) => m.ForgotPasswordPage) },
   { path: 'reset-password', title: 'Reset password', loadComponent: () => import('./features/auth/reset-password').then((m) => m.ResetPasswordPage) },
   // Where bKash sends the payer back to - also in a browser outside the app, so no sign-in needed.
+  // Public reading pages Google Play links to: open for anyone, signed in or not.
+  { path: 'privacy', title: 'Privacy policy', loadComponent: () => import('./features/legal/legal-pages').then((m) => m.PrivacyPage) },
+  { path: 'delete-account', title: 'Delete your account', loadComponent: () => import('./features/legal/legal-pages').then((m) => m.DeleteAccountPage) },
   { path: 'payment-result', title: 'Payment', loadComponent: () => import('./features/billing/payment-result').then((m) => m.PaymentResultPage) },
 
   // ---------------------------------------------------------------- app shell
@@ -21,6 +24,7 @@ export const routes: Routes = [
       { path: '', pathMatch: 'full', title: 'Dashboard', canActivate: [businessGuard], loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.DashboardPage) },
       { path: 'change-password', title: 'Change password', loadComponent: () => import('./features/auth/change-password').then((m) => m.ChangePasswordPage) },
       { path: 'more', title: 'Menu', loadComponent: () => import('./features/more/more').then((m) => m.MorePage) },
+      { path: 'announcements', title: 'Announcements', canActivate: [businessGuard], loadComponent: () => import('./features/posts/announcements').then((m) => m.AnnouncementsPage) },
       { path: 'profile', title: 'My profile', loadComponent: () => import('./features/profile/profile').then((m) => m.ProfilePage) },
 
       // master data
@@ -61,6 +65,7 @@ export const routes: Routes = [
       { path: 'platform', pathMatch: 'full', redirectTo: 'platform/businesses' },
       { path: 'platform/businesses', title: 'Businesses', canActivate: [roleGuard], data: { roles: ['SUPER_ADMIN'] }, loadComponent: () => import('./features/platform/businesses').then((m) => m.BusinessesPage) },
       { path: 'platform/billing', title: 'Subscriptions', canActivate: [roleGuard], data: { roles: ['SUPER_ADMIN'] }, loadComponent: () => import('./features/platform/platform-billing').then((m) => m.PlatformBillingPage) },
+      { path: 'platform/posts', title: 'Posts', canActivate: [roleGuard], data: { roles: ['SUPER_ADMIN'] }, loadComponent: () => import('./features/platform/platform-posts').then((m) => m.PlatformPostsPage) },
       { path: 'platform/businesses/:id', title: 'Business', canActivate: [roleGuard], data: { roles: ['SUPER_ADMIN'] }, loadComponent: () => import('./features/platform/business-detail').then((m) => m.BusinessDetailPage) },
     ],
   },
