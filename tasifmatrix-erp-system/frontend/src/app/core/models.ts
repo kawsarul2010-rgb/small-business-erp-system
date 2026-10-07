@@ -669,3 +669,27 @@ export interface PlatformPost {
   updatedByUserName: string;
   revision: string;
 }
+
+// ---------------------------------------------------------------- Android app versions
+/** MINOR: the app offers the update. MAJOR: the app cannot be used until it is updated. */
+export type AppUpdateType = 'MINOR' | 'MAJOR';
+export type AppUpdateAdvice = 'UP_TO_DATE' | 'OPTIONAL' | 'REQUIRED';
+
+export interface AppRelease {
+  uuid: string;
+  versionName: string;
+  updateType: AppUpdateType;
+  releaseNotes: string | null;
+  isPublished: boolean;
+  createdDate: string;
+  updatedDate: string;
+  updatedByUserName: string;
+  revision: string;
+}
+
+/** What the installed app learns on start-up. notes: every newer version, newest first. */
+export interface AppVersionCheck {
+  advice: AppUpdateAdvice;
+  latestVersion: string | null;
+  notes: { version: string; updateType: AppUpdateType; releaseNotes: string | null }[];
+}

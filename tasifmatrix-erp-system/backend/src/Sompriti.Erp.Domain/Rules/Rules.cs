@@ -522,3 +522,62 @@ public static class SubscriptionRules
     public static int DaysUntil(DateTimeOffset now, DateTimeOffset until) =>
         until <= now ? 0 : (int)Math.Ceiling((until - now).TotalDays);
 }
+
+/// <summary>An app version name such as "1.2.0": up to four whole numbers separated by dots.</summary>
+public readonly record struct AppVersion(int[] Parts) : IComparable<AppVersion>
+{
+    private static readonly Regex Format = new(@"^\d{1,4}(\.\d{1,4}){0,3}$", RegexOptions.CultureInvariant);
+
+    public static bool TryParse(string? text, out AppVersion version)
+    {
+        version = default;
+        var s = text?.Trim();
+        if (string.IsNullOrEmpty(s) || !Format.IsMatch(s)) return false;
+        version = new AppVersion(s.Split('.').Select(p => int.Parse(p, CultureInfo.InvariantCulture)).ToArray());
+        return true;
+    }
+
+    /// <summary>"1.2" and "1.2.0" are the same version; missing parts count as 0.</summary>
+    public int CompareTo(AppVersion other)
+    {
+        var a = Parts ?? [];
+        var b = other.Parts ?? [];
+        for (var i = 0; i < Math.Max(a.Length, b.Length); i++)
+        {
+            var x = i < a.Length ? a[i] : 0;
+            var y = i < b.Length ? b[i] : 0;
+            if (x != y) return x.CompareTo(y);
+        }
+        return 0;
+    }
+
+    public override string ToString() => string.Join('.', Parts ?? []);
+}
+
+/// <summary>What the installed app must do: nothing, offer the update, or insist on it.</summary>
+public enum AppUpdateAdvice { UpToDate, Optional, Required }
+
+public sealed record AppUpdateCheck(AppUpdateAdvice Advice, AppRelease? Latest, IReadOnlyList<AppRelease> Newer);
+
+public static class AppUpdateRules
+{
+    /// <summary>
+    /// Compares the installed version with the published releases. Any newer MAJOR release makes the
+    /// update required, even when a later MINOR one exists (it still contains the major change).
+    /// An unreadable installed version is treated as up to date rather than locking anyone out.
+    /// </summary>
+    public static AppUpdateCheck Evaluate(string? installed, IEnumerable<AppRelease> releases)
+    {
+        if (!AppVersion.TryParse(installed, out var current)) return new AppUpdateCheck(AppUpdateAdvice.UpToDate, null, []);
+        var newer = releases
+            .Where(r => r.IsPublished)
+            .Select(r => (Release: r, Ok: AppVersion.TryParse(r.VersionName, out var v), Version: v))
+            .Where(x => x.Ok && x.Version.CompareTo(current) > 0)
+            .OrderByDescending(x => x.Version)
+            .Select(x => x.Release)
+            .ToList();
+        if (newer.Count == 0) return new AppUpdateCheck(AppUpdateAdvice.UpToDate, null, []);
+        var advice = newer.Any(r => r.UpdateType == AppUpdateType.Major) ? AppUpdateAdvice.Required : AppUpdateAdvice.Optional;
+        return new AppUpdateCheck(advice, newer[0], newer);
+    }
+}

@@ -65,6 +65,7 @@ export const routes: Routes = [
       { path: 'platform', pathMatch: 'full', redirectTo: 'platform/businesses' },
       { path: 'platform/businesses', title: 'Businesses', canActivate: [roleGuard], data: { roles: ['SUPER_ADMIN'] }, loadComponent: () => import('./features/platform/businesses').then((m) => m.BusinessesPage) },
       { path: 'platform/billing', title: 'Subscriptions', canActivate: [roleGuard], data: { roles: ['SUPER_ADMIN'] }, loadComponent: () => import('./features/platform/platform-billing').then((m) => m.PlatformBillingPage) },
+      { path: 'platform/app-versions', title: 'App versions', canActivate: [roleGuard], data: { roles: ['SUPER_ADMIN'] }, loadComponent: () => import('./features/platform/app-versions').then((m) => m.AppVersionsPage) },
       { path: 'platform/posts', title: 'Posts', canActivate: [roleGuard], data: { roles: ['SUPER_ADMIN'] }, loadComponent: () => import('./features/platform/platform-posts').then((m) => m.PlatformPostsPage) },
       { path: 'platform/businesses/:id', title: 'Business', canActivate: [roleGuard], data: { roles: ['SUPER_ADMIN'] }, loadComponent: () => import('./features/platform/business-detail').then((m) => m.BusinessDetailPage) },
     ],

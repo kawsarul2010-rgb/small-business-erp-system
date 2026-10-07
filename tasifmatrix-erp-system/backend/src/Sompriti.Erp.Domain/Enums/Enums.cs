@@ -50,3 +50,6 @@ public enum BillingProvider { Bkash, Manual }
 
 /// <summary>Where a super admin post appears: the website and the Android app, or only one of them.</summary>
 public enum PostChannel { All, Web, App }
+
+/// <summary>Minor: the app offers the update. Major: the app cannot be used until it is updated.</summary>
+public enum AppUpdateType { Minor, Major }

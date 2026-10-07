@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Sompriti.Erp.Application.AppReleases;
 using Sompriti.Erp.Application.Auth;
 using Sompriti.Erp.Application.Billing;
 using Sompriti.Erp.Application.Common;
@@ -45,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<BillingService>();
         services.AddScoped<PlatformBillingService>();
         services.AddScoped<PostService>();
+        services.AddScoped<AppReleaseService>();
         return services;
     }
 }

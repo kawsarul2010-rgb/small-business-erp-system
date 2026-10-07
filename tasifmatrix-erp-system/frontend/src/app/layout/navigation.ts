@@ -31,6 +31,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Businesses', short: 'Businesses', icon: 'storefront', link: '/platform/businesses', roles: ['SUPER_ADMIN'] },
       { label: 'Subscriptions', short: 'Billing', icon: 'credit_card', link: '/platform/billing', roles: ['SUPER_ADMIN'] },
       { label: 'Posts', short: 'Posts', icon: 'campaign', link: '/platform/posts', roles: ['SUPER_ADMIN'] },
+      { label: 'App versions', short: 'Versions', icon: 'system_update_alt', link: '/platform/app-versions', roles: ['SUPER_ADMIN'] },
     ],
   },
   {

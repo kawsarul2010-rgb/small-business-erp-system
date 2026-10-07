@@ -322,8 +322,8 @@ public static class ControllerHelpers
 }
 
 /// <summary>
-/// A business whose subscription has run out can still sign in, see its billing and read the
-/// super admin's posts, and nothing else: every other API call answers 402 with code
+/// A business whose subscription has run out can still sign in, see its billing, read the
+/// super admin's posts and check for app updates, and nothing else: every other API call answers 402 with code
 /// SUBSCRIPTION_EXPIRED, which the app turns into the Billing page.
 /// </summary>
 public sealed class SubscriptionGateMiddleware(RequestDelegate next)
@@ -337,7 +337,8 @@ public sealed class SubscriptionGateMiddleware(RequestDelegate next)
             && path.StartsWithSegments("/api")
             && !path.StartsWithSegments("/api/v1/auth")
             && !path.StartsWithSegments("/api/v1/billing")
-            && !path.StartsWithSegments("/api/v1/posts"))
+            && !path.StartsWithSegments("/api/v1/posts")
+            && !path.StartsWithSegments("/api/v1/app"))
         {
             // Neutral wording: the Android app shows it too, and payment is not offered there.
             const string message = "Your subscription has ended. The app is paused until it is renewed.";

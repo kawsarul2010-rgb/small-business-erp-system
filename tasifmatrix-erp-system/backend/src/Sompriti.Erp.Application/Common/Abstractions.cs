@@ -60,6 +60,7 @@ public interface IAppDbContext
     DbSet<BillingSettings> BillingSettings { get; }
     DbSet<BillingPayment> BillingPayments { get; }
     DbSet<SuperAdminPost> SuperAdminPosts { get; }
+    DbSet<AppRelease> AppReleases { get; }
 
     DbSet<TEntity> Set<TEntity>() where TEntity : class;
     DatabaseFacade Database { get; }

@@ -88,6 +88,17 @@ public class SuperAdminPost : AuditedEntity
     public DateTimeOffset? PublishedDate { get; set; }
 }
 
+/// <summary>A version of the Android app, entered by the super admin once Google Play has published it.</summary>
+public class AppRelease : AuditedEntity
+{
+    public string Platform { get; set; } = "ANDROID";
+    /// <summary>"1.2.0" - the same version name the app shows in About.</summary>
+    public string VersionName { get; set; } = "";
+    public AppUpdateType UpdateType { get; set; } = AppUpdateType.Minor;
+    public string? ReleaseNotes { get; set; }
+    public bool IsPublished { get; set; } = true;
+}
+
 /// <summary>A package: how long one payment lasts. Its price depends on the business size.</summary>
 public class SubscriptionPlan : AuditedEntity
 {
