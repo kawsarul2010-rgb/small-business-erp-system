@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.tasifmatrix.erp',
+  appId: 'tasifmatrix.business.management.app',
   appName: 'Tasif Matrix ERP',
   webDir: 'dist/frontend',
   android: {

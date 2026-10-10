@@ -11,7 +11,7 @@ const LATER_KEY = 'tasifmatrix.updateLater';
 const LATER_MS = 3 * 24 * 60 * 60 * 1000;
 /** Coming back to the app checks again when the last check is older than this. */
 const RECHECK_MS = 60 * 60 * 1000;
-const FALLBACK_APP_ID = 'com.tasifmatrix.erp';
+const FALLBACK_APP_ID = 'tasifmatrix.business.management.app';
 
 /**
  * Asks the server whether this Android app is out of date (see the super admin's App versions).

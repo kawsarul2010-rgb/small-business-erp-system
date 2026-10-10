@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -29,7 +29,7 @@ import { StatusChip } from '../../shared/status-chip';
  */
 @Component({
   selector: 'app-platform-billing',
-  imports: [TranslatePipe, DatePipe, RouterLink, ReactiveFormsModule, MatTabsModule, MatButtonModule, MatButtonToggleModule, MatIconModule,
+  imports: [TranslatePipe, DatePipe, DecimalPipe, RouterLink, ReactiveFormsModule, MatTabsModule, MatButtonModule, MatButtonToggleModule, MatIconModule,
     MatFormFieldModule, MatInputModule, MatSlideToggleModule, MatProgressBarModule, MatTooltipModule, MoneyPipe, StatusChip, PasswordToggle],
   template: `
     <div class="page">
@@ -222,23 +222,25 @@ import { StatusChip } from '../../shared/status-chip';
         <mat-tab [label]="'Business sizes' | t">
           <div class="tab-body">
             <div class="tab-head">
-              <p class="muted small">{{ 'Businesses choose their size when they sign up; prices depend on it. You can change a business\\'s size on its page.' | t }}</p>
+              <p class="muted small">{{ 'Businesses choose their size when they sign up; prices depend on it. You can change a business\\'s size on its page.' | t }}
+                {{ 'Set the most orders a month for each size: a business above its limit (average of the last 3 months) is flagged on the Businesses page.' | t }}</p>
               <button mat-flat-button (click)="editSize()"><mat-icon>add</mat-icon>{{ 'New size' | t }}</button>
             </div>
             <div class="card table-wrap">
               <table class="grid-table">
-                <thead><tr><th>{{ 'Size' | t }}</th><th>{{ 'Description' | t }}</th><th class="num">{{ 'Businesses' | t }}</th><th>{{ 'Status' | t }}</th><th></th></tr></thead>
+                <thead><tr><th>{{ 'Size' | t }}</th><th>{{ 'Description' | t }}</th><th class="num">{{ 'Orders a month, up to' | t }}</th><th class="num">{{ 'Businesses' | t }}</th><th>{{ 'Status' | t }}</th><th></th></tr></thead>
                 <tbody>
                   @for (z of sizes(); track z.uuid) {
                     <tr [class.inactive]="!z.isActive">
                       <td><strong>{{ z.name }}</strong></td>
                       <td class="muted">{{ z.description }}</td>
+                      <td class="num nowrap">@if (z.maxOrdersPerMonth !== null) { {{ z.maxOrdersPerMonth | number }} } @else { <span class="muted">{{ 'No limit' | t }}</span> }</td>
                       <td class="num">{{ z.businesses }}</td>
                       <td><app-status [value]="z.isActive ? 'ACTIVE' : 'INACTIVE'" /></td>
                       <td class="num"><button mat-icon-button (click)="editSize(z)" [matTooltip]="'Edit' | t"><mat-icon>edit</mat-icon></button></td>
                     </tr>
                   } @empty {
-                    <tr><td colspan="5" class="empty">{{ 'No sizes yet.' | t }}</td></tr>
+                    <tr><td colspan="6" class="empty">{{ 'No sizes yet.' | t }}</td></tr>
                   }
                 </tbody>
               </table>
@@ -514,8 +516,15 @@ export class PlatformBillingPage implements OnInit {
       <mat-dialog-content>
         <mat-form-field class="full"><mat-label>{{ 'Size name' | t }}</mat-label><input matInput formControlName="name" [placeholder]="'e.g. Small' | t" /><mat-error>{{ err('name', 'Size name') }}</mat-error></mat-form-field>
         <mat-form-field class="full"><mat-label>{{ 'Description' | t }}</mat-label><input matInput formControlName="description" [placeholder]="'e.g. A shop with up to 3 staff' | t" /></mat-form-field>
-        <mat-form-field class="full"><mat-label>{{ 'Order in lists' | t }}</mat-label><input matInput type="number" formControlName="sortOrder" /></mat-form-field>
-        <div class="switch-row" [class.off]="!form.controls.isActive.value">
+        <mat-form-field class="full">
+          <mat-label>{{ 'Most orders a month' | t }}</mat-label>
+          <input matInput type="number" min="0" inputmode="numeric" formControlName="maxOrdersPerMonth" [placeholder]="'e.g. 2000' | t" />
+          <mat-hint>{{ 'Sales and purchase orders, averaged over the last 3 months. Leave empty for no limit (your largest size).' | t }}</mat-hint>
+          <mat-error>{{ err('maxOrdersPerMonth', 'Most orders a month') }}</mat-error>
+        </mat-form-field>
+        <mat-form-field class="full gap"><mat-label>{{ 'Order in lists' | t }}</mat-label><input matInput type="number" formControlName="sortOrder" />
+          <mat-hint>{{ 'Smaller sizes first: a business that outgrows a size is offered the next one.' | t }}</mat-hint></mat-form-field>
+        <div class="switch-row gap" [class.off]="!form.controls.isActive.value">
           <mat-icon>{{ form.controls.isActive.value ? 'visibility' : 'visibility_off' }}</mat-icon>
           <div class="switch-text">
             <span class="switch-title">{{ 'Offered at sign-up' | t }}</span>
@@ -531,7 +540,7 @@ export class PlatformBillingPage implements OnInit {
       </mat-dialog-actions>
     </form>
   `,
-  styles: `.full { width: 100%; }`,
+  styles: `.full { width: 100%; } .gap { margin-top: 14px; }`,
 })
 export class SizeDialog {
   readonly data = inject<SizeAdmin | null>(MAT_DIALOG_DATA);
@@ -545,6 +554,7 @@ export class SizeDialog {
     description: [this.data?.description ?? '', Validators.maxLength(300)],
     sortOrder: [this.data?.sortOrder ?? 0],
     isActive: [this.data?.isActive ?? true],
+    maxOrdersPerMonth: [this.data?.maxOrdersPerMonth ?? (null as number | null), [Validators.min(0), Validators.max(10_000_000)]],
   });
 
   err(path: string, label: string): string {
@@ -554,7 +564,9 @@ export class SizeDialog {
   save(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.busy.set(true);
-    const body = { ...this.form.getRawValue(), revision: this.data?.revision ?? null };
+    const v = this.form.getRawValue();
+    const limit = v.maxOrdersPerMonth === null || (v.maxOrdersPerMonth as unknown) === '' ? null : Math.round(Number(v.maxOrdersPerMonth));
+    const body = { ...v, maxOrdersPerMonth: limit, revision: this.data?.revision ?? null };
     const req = this.data ? this.api.put<SizeAdmin>(`/platform/billing/sizes/${this.data.uuid}`, body) : this.api.post<SizeAdmin>('/platform/billing/sizes', body);
     req.subscribe({
       next: (s) => { this.notify.success('Saved.'); this.ref.close(s); },

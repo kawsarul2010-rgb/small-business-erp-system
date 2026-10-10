@@ -520,6 +520,8 @@ export interface PlanOption {
   durationMonths: number;
   price: number;
   perMonth: number;
+  /** A price agreed with this business instead of its size's price. */
+  specialPrice?: boolean;
 }
 
 export interface BillingOverview {
@@ -610,6 +612,8 @@ export interface SizeAdmin {
   isActive: boolean;
   businesses: number;
   revision: string;
+  /** Most orders a month (3-month average) for this size; null: no limit. */
+  maxOrdersPerMonth: number | null;
 }
 
 export interface PlanAdmin {
@@ -630,6 +634,41 @@ export interface BusinessSubscription {
   planUuid: string | null;
   planName: string | null;
   billingExempt: boolean;
+  sizeCheck?: BusinessSizeCheck | null;
+  /** Every package's size price and special price (business detail only). */
+  prices?: BusinessPlanPrice[] | null;
+}
+
+/** The business's volume against its size's limit. alert: above it and not snoozed. */
+export interface BusinessSizeCheck {
+  ordersPerMonth: number;
+  sizeLimit: number | null;
+  overLimit: boolean;
+  alert: boolean;
+  suggestedSizeUuid: string | null;
+  suggestedSizeName: string | null;
+  snoozedUntil: string | null;
+}
+
+export interface BusinessPlanPrice {
+  planUuid: string;
+  planName: string;
+  durationMonths: number;
+  isActive: boolean;
+  sizePrice: number | null;
+  specialPrice: number | null;
+}
+
+export interface SizeAlert {
+  businessUuid: string;
+  businessName: string;
+  businessCode: string;
+  sizeUuid: string | null;
+  sizeName: string | null;
+  sizeLimit: number | null;
+  ordersPerMonth: number;
+  suggestedSizeUuid: string | null;
+  suggestedSizeName: string | null;
 }
 
 // ---------------------------------------------------------------- posts from the super admin

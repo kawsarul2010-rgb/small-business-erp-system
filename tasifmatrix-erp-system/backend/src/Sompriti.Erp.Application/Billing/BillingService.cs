@@ -8,8 +8,12 @@ using Sompriti.Erp.Domain.Enums;
 
 namespace Sompriti.Erp.Application.Billing;
 
-/// <summary>A package the business can buy now, priced for its size. PerMonth helps compare.</summary>
-public sealed record PlanOptionDto(Guid Uuid, string Name, string? Description, int DurationMonths, decimal Price, decimal PerMonth);
+/// <summary>
+/// A package the business can buy now, priced for its size - or at the special price agreed with
+/// this business (SpecialPrice true). PerMonth helps compare.
+/// </summary>
+public sealed record PlanOptionDto(Guid Uuid, string Name, string? Description, int DurationMonths, decimal Price, decimal PerMonth,
+    bool SpecialPrice = false);
 
 /// <summary>
 /// The Billing page. CanPayOnline: bKash is set up. Admins pay; other roles only see the state.
@@ -49,16 +53,12 @@ public sealed class BillingService(ICurrentUser currentUser, ISystemDbFactory sy
         var planName = t.SubscriptionPlanUuid is { } pid
             ? await sys.SubscriptionPlans.AsNoTracking().Where(x => x.Uuid == pid).Select(x => x.PlanName).FirstOrDefaultAsync(ct) : null;
 
-        var options = new List<PlanOptionDto>();
-        if (size is not null)
-        {
-            options = await (from p in sys.SubscriptionPlans.AsNoTracking()
-                             join pr in sys.SubscriptionPlanPrices.AsNoTracking() on p.Uuid equals pr.PlanUuid
-                             where p.IsActive && pr.SizeUuid == size.Uuid
-                             orderby p.SortOrder, p.DurationMonths
-                             select new PlanOptionDto(p.Uuid, p.PlanName, p.Description, p.DurationMonths, pr.Price,
-                                 Math.Round(pr.Price / p.DurationMonths, 2))).ToListAsync(ct);
-        }
+        // The size's prices, replaced by any special price agreed with this business.
+        var options = (await BusinessPricing.OffersAsync(sys, tenantId, size?.Uuid, activeOnly: true, ct))
+            .Where(o => o.Price is not null)
+            .Select(o => new PlanOptionDto(o.PlanUuid, o.Name, o.Description, o.DurationMonths, o.Price!.Value,
+                Math.Round(o.Price!.Value / o.DurationMonths, 2), o.SpecialPrice is not null))
+            .ToList();
 
         var status = BillingMapping.Status(t, s, clock.GetUtcNow(), planName, size?.SizeName);
         var online = BillingMapping.Bkash(s, protector) is not null;
@@ -113,14 +113,15 @@ public sealed class BillingService(ICurrentUser currentUser, ISystemDbFactory sy
             ?? throw DomainException.Rule(ErrorCodes.BusinessRule, "Online payment is not available yet. Please contact support.");
 
         var t = await sys.Tenants.AsNoTracking().FirstAsync(x => x.Uuid == tenantId, ct);
-        if (t.BusinessSizeUuid is null)
+        // The same price the Billing page showed: the special price for this business, else its size's.
+        var plan = (await BusinessPricing.OffersAsync(sys, tenantId, t.BusinessSizeUuid, activeOnly: true, ct))
+            .FirstOrDefault(o => o.PlanUuid == r.PlanUuid && o.Price is not null);
+        if (plan is null && t.BusinessSizeUuid is null)
             throw DomainException.Rule(ErrorCodes.BusinessRule, "Your business size is not set yet. Please contact support.");
-        var offer = await (from p in sys.SubscriptionPlans.AsNoTracking()
-                           join pr in sys.SubscriptionPlanPrices.AsNoTracking() on p.Uuid equals pr.PlanUuid
-                           join z in sys.BusinessSizes.AsNoTracking() on pr.SizeUuid equals z.Uuid
-                           where p.Uuid == r.PlanUuid && p.IsActive && pr.SizeUuid == t.BusinessSizeUuid
-                           select new { p.Uuid, p.PlanName, p.DurationMonths, pr.Price, z.SizeName }).FirstOrDefaultAsync(ct)
-            ?? throw DomainException.Validation("planUuid", "This package is not available for your business.");
+        if (plan is null) throw DomainException.Validation("planUuid", "This package is not available for your business.");
+        var sizeName = t.BusinessSizeUuid is { } sid
+            ? await sys.BusinessSizes.AsNoTracking().Where(z => z.Uuid == sid).Select(z => z.SizeName).FirstOrDefaultAsync(ct) : null;
+        var offer = new { Uuid = plan.PlanUuid, PlanName = plan.Name, plan.DurationMonths, Price = plan.Price!.Value, SizeName = sizeName };
         if (offer.Price <= 0) throw DomainException.Rule(ErrorCodes.BusinessRule, "This package is free; there is nothing to pay.");
 
         var now = clock.GetUtcNow();

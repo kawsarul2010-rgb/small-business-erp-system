@@ -16,6 +16,7 @@ import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { StatusChip } from '../../shared/status-chip';
 import { BusinessDialog, showCredentials } from './platform-dialogs';
+import { SizeAlerts } from './size-alerts';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { MoneyPipe } from '../../shared/pipes';
 
@@ -25,7 +26,7 @@ import { MoneyPipe } from '../../shared/pipes';
  */
 @Component({
   selector: 'app-businesses',
-  imports: [TranslatePipe, MoneyPipe, DatePipe, RouterLink, MatTableModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, ListFooter, StatusChip],
+  imports: [TranslatePipe, MoneyPipe, DatePipe, RouterLink, MatTableModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, ListFooter, StatusChip, SizeAlerts],
   template: `
     <div class="page">
       <div class="page-header">
@@ -49,6 +50,8 @@ import { MoneyPipe } from '../../shared/pipes';
           <div class="card stat"><span class="icon-badge amber"><mat-icon>sms</mat-icon></span><span class="body"><span class="label">{{ 'SMS this month' | t }}</span><strong>{{ s.smsPartsThisMonth }}</strong><span class="hint">{{ '{n} messages' | t: { n: s.smsThisMonth } }}@if (s.smsAmountThisMonth > 0) { · {{ s.smsAmountThisMonth | money }} }</span></span></div>
         </div>
       }
+
+      <app-size-alerts (changed)="list.reload()" />
 
       <div class="card">
         <div class="toolbar">
@@ -78,6 +81,7 @@ import { MoneyPipe } from '../../shared/pipes';
                   <span class="m-chips">
                     <app-status [value]="b.status" />
                     @if (b.subscription && !b.subscription.billingExempt && b.subscription.status.state !== 'NOT_BILLED') { <app-status [value]="b.subscription.status.state" /> }
+                    @if (b.subscription?.sizeCheck?.alert) { <span class="outgrown"><mat-icon>trending_up</mat-icon>{{ 'Outgrown' | t }}</span> }
                   </span>
                 </div>
                 <div class="m-sub usage">
@@ -110,6 +114,9 @@ import { MoneyPipe } from '../../shared/pipes';
                     @else {
                       <app-status [value]="s.status.state" />
                       @if (s.status.endsAt) { <div class="muted small">{{ (s.status.state === 'EXPIRED' || s.status.state === 'GRACE_PERIOD' ? 'ended {date}' : 'until {date}') | t: { date: (s.status.endsAt | date: 'd MMM yyyy') } }}</div> }
+                    }
+                    @if (s.sizeName) {
+                      <div class="muted small size-line">{{ s.sizeName }}@if (s.sizeCheck?.alert) { <span class="outgrown" [title]="'{n} orders a month' | t: { n: s.sizeCheck!.ordersPerMonth }"><mat-icon>trending_up</mat-icon>{{ 'Outgrown' | t }}</span> }</div>
                     }
                   }
                 </td>
@@ -157,6 +164,10 @@ import { MoneyPipe } from '../../shared/pipes';
     .small { font-size: 12px; }
     .m-chips { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
     a.m-card { display: block; color: inherit; text-decoration: none; }
+    .outgrown { display: inline-flex; align-items: center; gap: 2px; margin-left: 6px; padding: 1px 8px 1px 5px; border-radius: 999px; font-size: 11.5px; font-weight: 650;
+      background: var(--erp-chip-warn-bg); color: var(--erp-chip-warn-fg); vertical-align: middle; }
+    .outgrown mat-icon { font-size: 14px; width: 14px; height: 14px; }
+    .m-chips .outgrown { margin-left: 0; }
     @media (max-width: 840px) {
       .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .stat { padding: 12px; gap: 10px; }

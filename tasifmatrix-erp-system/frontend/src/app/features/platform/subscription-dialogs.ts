@@ -186,7 +186,7 @@ export class ManualPaymentDialog implements OnInit {
   readonly chosen = computed(() => this.plans().find((p) => p.uuid === this.planValue()) ?? null);
 
   constructor() {
-    // Choosing a package fills in its price for this business's size.
+    // Choosing a package fills in what this business pays for it.
     this.form.controls.planUuid.valueChanges.subscribe((id) => {
       const plan = this.plans().find((p) => p.uuid === id);
       const price = plan ? this.priceFor(plan) : null;
@@ -206,7 +206,10 @@ export class ManualPaymentDialog implements OnInit {
     return formatMoney(v);
   }
 
+  /** What this business pays for the package: its special price, else its size's price. */
   priceFor(p: PlanAdmin): number | null {
+    const special = this.data.subscription.prices?.find((x) => x.planUuid === p.uuid)?.specialPrice;
+    if (special !== undefined && special !== null) return special;
     const size = this.data.subscription.sizeUuid;
     return size ? p.prices.find((x) => x.sizeUuid === size)?.price ?? null : null;
   }

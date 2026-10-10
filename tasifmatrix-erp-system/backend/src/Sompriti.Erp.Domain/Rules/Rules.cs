@@ -581,3 +581,41 @@ public static class AppUpdateRules
         return new AppUpdateCheck(advice, newer[0], newer);
     }
 }
+
+/// <summary>A business size with its volume limit, for <see cref="SizeRules"/>.</summary>
+public sealed record SizeLimit(Guid Uuid, string Name, int SortOrder, bool IsActive, int? MaxOrdersPerMonth);
+
+/// <summary>Where a business stands against its size's limit. Suggested: the size its volume fits.</summary>
+public sealed record SizeFit(int OrdersPerMonth, bool Outgrown, SizeLimit? Suggested);
+
+/// <summary>
+/// Business size by volume: the average number of orders a month over the last three months
+/// (fewer while the business is younger), compared with each size's limit.
+/// </summary>
+public static class SizeRules
+{
+    public const int WindowDays = 90;
+
+    /// <summary>Orders in the last 90 days as a monthly average; a business younger than that is averaged over its age (at least one month).</summary>
+    public static int OrdersPerMonth(int ordersInWindow, DateTimeOffset businessCreated, DateTimeOffset now)
+    {
+        var months = Math.Clamp((now - businessCreated).TotalDays / 30.0, 1.0, WindowDays / 30.0);
+        return (int)Math.Ceiling(ordersInWindow / months);
+    }
+
+    /// <summary>
+    /// Outgrown: the current size has a limit and the volume is above it. Suggested: the smallest
+    /// active size whose limit the volume fits (no limit fits everything), or the largest one.
+    /// </summary>
+    public static SizeFit Evaluate(int ordersPerMonth, Guid? currentSize, IReadOnlyList<SizeLimit> sizes)
+    {
+        var current = sizes.FirstOrDefault(z => z.Uuid == currentSize);
+        if (current is null || current.MaxOrdersPerMonth is not { } limit || ordersPerMonth <= limit)
+            return new SizeFit(ordersPerMonth, false, null);
+        var bigger = sizes.Where(z => z.IsActive && z.Uuid != current.Uuid && z.SortOrder > current.SortOrder)
+            .OrderBy(z => z.SortOrder).ToList();
+        var suggested = bigger.FirstOrDefault(z => z.MaxOrdersPerMonth is null || ordersPerMonth <= z.MaxOrdersPerMonth)
+                        ?? bigger.LastOrDefault();
+        return new SizeFit(ordersPerMonth, true, suggested);
+    }
+}

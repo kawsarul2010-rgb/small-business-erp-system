@@ -22,9 +22,12 @@ public sealed record BillingSettingsRequest(bool? BillingEnabled, int? TrialDays
 /// <summary>BusinessesStarted: businesses whose free trial began because billing was just switched on.</summary>
 public sealed record BillingSettingsSavedDto(BillingSettingsDto Settings, int BusinessesStarted);
 
-public sealed record SizeDto(Guid Uuid, string Name, string? Description, int SortOrder, bool IsActive, int Businesses, Guid Revision);
+/// <summary>MaxOrdersPerMonth: the most orders a month (3-month average) for this size; null: no limit.</summary>
+public sealed record SizeDto(Guid Uuid, string Name, string? Description, int SortOrder, bool IsActive, int Businesses, Guid Revision,
+    int? MaxOrdersPerMonth = null);
 
-public sealed record SizeRequest(string? Name, string? Description, int? SortOrder, bool? IsActive, Guid? Revision);
+/// <summary>MaxOrdersPerMonth null: no limit (use it for the largest size).</summary>
+public sealed record SizeRequest(string? Name, string? Description, int? SortOrder, bool? IsActive, Guid? Revision, int? MaxOrdersPerMonth = null);
 
 public sealed record PlanDto(Guid Uuid, string Name, string? Description, int DurationMonths, int SortOrder, bool IsActive,
     IReadOnlyList<PlanPriceDto> Prices, Guid Revision);
@@ -47,9 +50,23 @@ public sealed record BusinessSubscriptionRequest(Guid? SizeUuid, bool? BillingEx
 /// <summary>A payment taken outside the app (cash, bank). Either a package, or a number of months.</summary>
 public sealed record ManualPaymentRequest(Guid? PlanUuid, int? Months, decimal? Amount, string? Note);
 
-/// <summary>A business's subscription on the platform screens.</summary>
+/// <summary>
+/// A business's subscription on the platform screens. SizeCheck: its volume against its size's
+/// limit. Prices: every package's size price and special price (detail page only).
+/// </summary>
 public sealed record BusinessSubscriptionDto(SubscriptionStatusDto Status, Guid? SizeUuid, string? SizeName, Guid? PlanUuid,
-    string? PlanName, bool BillingExempt);
+    string? PlanName, bool BillingExempt, BusinessSizeCheckDto? SizeCheck = null, IReadOnlyList<BusinessPlanPriceDto>? Prices = null);
+
+/// <summary>A business above its size's limit, for the alert on the super admin's Businesses page.</summary>
+public sealed record SizeAlertDto(Guid BusinessUuid, string BusinessName, string BusinessCode, Guid? SizeUuid, string? SizeName,
+    int? SizeLimit, int OrdersPerMonth, Guid? SuggestedSizeUuid, string? SuggestedSizeName);
+
+/// <summary>Price null (or the plan left out) removes the special price: the business pays its size's price again.</summary>
+public sealed record SpecialPriceRequest(Guid PlanUuid, decimal? Price);
+public sealed record SpecialPricesRequest(IReadOnlyList<SpecialPriceRequest>? Prices);
+
+/// <summary>Keep the current size although the business is above its limit: no alert for Days (default 30).</summary>
+public sealed record KeepSizeRequest(int? Days);
 
 // ---------------------------------------------------------------------------------------- service
 
@@ -183,13 +200,15 @@ public sealed class PlatformBillingService(IAppDbContext db, ICurrentUser curren
             .Select(g => new { Size = g.Key, Count = g.Count() }).ToListAsync(ct);
         var sizes = await db.BusinessSizes.AsNoTracking().OrderBy(x => x.SortOrder).ThenBy(x => x.SizeName).ToListAsync(ct);
         return sizes.Select(x => new SizeDto(x.Uuid, x.SizeName, x.Description, x.SortOrder, x.IsActive,
-            counts.FirstOrDefault(c => c.Size == x.Uuid)?.Count ?? 0, x.Revision)).ToList();
+            counts.FirstOrDefault(c => c.Size == x.Uuid)?.Count ?? 0, x.Revision, x.MaxOrdersPerMonth)).ToList();
     }
 
     public async Task<SizeDto> SaveSizeAsync(Guid? id, SizeRequest r, CancellationToken ct)
     {
         EnsureSuperAdmin();
-        new Validator().Required("name", r.Name, "Size name", 60).MaxLength("description", r.Description, "Description", 300).ThrowIfInvalid();
+        new Validator().Required("name", r.Name, "Size name", 60).MaxLength("description", r.Description, "Description", 300)
+            .When(r.MaxOrdersPerMonth is < 0 or > 10_000_000, "maxOrdersPerMonth", "Enter 0 or more orders a month, or leave it empty for no limit.")
+            .ThrowIfInvalid();
         var name = r.Name!.Trim();
         if (await db.BusinessSizes.AnyAsync(x => x.SizeName.ToLower() == name.ToLower() && x.Uuid != id, ct))
             throw DomainException.Validation("name", "Another size already has this name.");
@@ -208,6 +227,7 @@ public sealed class PlatformBillingService(IAppDbContext db, ICurrentUser curren
         size.Description = Validator.Clean(r.Description);
         if (r.SortOrder is { } so) size.SortOrder = so;
         if (r.IsActive is { } active) size.IsActive = active;
+        size.MaxOrdersPerMonth = r.MaxOrdersPerMonth;
         await db.SaveChangesAsync(ct);
         return (await SizesAsync(ct)).First(x => x.Uuid == size.Uuid);
     }
@@ -299,11 +319,100 @@ public sealed class PlatformBillingService(IAppDbContext db, ICurrentUser curren
     public async Task<BusinessSubscriptionDto> SubscriptionOfAsync(Guid businessId, CancellationToken ct)
     {
         var t = (await db.Tenants.AsNoTracking().FirstOrDefaultAsync(x => x.Uuid == businessId, ct)).OrNotFound("Business");
-        var s = await settingsCache.GetAsync(db, ct);
-        var size = t.BusinessSizeUuid is { } sid ? await db.BusinessSizes.AsNoTracking().Where(x => x.Uuid == sid).Select(x => x.SizeName).FirstOrDefaultAsync(ct) : null;
-        var plan = t.SubscriptionPlanUuid is { } pid ? await db.SubscriptionPlans.AsNoTracking().Where(x => x.Uuid == pid).Select(x => x.PlanName).FirstOrDefaultAsync(ct) : null;
-        return new BusinessSubscriptionDto(BillingMapping.Status(t, s, clock.GetUtcNow(), plan, size), t.BusinessSizeUuid, size,
-            t.SubscriptionPlanUuid, plan, t.BillingExempt);
+        return (await BuildAsync(db, settingsCache, [t], clock.GetUtcNow(), withPrices: true, ct))[t.Uuid];
+    }
+
+    /// <summary>
+    /// Subscriptions of many businesses for the platform screens: state, size, package, the size
+    /// check and (withPrices, for one business) every package's size and special price.
+    /// </summary>
+    public static async Task<Dictionary<Guid, BusinessSubscriptionDto>> BuildAsync(IAppDbContext db, BillingSettingsCache cache,
+        IReadOnlyCollection<Tenant> tenants, DateTimeOffset now, bool withPrices, CancellationToken ct)
+    {
+        var settings = await cache.GetAsync(db, ct);
+        var sizes = await db.BusinessSizes.AsNoTracking().ToDictionaryAsync(x => x.Uuid, x => x.SizeName, ct);
+        var plans = await db.SubscriptionPlans.AsNoTracking().ToDictionaryAsync(x => x.Uuid, x => x.PlanName, ct);
+        var checks = await BusinessPricing.SizeChecksAsync(db, tenants, now, ct);
+        var result = new Dictionary<Guid, BusinessSubscriptionDto>();
+        foreach (var t in tenants)
+        {
+            var size = t.BusinessSizeUuid is { } s ? sizes.GetValueOrDefault(s) : null;
+            var plan = t.SubscriptionPlanUuid is { } p ? plans.GetValueOrDefault(p) : null;
+            var prices = withPrices
+                ? (await BusinessPricing.OffersAsync(db, t.Uuid, t.BusinessSizeUuid, activeOnly: false, ct))
+                    .Select(o => new BusinessPlanPriceDto(o.PlanUuid, o.Name, o.DurationMonths, o.IsActive, o.SizePrice, o.SpecialPrice)).ToList()
+                : null;
+            result[t.Uuid] = new BusinessSubscriptionDto(BillingMapping.Status(t, settings, now, plan, size), t.BusinessSizeUuid, size,
+                t.SubscriptionPlanUuid, plan, t.BillingExempt, checks[t.Uuid], prices);
+        }
+        return result;
+    }
+
+    /// <summary>Businesses above their size's limit and not snoozed, biggest gap first.</summary>
+    public async Task<IReadOnlyList<SizeAlertDto>> SizeAlertsAsync(CancellationToken ct)
+    {
+        EnsureSuperAdmin();
+        var tenants = await db.Tenants.AsNoTracking()
+            .Where(t => t.Status != TenantStatus.Closed && !t.BillingExempt && t.BusinessSizeUuid != null).ToListAsync(ct);
+        var checks = await BusinessPricing.SizeChecksAsync(db, tenants, clock.GetUtcNow(), ct);
+        var sizes = await db.BusinessSizes.AsNoTracking().ToDictionaryAsync(x => x.Uuid, x => x.SizeName, ct);
+        return tenants.Where(t => checks[t.Uuid].Alert)
+            .Select(t => (t, c: checks[t.Uuid]))
+            .OrderByDescending(x => x.c.OrdersPerMonth - (x.c.SizeLimit ?? 0))
+            .Select(x => new SizeAlertDto(x.t.Uuid, x.t.TenantName, x.t.TenantCode, x.t.BusinessSizeUuid,
+                x.t.BusinessSizeUuid is { } s ? sizes.GetValueOrDefault(s) : null, x.c.SizeLimit, x.c.OrdersPerMonth,
+                x.c.SuggestedSizeUuid, x.c.SuggestedSizeName))
+            .ToList();
+    }
+
+    /// <summary>"Keep this size": the business stays on its size and is not flagged again for a while.</summary>
+    public async Task<BusinessSubscriptionDto> KeepSizeAsync(Guid businessId, KeepSizeRequest r, CancellationToken ct)
+    {
+        EnsureSuperAdmin();
+        var days = r.Days ?? 30;
+        new Validator().When(days is < 1 or > 365, "days", "Choose 1 to 365 days.").ThrowIfInvalid();
+        var t = (await db.Tenants.FirstOrDefaultAsync(x => x.Uuid == businessId, ct)).OrNotFound("Business");
+        Platform.PlatformService.EnsureNotClosed(t);
+        t.SizeReviewSnoozedUntil = clock.GetUtcNow().AddDays(days);
+        await db.SaveChangesAsync(ct);
+        return await SubscriptionOfAsync(businessId, ct);
+    }
+
+    /// <summary>Replaces the business's special prices. A package without one is charged at its size's price.</summary>
+    public async Task<BusinessSubscriptionDto> SaveSpecialPricesAsync(Guid businessId, SpecialPricesRequest r, CancellationToken ct)
+    {
+        EnsureSuperAdmin();
+        var t = (await db.Tenants.AsNoTracking().FirstOrDefaultAsync(x => x.Uuid == businessId, ct)).OrNotFound("Business");
+        Platform.PlatformService.EnsureNotClosed(t);
+        var wanted = (r.Prices ?? []).Where(x => x.Price is not null).ToList();
+        var v = new Validator();
+        v.When(wanted.Any(x => x.Price < 0), "prices", "A price cannot be negative.");
+        v.When(wanted.Select(x => x.PlanUuid).Distinct().Count() != wanted.Count, "prices", "A package is listed twice.");
+        v.ThrowIfInvalid();
+        var planIds = wanted.Select(x => x.PlanUuid).ToList();
+        if (await db.SubscriptionPlans.CountAsync(p => planIds.Contains(p.Uuid), ct) != planIds.Count)
+            throw DomainException.Validation("prices", "One of the packages does not exist.");
+
+        var existing = await db.BusinessPlanPrices.IgnoreQueryFilters().Where(x => x.TenantUuid == businessId).ToListAsync(ct);
+        db.BusinessPlanPrices.RemoveRange(existing.Where(e => !planIds.Contains(e.PlanUuid)));
+        var now = clock.GetUtcNow();
+        foreach (var w in wanted)
+        {
+            var price = Money.Round(w.Price!.Value);
+            var row = existing.FirstOrDefault(e => e.PlanUuid == w.PlanUuid);
+            if (row is null)
+            {
+                row = new BusinessPlanPrice { TenantUuid = businessId, PlanUuid = w.PlanUuid };
+                db.BusinessPlanPrices.Add(row);
+            }
+            else if (row.Price == price) continue;
+            row.Price = price;
+            row.UpdatedDate = now;
+            row.UpdatedByUserUuid = currentUser.UserUuid;
+            row.UpdatedByUserName = currentUser.UserName;
+        }
+        await db.SaveChangesAsync(ct);
+        return await SubscriptionOfAsync(businessId, ct);
     }
 
     /// <summary>The super admin's direct changes: size, exemption, or the paid-until date itself.</summary>
@@ -315,6 +424,7 @@ public sealed class PlatformBillingService(IAppDbContext db, ICurrentUser curren
         if (r.SizeUuid is { } sid)
         {
             if (!await db.BusinessSizes.AnyAsync(x => x.Uuid == sid, ct)) throw DomainException.Validation("sizeUuid", "This size does not exist.");
+            if (t.BusinessSizeUuid != sid) t.SizeReviewSnoozedUntil = null; // a new size starts with a clean check
             t.BusinessSizeUuid = sid;
         }
         if (r.BillingExempt is { } exempt) t.BillingExempt = exempt;

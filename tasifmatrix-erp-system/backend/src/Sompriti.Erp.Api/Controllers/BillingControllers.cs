@@ -102,4 +102,17 @@ public sealed class PlatformBillingController(PlatformBillingService service) : 
     [HttpPost("businesses/{id:guid}/payments")]
     public Task<BillingPaymentDto> RecordPayment(Guid id, ManualPaymentRequest r, CancellationToken ct) =>
         service.RecordManualPaymentAsync(id, r, ct);
+
+    /// <summary>Businesses above their size's monthly order limit (for the alert on the Businesses page).</summary>
+    [HttpGet("size-alerts")]
+    public Task<IReadOnlyList<SizeAlertDto>> SizeAlerts(CancellationToken ct) => service.SizeAlertsAsync(ct);
+
+    /// <summary>Keep the business on its size: no size alert for it for a number of days.</summary>
+    [HttpPost("businesses/{id:guid}/keep-size")]
+    public Task<BusinessSubscriptionDto> KeepSize(Guid id, KeepSizeRequest r, CancellationToken ct) => service.KeepSizeAsync(id, r, ct);
+
+    /// <summary>Special package prices for one business (replaces them all).</summary>
+    [HttpPut("businesses/{id:guid}/prices")]
+    public Task<BusinessSubscriptionDto> SpecialPrices(Guid id, SpecialPricesRequest r, CancellationToken ct) =>
+        service.SaveSpecialPricesAsync(id, r, ct);
 }

@@ -104,3 +104,40 @@ public class AppUpdateRulesTests
             Sompriti.Erp.Domain.Rules.AppUpdateRules.Evaluate("garbage", [R("2.0.0", AppUpdateType.Major)]).Advice);
     }
 }
+
+public class SizeRulesTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 10, 7, 12, 0, 0, TimeSpan.Zero);
+    private static readonly Sompriti.Erp.Domain.Rules.SizeLimit Small = new(Guid.NewGuid(), "Small", 1, true, 2000);
+    private static readonly Sompriti.Erp.Domain.Rules.SizeLimit Medium = new(Guid.NewGuid(), "Medium", 2, true, 6000);
+    private static readonly Sompriti.Erp.Domain.Rules.SizeLimit Large = new(Guid.NewGuid(), "Large", 3, true, null);
+    private static readonly Sompriti.Erp.Domain.Rules.SizeLimit[] Sizes = [Small, Medium, Large];
+
+    [Fact]
+    public void Orders_are_averaged_over_three_months_or_the_business_age()
+    {
+        Assert.Equal(2000, Sompriti.Erp.Domain.Rules.SizeRules.OrdersPerMonth(6000, Now.AddYears(-1), Now));
+        Assert.Equal(1500, Sompriti.Erp.Domain.Rules.SizeRules.OrdersPerMonth(3000, Now.AddDays(-60), Now)); // two months old
+        Assert.Equal(900, Sompriti.Erp.Domain.Rules.SizeRules.OrdersPerMonth(900, Now.AddDays(-10), Now));   // counts as one month
+    }
+
+    [Fact]
+    public void Within_the_limit_is_fine_and_above_it_suggests_the_size_that_fits()
+    {
+        Assert.False(Sompriti.Erp.Domain.Rules.SizeRules.Evaluate(2000, Small.Uuid, Sizes).Outgrown);
+        var medium = Sompriti.Erp.Domain.Rules.SizeRules.Evaluate(2001, Small.Uuid, Sizes);
+        Assert.True(medium.Outgrown);
+        Assert.Equal("Medium", medium.Suggested!.Name);
+        Assert.Equal("Large", Sompriti.Erp.Domain.Rules.SizeRules.Evaluate(9000, Small.Uuid, Sizes).Suggested!.Name);
+        Assert.False(Sompriti.Erp.Domain.Rules.SizeRules.Evaluate(1_000_000, Large.Uuid, Sizes).Outgrown); // no limit
+        Assert.False(Sompriti.Erp.Domain.Rules.SizeRules.Evaluate(5000, null, Sizes).Outgrown);            // no size yet
+    }
+
+    [Fact]
+    public void Inactive_sizes_are_never_suggested_and_the_largest_is_the_last_resort()
+    {
+        var sizes = new[] { Small, Medium with { IsActive = false }, Large with { MaxOrdersPerMonth = 8000 } };
+        Assert.Equal("Large", Sompriti.Erp.Domain.Rules.SizeRules.Evaluate(3000, Small.Uuid, sizes).Suggested!.Name);
+        Assert.Equal("Large", Sompriti.Erp.Domain.Rules.SizeRules.Evaluate(50_000, Small.Uuid, sizes).Suggested!.Name);
+    }
+}

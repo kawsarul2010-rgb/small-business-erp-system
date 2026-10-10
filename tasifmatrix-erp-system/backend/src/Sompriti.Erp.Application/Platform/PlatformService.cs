@@ -150,24 +150,13 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
             Phone(t.ContactPhone), t.Notes, t.SuspendedDate, t.SuspendReason, usage,
             admins.Select(a => a with { PhoneNumber = BdMobile.ToDisplay(a.PhoneNumber) }).ToList(),
             t.Revision, t.CreatedDate, t.CreatedByUserName, t.UpdatedDate, t.UpdatedByUserName, t.SmsPrice, smsEnabled,
-            (await SubscriptionsAsync([t], ct))[t.Uuid], t.ClosedDate);
+            (await SubscriptionsAsync([t], ct, withPrices: true))[t.Uuid], t.ClosedDate);
     }
 
     /// <summary>Each business's subscription as of now, with size and package names.</summary>
-    private async Task<Dictionary<Guid, BusinessSubscriptionDto>> SubscriptionsAsync(IReadOnlyCollection<Tenant> tenants, CancellationToken ct)
-    {
-        var settings = await billingSettings.GetAsync(db, ct);
-        var sizes = await db.BusinessSizes.AsNoTracking().ToDictionaryAsync(x => x.Uuid, x => x.SizeName, ct);
-        var plans = await db.SubscriptionPlans.AsNoTracking().ToDictionaryAsync(x => x.Uuid, x => x.PlanName, ct);
-        var now = clock.GetUtcNow();
-        return tenants.ToDictionary(t => t.Uuid, t =>
-        {
-            var size = t.BusinessSizeUuid is { } s ? sizes.GetValueOrDefault(s) : null;
-            var plan = t.SubscriptionPlanUuid is { } p ? plans.GetValueOrDefault(p) : null;
-            return new BusinessSubscriptionDto(BillingMapping.Status(t, settings, now, plan, size), t.BusinessSizeUuid, size,
-                t.SubscriptionPlanUuid, plan, t.BillingExempt);
-        });
-    }
+    private Task<Dictionary<Guid, BusinessSubscriptionDto>> SubscriptionsAsync(IReadOnlyCollection<Tenant> tenants, CancellationToken ct,
+        bool withPrices = false) =>
+        PlatformBillingService.BuildAsync(db, billingSettings, tenants, clock.GetUtcNow(), withPrices, ct);
 
     /// <summary>
     /// A business's sent SMS per month, for billing it. Only messages the gateway accepted (SENT)

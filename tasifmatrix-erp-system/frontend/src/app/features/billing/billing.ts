@@ -125,6 +125,7 @@ const STATE_ICONS: Record<string, { icon: string }> = {
                     @if (p.name === d.status.planName && d.status.state === 'ACTIVE') { <span class="badge">{{ 'Current' | t }}</span> }
                     <div class="plan-name">{{ p.name }}</div>
                     @if (length(p.durationMonths) !== p.name) { <div class="plan-length">{{ length(p.durationMonths) }}</div> }
+                    @if (p.specialPrice) { <span class="special"><mat-icon>sell</mat-icon>{{ 'Special price for your business' | t }}</span> }
                     <div class="price">{{ p.price | money }}</div>
                     @if (p.durationMonths > 1) { <div class="per-month">{{ '{amount} a month' | t: { amount: (p.perMonth | money) } }}</div> }
                     @if (p.description) { <p class="plan-desc">{{ p.description }}</p> }
@@ -216,6 +217,9 @@ const STATE_ICONS: Record<string, { icon: string }> = {
     .badge { position: absolute; top: 14px; right: 14px; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--erp-brand); color: var(--erp-brand-fg); }
     .plan-name { font-size: 16px; font-weight: 700; }
     .plan-length { font-size: 13px; color: var(--erp-muted); }
+    .special { display: inline-flex; align-items: center; gap: 4px; align-self: flex-start; margin-top: 8px; padding: 2px 9px 2px 6px; border-radius: 999px;
+      font-size: 11.5px; font-weight: 650; background: var(--erp-chip-success-bg); color: var(--erp-chip-success-fg); }
+    .special mat-icon { font-size: 14px; width: 14px; height: 14px; }
     .price { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin-top: 10px; font-variant-numeric: tabular-nums; }
     .per-month { font-size: 12.5px; color: var(--erp-muted); }
     .plan-desc { margin: 10px 0 0; font-size: 13px; color: var(--erp-muted); line-height: 1.45; }

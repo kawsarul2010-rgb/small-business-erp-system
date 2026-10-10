@@ -66,6 +66,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
     public DbSet<BillingPayment> BillingPayments => Set<BillingPayment>();
     public DbSet<SuperAdminPost> SuperAdminPosts => Set<SuperAdminPost>();
     public DbSet<AppRelease> AppReleases => Set<AppRelease>();
+    public DbSet<BusinessPlanPrice> BusinessPlanPrices => Set<BusinessPlanPrice>();
 
     public void SetOriginalRevision(AuditedEntity entity, Guid revision) =>
         Entry(entity).Property(nameof(AuditedEntity.Revision)).OriginalValue = revision;
@@ -179,6 +180,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
         b.Entity<BillingPayment>(e => { e.ToTable("billing_payment"); e.HasKey(x => x.Uuid); });
         b.Entity<SuperAdminPost>(e => { e.ToTable("super_admin_post"); Audited(e); });
         b.Entity<AppRelease>(e => { e.ToTable("app_release"); Audited(e); });
+        b.Entity<BusinessPlanPrice>(e => { e.ToTable("business_plan_price"); e.HasKey(x => new { x.TenantUuid, x.PlanUuid }); });
 
         b.Entity<Customer>(e =>
         {

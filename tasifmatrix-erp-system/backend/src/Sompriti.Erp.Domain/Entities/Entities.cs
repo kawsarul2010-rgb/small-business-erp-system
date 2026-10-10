@@ -58,6 +58,8 @@ public class Tenant : AuditedEntity
     public bool OnTrial { get; set; }
     /// <summary>Never billed.</summary>
     public bool BillingExempt { get; set; }
+    /// <summary>The super admin chose to keep the size although the business is above its limit: no alert until then.</summary>
+    public DateTimeOffset? SizeReviewSnoozedUntil { get; set; }
 }
 
 /// <summary>Small / Medium / Large ...: decides which price a business pays.</summary>
@@ -67,6 +69,8 @@ public class BusinessSize : AuditedEntity
     public string? Description { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
+    /// <summary>Most orders a month (3-month average) for this size; null: no limit (the largest size).</summary>
+    public int? MaxOrdersPerMonth { get; set; }
 }
 
 /// <summary>
@@ -107,6 +111,17 @@ public class SubscriptionPlan : AuditedEntity
     public int DurationMonths { get; set; } = 1;
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
+}
+
+/// <summary>A package price agreed with one business; it replaces its size's price for that package.</summary>
+public class BusinessPlanPrice : ITenantOwned
+{
+    public Guid TenantUuid { get; set; }
+    public Guid PlanUuid { get; set; }
+    public decimal Price { get; set; }
+    public DateTimeOffset UpdatedDate { get; set; }
+    public Guid UpdatedByUserUuid { get; set; }
+    public string UpdatedByUserName { get; set; } = "";
 }
 
 /// <summary>What a package costs for one business size. No row: not offered to that size.</summary>

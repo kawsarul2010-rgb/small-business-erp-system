@@ -1,6 +1,8 @@
 /* eslint-disable */
 // Bangla translations (server). English text -> Bangla. Generated from the translation sheet; edit freely.
 export const BN_SERVER: Record<string, string> = {
+  "A package is listed twice.": "একটি প্যাকেজ দুবার আছে।",
+  "A price cannot be negative.": "দাম ঋণাত্মক হতে পারে না।",
   "A record with the same code or number already exists.": "একই কোড বা নম্বরের একটি রেকর্ড আগে থেকেই আছে।",
   "A size in the price list does not exist.": "দামের তালিকার একটি আকার নেই।",
   "A size is listed twice.": "একটি আকার দুবার দেওয়া হয়েছে।",
@@ -20,6 +22,7 @@ export const BN_SERVER: Record<string, string> = {
   "Business code is required. Ask your business for it.": "ব্যবসার কোড আবশ্যক। আপনার ব্যবসার কাছ থেকে জেনে নিন।",
   "Business code must be 3 to 30 characters: lowercase letters, numbers and hyphens, not starting or ending with a hyphen.": "ব্যবসার কোড 3 থেকে 30 অক্ষরের হতে হবে: ছোট হাতের ইংরেজি অক্ষর, সংখ্যা ও হাইফেন; শুরু বা শেষে হাইফেন নয়।",
   "Cannot void: the purchased stock has already been used.": "বাতিল করা যাবে না: কেনা স্টক ইতিমধ্যে ব্যবহার হয়ে গেছে।",
+  "Choose 1 to 365 days.": "1 থেকে 365 দিন বেছে নিন।",
   "Choose ADMIN, MANAGER or USER.": "অ্যাডমিন, ম্যানেজার বা ব্যবহারকারী বেছে নিন।",
   "Choose a package or 1 to 60 months.": "একটি প্যাকেজ বা 1 থেকে 60 মাস বেছে নিন।",
   "Choose a package.": "একটি প্যাকেজ বেছে নিন।",
@@ -33,6 +36,7 @@ export const BN_SERVER: Record<string, string> = {
   "Current password is required.": "বর্তমান পাসওয়ার্ড আবশ্যক।",
   "Email is not valid.": "ইমেইল সঠিক নয়।",
   "Email sending is not set up on the server, so the PDF cannot be emailed from here. An administrator needs to set Email:Provider (Brevo or Resend) and Email:ApiKey. You can still download the PDF and attach it yourself.": "সার্ভারে ইমেইল পাঠানোর ব্যবস্থা চালু নেই, তাই এখান থেকে PDF ইমেইল করা যাবে না। একজন অ্যাডমিনকে Email:Provider (Brevo বা Resend) ও Email:ApiKey সেট করতে হবে। তবে PDF ডাউনলোড করে নিজে সংযুক্ত করতে পারেন।",
+  "Enter 0 or more orders a month, or leave it empty for no limit.": "মাসে 0 বা তার বেশি অর্ডার লিখুন, অথবা সীমা না রাখতে খালি রাখুন।",
   "Enter the amount received (0 or more).": "প্রাপ্ত টাকার পরিমাণ লিখুন (0 বা বেশি)।",
   "Extra days after expiry must be 0 to 60.": "মেয়াদ শেষে অতিরিক্ত দিন 0 থেকে 60 হতে হবে।",
   "Fill in the app key, app secret, username and password first.": "আগে অ্যাপ কী, অ্যাপ সিক্রেট, ইউজারনেম ও পাসওয়ার্ড দিন।",
@@ -48,6 +52,7 @@ export const BN_SERVER: Record<string, string> = {
   "No business uses this code. Check it with your business.": "এই কোডে কোনো ব্যবসা নেই। আপনার ব্যবসার কাছ থেকে কোডটি যাচাই করুন।",
   "Not enough stock to finalize.": "চূড়ান্ত করার মতো পর্যাপ্ত স্টক নেই।",
   "Note is required when reason is OTHER.": "কারণ 'অন্যান্য' হলে নোট লিখতে হবে।",
+  "One of the packages does not exist.": "একটি প্যাকেজ আর নেই।",
   "One or more values are out of the allowed range.": "এক বা একাধিক মান অনুমোদিত সীমার বাইরে।",
   "Online payment is not available yet. Please contact support.": "অনলাইন পেমেন্ট এখনো চালু হয়নি। সাপোর্টে যোগাযোগ করুন।",
   "Only DRAFT orders can be deleted. Use VOID for finalized orders.": "শুধু খসড়া অর্ডার মোছা যায়। চূড়ান্ত অর্ডারের জন্য 'বাতিল' ব্যবহার করুন।",

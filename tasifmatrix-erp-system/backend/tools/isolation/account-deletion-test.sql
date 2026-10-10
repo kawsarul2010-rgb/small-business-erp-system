@@ -34,6 +34,8 @@ INSERT INTO app_user (uuid, tenant_uuid, user_name, email, phone_number, passwor
 SELECT pg_temp.check(true, 'the email can be used again for a new account');
 
 -- ------------------------------------------------------------------ the last admin closes business A
+INSERT INTO business_plan_price (tenant_uuid, plan_uuid, price, updated_date, updated_by_user_uuid, updated_by_user_name)
+     SELECT current_setting('test.a')::uuid, uuid, 50, now(), '00000000-0000-0000-0000-000000000001', 'Owner' FROM subscription_plan LIMIT 1;
 INSERT INTO billing_payment (uuid, tenant_uuid, plan_name, duration_months, amount, provider, status, invoice_number, trx_id)
      VALUES (gen_random_uuid(), current_setting('test.a')::uuid, 'Monthly', 1, 100, 'BKASH', 'COMPLETED', 'TM261007-TEST01', 'TRX1');
 SELECT set_config('test.a_payments', (SELECT count(*)::text FROM billing_payment WHERE tenant_uuid = current_setting('test.a')::uuid), false);
@@ -46,7 +48,8 @@ SELECT pg_temp.check((SELECT count(*) FROM sales_order WHERE tenant_uuid = curre
                  AND (SELECT count(*) FROM product WHERE tenant_uuid = current_setting('test.a')::uuid) = 0
                  AND (SELECT count(*) FROM stock_ledger WHERE tenant_uuid = current_setting('test.a')::uuid) = 0
                  AND (SELECT count(*) FROM sms_outbox WHERE tenant_uuid = current_setting('test.a')::uuid) = 0
-                 AND (SELECT count(*) FROM company WHERE tenant_uuid = current_setting('test.a')::uuid) = 0, 'every business record is deleted');
+                 AND (SELECT count(*) FROM company WHERE tenant_uuid = current_setting('test.a')::uuid) = 0
+                 AND (SELECT count(*) FROM business_plan_price WHERE tenant_uuid = current_setting('test.a')::uuid) = 0, 'every business record is deleted');
 SELECT pg_temp.check(NOT EXISTS (SELECT 1 FROM app_user WHERE tenant_uuid = current_setting('test.a')::uuid
                                    AND (status <> 'DELETED' OR user_name <> 'Deleted user' OR email NOT LIKE '%@deleted.invalid')),
        'every account of the business is erased');
@@ -69,4 +72,20 @@ DO $$ BEGIN
 EXCEPTION WHEN insufficient_privilege THEN NULL;
 END $$;
 SELECT pg_temp.check(true, 'a business connection cannot run the deletion functions');
+RESET ROLE;
+
+-- ------------------------------------------------------------------ special prices: read own, never write
+INSERT INTO business_plan_price (tenant_uuid, plan_uuid, price, updated_date, updated_by_user_uuid, updated_by_user_name)
+     SELECT current_setting('test.b')::uuid, uuid, 75, now(), '00000000-0000-0000-0000-000000000001', 'Owner' FROM subscription_plan LIMIT 1;
+SET ROLE erp_tenant;
+SELECT set_config('app.tenant_id', current_setting('test.b'), false);
+SELECT pg_temp.check((SELECT count(*) FROM business_plan_price) = 1, 'a business reads its own special prices');
+DO $$ BEGIN
+  UPDATE business_plan_price SET price = 1;
+  RAISE EXCEPTION USING ERRCODE = 'T0001', MESSAGE = 'FAIL: a business changed its own special price';
+EXCEPTION WHEN insufficient_privilege THEN NULL;
+END $$;
+SELECT pg_temp.check(true, 'a business cannot change its special prices');
+SELECT set_config('app.tenant_id', current_setting('test.a'), false);
+SELECT pg_temp.check((SELECT count(*) FROM business_plan_price) = 0, 'and never sees another business''s');
 RESET ROLE;

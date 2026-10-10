@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { Component, OnInit, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -11,6 +11,7 @@ import { ApiService, problemOf } from '../../core/api.service';
 import { LayoutService } from '../../core/layout.service';
 import { BillingPayment, BusinessAdmin, BusinessDetail, BusinessSmsUsage, BusinessSubscription, IssuedCredentials, Paged } from '../../core/models';
 import { ManualPaymentDialog, SubscriptionDialog } from './subscription-dialogs';
+import { SpecialPricesDialog } from './special-prices-dialog';
 import { NotifyService } from '../../core/notify.service';
 import { StatusChip } from '../../shared/status-chip';
 import { MoneyPipe } from '../../shared/pipes';
@@ -21,7 +22,7 @@ import { t } from '../../core/i18n/i18n';
 /** One business, as the super admin sees it: its account, its usage and its admins. */
 @Component({
   selector: 'app-business-detail',
-  imports: [TranslatePipe, MoneyPipe, DatePipe, RouterLink, MatButtonModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule, StatusChip],
+  imports: [TranslatePipe, MoneyPipe, DatePipe, DecimalPipe, RouterLink, MatButtonModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule, StatusChip],
   template: `
     <div class="page">
       @if (!layout.isHandset()) { <a routerLink="/platform/businesses" class="back-link">{{ 'Businesses' | t }}</a> }
@@ -114,9 +115,51 @@ import { t } from '../../core/i18n/i18n';
                 @if (s.status.daysLeft !== null && (s.status.state === 'TRIAL' || s.status.state === 'ACTIVE')) { <span class="muted small">{{ '{n} days left' | t: { n: s.status.daysLeft } }}</span> }
                 @if (s.status.state === 'GRACE_PERIOD') { <span class="negative small">{{ 'paused on {date}' | t: { date: (s.status.graceEndsAt | date: 'd MMM yyyy') } }}</span> }
               </div>
-              <div><span class="k">{{ 'Business size' | t }}</span><strong>{{ s.sizeName ?? ('Not set' | t) }}</strong></div>
+              <div><span class="k">{{ 'Business size' | t }}</span><strong>{{ s.sizeName ?? ('Not set' | t) }}</strong>
+                @if (s.sizeCheck; as c) {
+                  <span class="muted small">{{ '{n} orders a month' | t: { n: (c.ordersPerMonth | number) } }}@if (c.sizeLimit !== null) { · {{ 'limit {n}' | t: { n: (c.sizeLimit | number) } }} }</span>
+                }
+              </div>
               <div><span class="k">{{ 'Package' | t }}</span><strong>{{ s.planName ?? '—' }}</strong></div>
             </div>
+            @if (s.sizeCheck; as c) {
+              @if (c.overLimit && b.status !== 'CLOSED') {
+                <div class="size-alert" [class.snoozed]="!c.alert">
+                  <mat-icon>trending_up</mat-icon>
+                  <div class="sa-text">
+                    <strong>{{ 'Above the {size} limit' | t: { size: s.sizeName } }}</strong>
+                    {{ '{n} orders a month on average over the last 3 months; {size} allows up to {limit}.' | t: { n: (c.ordersPerMonth | number), size: s.sizeName, limit: (c.sizeLimit | number) } }}
+                    @if (c.snoozedUntil) { <span class="muted">{{ 'Kept as {size} until {date}.' | t: { size: s.sizeName, date: (c.snoozedUntil | date: 'd MMM yyyy') } }}</span> }
+                    @if (s.billingExempt) { <span class="muted">{{ 'Never billed, so the size does not change what it pays.' | t }}</span> }
+                  </div>
+                  <div class="sa-actions">
+                    @if (!c.snoozedUntil) { <button mat-stroked-button (click)="keepSize(b, s)" [disabled]="busy()">{{ 'Keep {size}' | t: { size: s.sizeName } }}</button> }
+                    @if (c.suggestedSizeUuid) { <button mat-flat-button (click)="changeSize(b, c.suggestedSizeUuid, c.suggestedSizeName)" [disabled]="busy()">{{ 'Change to {size}' | t: { size: c.suggestedSizeName } }}</button> }
+                  </div>
+                </div>
+              }
+            }
+            @if (s.prices?.length && !s.billingExempt) {
+              <div class="special">
+                <div class="special-head">
+                  <span class="k">{{ 'Prices for this business' | t }}</span>
+                  @if (b.status !== 'CLOSED') { <button mat-button (click)="editPrices(b, s)"><mat-icon>sell</mat-icon>{{ 'Special prices' | t }}</button> }
+                </div>
+                <div class="price-chips">
+                  @for (p of s.prices!; track p.planUuid) {
+                    @if (p.specialPrice !== null || (p.sizePrice !== null && p.isActive)) {
+                      <span class="price-chip" [class.special-chip]="p.specialPrice !== null">
+                        {{ p.planName }}:
+                        @if (p.specialPrice !== null) {
+                          <strong>{{ p.specialPrice | money }}</strong>
+                          @if (p.sizePrice !== null) { <s class="muted">{{ p.sizePrice | money }}</s> }
+                        } @else { {{ p.sizePrice | money }} }
+                      </span>
+                    }
+                  }
+                </div>
+              </div>
+            }
             @if (payments().length > 0) {
               <div class="sub-payments">
                 @for (p of payments(); track p.uuid) {
@@ -217,6 +260,21 @@ import { t } from '../../core/i18n/i18n';
     .back-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: var(--erp-brand); text-decoration: none; font-weight: 550; }
     .back-link::before { content: '← '; }
     h1 app-status { vertical-align: middle; margin-left: 8px; }
+    .size-alert { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding: 12px 14px; border-radius: 12px;
+      background: var(--erp-chip-warn-bg); color: var(--erp-chip-warn-fg); font-size: 13.5px; line-height: 1.5; }
+    .size-alert.snoozed { background: var(--erp-card-2); color: var(--erp-text); border: 1px solid var(--erp-border); }
+    .size-alert > mat-icon { flex: none; }
+    .sa-text { flex: 1; min-width: 220px; }
+    .sa-text strong { display: block; }
+    .sa-text .muted { display: block; }
+    .sa-actions { display: flex; gap: 8px; flex-wrap: wrap; align-self: center; }
+    .special { margin-top: 14px; }
+    .special-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .special-head .k { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--erp-faint); }
+    .price-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+    .price-chip { padding: 3px 10px; border-radius: 999px; font-size: 12.5px; background: var(--erp-card-2); border: 1px solid var(--erp-border); }
+    .price-chip s { margin-left: 4px; font-size: 11.5px; }
+    .special-chip { background: var(--erp-chip-info-bg); color: var(--erp-chip-info-fg); border-color: transparent; }
     .code { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
     .busy { margin-bottom: 8px; }
     .suspended { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 16px; background: var(--erp-chip-danger-bg); color: var(--erp-chip-danger-fg); border-color: transparent; }
@@ -295,6 +353,28 @@ export class BusinessDetailPage implements OnInit {
     this.api.get<Paged<BillingPayment>>('/platform/billing/payments', { businessUuid: this.id(), page: 1, pageSize: 5 }).subscribe({
       next: (p) => this.payments.set(p.items),
       error: () => this.payments.set([]),
+    });
+  }
+
+  editPrices(b: BusinessDetail, s: BusinessSubscription): void {
+    this.dialog.open(SpecialPricesDialog, this.layout.dialog({ business: b, subscription: s }, '560px')).afterClosed().subscribe((saved) => {
+      if (saved) this.load();
+    });
+  }
+
+  changeSize(b: BusinessDetail, sizeUuid: string, sizeName: string | null): void {
+    this.busy.set(true);
+    this.api.put(`/platform/billing/businesses/${b.uuid}`, { sizeUuid }).subscribe({
+      next: () => { this.busy.set(false); this.notify.success('{name} is now {size}.', { name: b.name, size: sizeName }); this.load(); },
+      error: (e) => { this.busy.set(false); this.notify.error(e); },
+    });
+  }
+
+  keepSize(b: BusinessDetail, s: BusinessSubscription): void {
+    this.busy.set(true);
+    this.api.post(`/platform/billing/businesses/${b.uuid}/keep-size`, { days: 30 }).subscribe({
+      next: () => { this.busy.set(false); this.notify.success('{name} stays {size}. You will be reminded again in 30 days if it is still above the limit.', { name: b.name, size: s.sizeName }); this.load(); },
+      error: (e) => { this.busy.set(false); this.notify.error(e); },
     });
   }
 
