@@ -3,21 +3,22 @@ import { MatIconModule } from '@angular/material/icon';
 import { APP_INFO } from '../core/app-info';
 import { LANGUAGES, Lang, currentLang, setLang } from '../core/i18n/i18n';
 import { AppBrand } from './app-brand';
+import { AppLogo } from './app-logo';
 import { AppCredit } from './app-credit';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 
 /**
  * Frame for the screens used before signing in (log in, create account, password reset):
- * a brand panel beside the form on desktop, a brand header above the form on phones.
+ * a brand panel beside the form on desktop, the logo above the form on phones.
  */
 @Component({
   selector: 'app-auth-layout',
-  imports: [TranslatePipe, MatIconModule, AppBrand, AppCredit],
+  imports: [TranslatePipe, MatIconModule, AppBrand, AppLogo, AppCredit],
   template: `
     <div class="auth-wrap">
       <aside class="auth-aside">
         <div class="glow" aria-hidden="true"></div>
-        <app-brand [inverse]="true" [size]="44" />
+        <app-brand [inverse]="true" [size]="44" [title]="'Business Management Platform' | t" />
         <div class="pitch">
           <h2>{{ 'Run your whole business from one place.' | t }}</h2>
           <p>{{ 'Purchases, sales, stock and payments - always in step, on your computer and on your phone.' | t }}</p>
@@ -37,8 +38,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
           }
         </div>
         <div class="auth-mobile-brand">
-          <app-brand [inverse]="true" [size]="44" />
-          <span class="tagline">{{ 'Purchases, sales, stock and payments' | t }}</span>
+          <app-logo [size]="56" />
         </div>
         <ng-content />
         <app-credit />

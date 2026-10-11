@@ -3,7 +3,7 @@ import { APP_INFO } from '../core/app-info';
 import { AppLogo } from './app-logo';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 
-/** The product lock-up (mark + name + publisher) used on the sign-in screens. */
+/** The product lock-up (mark + title + publisher) used on the sign-in screens. */
 @Component({
   selector: 'app-brand',
   imports: [TranslatePipe, AppLogo],
@@ -11,7 +11,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
     <div class="brand" [class.inverse]="inverse()">
       <app-logo [size]="size()" />
       <div class="text">
-        <span class="name">{{ app.name }}</span>
+        <span class="name">{{ title() ?? app.name }}</span>
         <span class="by">{{ 'by {name}' | t: { name: app.publisher.name } }}</span>
       </div>
     </div>
@@ -28,6 +28,8 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
 export class AppBrand {
   readonly app = APP_INFO;
   readonly size = input(40);
+  /** Heading beside the mark; the product name when not given. */
+  readonly title = input<string | null>(null);
   /** White text, for use on the brand gradient. */
   readonly inverse = input(false);
 }
