@@ -223,6 +223,7 @@ export const BN_UI: Record<string, string> = {
   "Description": "বিবরণ",
   "Description (shown to businesses)": "বিবরণ (ব্যবসাগুলো দেখবে)",
   "Details": "বিস্তারিত",
+  "Developer": "ডেভেলপার",
   "Done": "সম্পন্ন",
   "Download": "ডাউনলোড",
   "Download PDF": "PDF ডাউনলোড",

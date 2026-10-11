@@ -3,12 +3,12 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
-import { APP_INFO, PUBLISHER_LINE, copyrightLine, websiteLabel, websiteUrl } from '../core/app-info';
+import { APP_INFO, copyrightLine, websiteLabel, websiteUrl } from '../core/app-info';
 import { AppLogo } from './app-logo';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 
 /**
- * The standard "About this app" screen: product identity, version and who makes it.
+ * The standard "About this app" screen: product identity, version and who developed it.
  * Opened from the account menu on desktop and from the More tab on phones.
  */
 @Component({
@@ -18,14 +18,14 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
     <mat-dialog-content class="about">
       <div class="identity">
         <app-logo [size]="64" class="mark" />
-        <h2>{{ app.name }}</h2>
+        <h2>{{ 'Business Management Platform' | t }}</h2>
         <p class="version">{{ 'Version {v}' | t: { v: app.version } }}</p>
       </div>
 
       <div class="credit">
-        <div class="label">{{ 'A product of' | t }}</div>
-        <div class="who">{{ app.publisher.name }}</div>
-        <div class="role">{{ role | t }}</div>
+        <div class="label">{{ 'Developer' | t }}</div>
+        <div class="who">{{ app.developer.name }}</div>
+        @for (r of app.developer.roles; track r) { <div class="role">{{ r }}</div> }
       </div>
 
       <a class="website" [href]="website" target="_blank" rel="noopener noreferrer">
@@ -71,7 +71,6 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
 })
 export class AboutDialog {
   readonly app = APP_INFO;
-  readonly role = PUBLISHER_LINE;
   readonly copyright = () => copyrightLine();
   readonly website = websiteUrl();
   readonly websiteText = websiteLabel(this.website);

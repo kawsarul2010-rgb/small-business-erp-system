@@ -19,6 +19,11 @@ export const APP_INFO = {
     name: 'Tasif Matrix Limited',
     location: 'Bangladesh',
   },
+  /** Shown under "Developer" in About. */
+  developer: {
+    name: 'Md Kawsarul Islam',
+    roles: ['CEO, Tasif Matrix Limited', 'Software Engineer, BMW Group, Malaysia'],
+  },
 } as const;
 
 /** "Bangladesh" - the line under the publisher's name. */
