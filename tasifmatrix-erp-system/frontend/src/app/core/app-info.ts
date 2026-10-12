@@ -12,7 +12,7 @@ import { t } from './i18n/i18n';
  */
 export const APP_INFO = {
   name: 'Tasif Matrix ERP',
-  version: '1.0.0',
+  version: '1.0.1',
   /** Year the product was first released; the copyright line grows from it. */
   since: 2026,
   publisher: {
