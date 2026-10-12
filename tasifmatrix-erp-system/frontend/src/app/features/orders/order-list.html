@@ -9,11 +9,12 @@
         </div>
       }
     </div>
-    @if (canCreate() && !layout.isHandset()) {
-      <div class="actions">
+    <div class="actions">
+      <app-report-export [path]="pdfPath()" [filters]="pdfFilters()" [label]="pdfLabel() | t" />
+      @if (canCreate() && !layout.isHandset()) {
         <a mat-flat-button [routerLink]="meta().route + '/new'"><mat-icon>add</mat-icon>{{ (kind() === 'purchase' ? 'New purchase order' : 'New sales order') | t }}</a>
-      </div>
-    }
+      }
+    </div>
   </div>
 
   <div class="card">

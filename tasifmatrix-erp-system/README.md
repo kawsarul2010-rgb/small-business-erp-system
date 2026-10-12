@@ -243,7 +243,7 @@ Base path `/api/v1`, JSON (camelCase, enums as `UPPER_SNAKE_CASE`), errors as RF
 | Users | `users` (ADMIN) + `POST users/{id}/unlock` |
 | Stock | `GET stock/balances`, `GET stock/ledger`, `GET/POST stock/adjustments` |
 | Orders | `purchase-orders`, `sales-orders`: list, get, create, update (draft), delete (draft), `DELETE {id}/lines/{lineId}`, `POST {id}/finalize`, `POST {id}/void`, `POST {id}/payments`, `DELETE {id}/payments/{paymentId}`, `GET {id}/pdf` |
-| Reports | `GET reports/customers`, `reports/suppliers`, `reports/companies`, `GET dashboard` |
+| Reports | `GET reports/customers`, `reports/suppliers`, `reports/companies`, `GET dashboard` · printable PDFs: `GET reports/{customers,suppliers,companies,due/sales,due/purchase,sales-orders,purchase-orders}/pdf` (same filters as the screen; `sales-orders`/`purchase-orders` take the order-list filters, and with `partyUuid` print one customer's or supplier's orders), `POST …/pdf/email` |
 | SMS | `GET sms`, `POST sms/{id}/retry` (ADMIN) · orders: `POST {id}/sms` `{ sendSms, revision }` |
 | Billing | `GET billing`, `GET billing/status`, `GET billing/payments`, `POST billing/checkout`, `POST billing/size`, `POST billing/payments/{id}/verify`, `GET billing/bkash/callback` (bKash returns here) · super admin: `platform/billing/settings` (+ `test-bkash`), `sizes`, `plans`, `payments`, `businesses/{id}` (+ `/payments` to record a payment) |
 | Posts | `GET posts?channel=web\|app`, `GET posts/unread-count?channel=`, `POST posts/seen` · super admin: `GET/POST platform/posts`, `PUT/DELETE platform/posts/{id}`, `GET platform/posts/businesses` |

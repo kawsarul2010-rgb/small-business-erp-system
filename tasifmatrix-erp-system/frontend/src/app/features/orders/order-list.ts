@@ -20,6 +20,7 @@ import { LayoutService } from '../../core/layout.service';
 import { DropdownItem, OrderKind, OrderListItem, Paged, PostingStatus } from '../../core/models';
 import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
+import { ReportExport } from '../../shared/report-export';
 import { LabelPipe, MoneyPipe } from '../../shared/pipes';
 import { SearchSelect } from '../../shared/search-select';
 import { StatusChip } from '../../shared/status-chip';
@@ -31,7 +32,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
   imports: [TranslatePipe, 
     RouterLink, DatePipe, ReactiveFormsModule, MatTableModule, MatSortModule, MatButtonModule, MatButtonToggleModule,
     MatIconModule, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatProgressBarModule,
-    SearchSelect, StatusChip, ListFooter, MoneyPipe, LabelPipe,
+    SearchSelect, StatusChip, ListFooter, MoneyPipe, LabelPipe, ReportExport,
   ],
   templateUrl: './order-list.html',
   styleUrl: './order-list.scss',
@@ -81,6 +82,32 @@ export class OrderListPage implements OnInit {
       toDate: dateToIso(this.to.value),
     }),
   );
+
+  /** The printable list: the orders on screen, or one customer's or supplier's orders when filtered to them. */
+  readonly pdfPath = computed(() => (this.kind() === 'purchase' ? '/reports/purchase-orders/pdf' : '/reports/sales-orders/pdf'));
+
+  /** What to call the PDF when sharing it. */
+  pdfLabel(): string {
+    if (this.party.value || this.auth.isUser()) return this.kind() === 'purchase' ? 'Supplier orders' : 'Customer orders';
+    return this.kind() === 'purchase' ? 'Purchase orders' : 'Sales orders';
+  }
+
+  /**
+   * The filters the screen is showing, handed to the printable version unchanged.
+   * A method rather than a computed: form control values are not signals.
+   */
+  pdfFilters(): Record<string, string | null> {
+    const q = this.list.query();
+    return {
+      search: q.search || null,
+      sort: q.sort || null,
+      postingStatus: this.status() || null,
+      partyUuid: this.party.value,
+      companyUuid: this.company.value,
+      fromDate: dateToIso(this.from.value),
+      toDate: dateToIso(this.to.value),
+    };
+  }
 
   ngOnInit(): void {
     this.refreshFilterCount();

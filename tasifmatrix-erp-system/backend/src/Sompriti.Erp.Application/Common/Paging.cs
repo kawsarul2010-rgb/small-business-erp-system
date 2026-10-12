@@ -13,8 +13,14 @@ public record PageQuery
     /// <summary>Property name, prefix with '-' for descending. Example: "-createdDate".</summary>
     public string? Sort { get; init; }
 
-    public int SafePage => Page < 1 ? 1 : Page;
-    public int SafePageSize => PageSize is < 1 ? 20 : Math.Min(PageSize, 200);
+    /// <summary>
+    /// Every matching row in one page - for printed reports, which must cover the whole selection.
+    /// Internal, so it can never be set from a request's query string.
+    /// </summary>
+    internal bool AllRows { get; init; }
+
+    public int SafePage => AllRows || Page < 1 ? 1 : Page;
+    public int SafePageSize => AllRows ? int.MaxValue : PageSize is < 1 ? 20 : Math.Min(PageSize, 200);
     public string? Term => string.IsNullOrWhiteSpace(Search) ? null : Search.Trim();
 }
 

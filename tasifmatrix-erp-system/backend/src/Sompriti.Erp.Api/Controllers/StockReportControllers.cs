@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sompriti.Erp.Api.Infrastructure;
 using Sompriti.Erp.Application.Common;
+using Sompriti.Erp.Application.Orders;
 using Sompriti.Erp.Application.Reports;
 using Sompriti.Erp.Application.Sms;
 using Sompriti.Erp.Application.Settings;
@@ -71,6 +72,23 @@ public sealed class ReportsController(ReportService service, IReportPdfRenderer 
     // ---------------------------------------------------------------- email the printable version
     // Sharing a report from a desktop browser: the browser cannot attach a file to an email, so
     // the server renders the same document and sends it. Filters and roles are exactly as above.
+
+    // The order lists as printed - one customer's or supplier's orders when the list is filtered to them.
+    [HttpGet("sales-orders/pdf"), Authorize(Roles = "ADMIN,MANAGER,USER")]
+    public Task<IActionResult> SalesOrdersPdf([FromQuery] OrderListQuery q, [FromQuery] bool download, CancellationToken ct) =>
+        Pdf(service.OrderListDocumentAsync(Domain.Enums.TransactionType.Sales, q, ct), download);
+
+    [HttpGet("purchase-orders/pdf"), Authorize(Roles = "ADMIN,USER")]
+    public Task<IActionResult> PurchaseOrdersPdf([FromQuery] OrderListQuery q, [FromQuery] bool download, CancellationToken ct) =>
+        Pdf(service.OrderListDocumentAsync(Domain.Enums.TransactionType.Purchase, q, ct), download);
+
+    [HttpPost("sales-orders/pdf/email"), Authorize(Roles = "ADMIN,MANAGER,USER")]
+    public Task<IActionResult> EmailSalesOrdersPdf([FromQuery] OrderListQuery q, EmailPdfRequest r, CancellationToken ct) =>
+        EmailPdf(service.OrderListDocumentAsync(Domain.Enums.TransactionType.Sales, q, ct), r, ct);
+
+    [HttpPost("purchase-orders/pdf/email"), Authorize(Roles = "ADMIN,USER")]
+    public Task<IActionResult> EmailPurchaseOrdersPdf([FromQuery] OrderListQuery q, EmailPdfRequest r, CancellationToken ct) =>
+        EmailPdf(service.OrderListDocumentAsync(Domain.Enums.TransactionType.Purchase, q, ct), r, ct);
 
     [HttpPost("customers/pdf/email")]
     public Task<IActionResult> EmailCustomersPdf([FromQuery] ReportQuery q, EmailPdfRequest r, CancellationToken ct) =>

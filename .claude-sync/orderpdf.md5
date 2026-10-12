@@ -1,0 +1,7 @@
+628330237faf0ba456c9d982a016e292  README.md
+9bee0b16f2c1d7388901c0d76dd1f2f9  backend/src/Sompriti.Erp.Application/Common/Paging.cs
+fa0ead8ff5dd1d24f0eb2d7a112e2c95  backend/src/Sompriti.Erp.Application/Reports/ReportService.cs
+ef8b71fbaf6070f255f3d85281a07e2e  backend/src/Sompriti.Erp.Api/Controllers/StockReportControllers.cs
+7e41cc6dcd9b8b20931127d962442ca1  frontend/src/app/features/orders/order-list.ts
+6f0f70cc2fd868d81a79456a34422551  frontend/src/app/features/orders/order-list.html
+610b9f17ac69f9e7bcf35b4c027697b3  frontend/src/app/core/i18n/bn/ui.ts

@@ -165,7 +165,7 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
     public async Task<ReportDocument> PartyReportDocumentAsync(bool customers, ReportQuery q, CancellationToken ct)
     {
         // A printed report covers the whole selection, not whichever page happened to be open.
-        var all = q with { Page = 1, PageSize = int.MaxValue };
+        var all = q with { Page = 1, AllRows = true };
         var report = customers ? await CustomerReportAsync(all, ct) : await SupplierReportAsync(all, ct);
         var party = customers ? "Customer" : "Supplier";
 
@@ -268,8 +268,7 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
         var sales = type == TransactionType.Sales;
         var listQuery = new OrderListQuery
         {
-            Page = 1,
-            PageSize = int.MaxValue,
+            AllRows = true,
             PostingStatus = Domain.Enums.PostingStatus.Final,
             DueOnly = true,
             Sort = "orderDate",
@@ -318,6 +317,99 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
                 Money.FormatPlain(paged.Items.Sum(o => o.DueAmount)),
             },
             FileName: FileName(sales ? "customer-due-report" : "supplier-due-report", q.FromDate, q.ToDate));
+    }
+
+    /// <summary>
+    /// The sales or purchase order list as printed: every order matching the screen's filters.
+    /// With one customer or supplier selected it doubles as that party's statement - their
+    /// details head the page and the party column is dropped. Totals count finalized orders
+    /// only, as drafts and voided orders owe nothing.
+    /// </summary>
+    public async Task<ReportDocument> OrderListDocumentAsync(TransactionType type, OrderListQuery q, CancellationToken ct)
+    {
+        var sales = type == TransactionType.Sales;
+        if (!sales && user.Role == Role.Manager) throw DomainException.Forbidden();
+
+        // A linked customer or supplier only ever prints their own orders.
+        var partyUuid = user.Role == Role.User ? (sales ? user.CustomerUuid : user.SupplierUuid) : q.PartyUuid;
+        var all = q with { AllRows = true, PartyUuid = partyUuid, DueOnly = false };
+        var orders = (sales ? await salesOrders.ListAsync(all, ct) : await purchaseOrders.ListAsync(all, ct)).Items;
+
+        var partyWord = sales ? "Customer" : "Supplier";
+        var filters = new List<(string, string)>();
+        string? partyCode = null;
+        if (partyUuid is { } pid)
+        {
+            var parties = sales ? (IQueryable<PartyEntity>)db.Customers : db.Suppliers;
+            var party = await parties.AsNoTracking().Where(p => p.Uuid == pid)
+                .Select(p => new { p.Name, p.Code, p.MobileNumber, p.Address, p.City }).FirstOrDefaultAsync(ct);
+            if (party is not null)
+            {
+                partyCode = party.Code;
+                filters.Add((partyWord, string.IsNullOrEmpty(party.Code) ? party.Name : $"{party.Name} ({party.Code})"));
+                filters.Add(("Mobile", BdMobile.ToDisplay(party.MobileNumber)));
+                var address = string.Join(", ", new[] { party.Address, party.City }.Where(v => !string.IsNullOrWhiteSpace(v)));
+                if (address.Length > 0) filters.Add(("Address", address));
+            }
+        }
+        filters.AddRange(await FiltersAsync(new ReportQuery { FromDate = q.FromDate, ToDate = q.ToDate, CompanyUuid = q.CompanyUuid }, null, ct));
+        filters.Add(("Status", q.PostingStatus switch
+        {
+            PostingStatus.Draft => "Draft only",
+            PostingStatus.Final => "Final only",
+            PostingStatus.Void => "Void only",
+            _ => "All statuses",
+        }));
+        if (q.Term is { } term) filters.Add(("Search", term));
+        filters.Add(("Totals", "Finalized orders only"));
+
+        // One party: room for the payment type. All parties: the narrowest columns, so names fit.
+        var perParty = partyUuid is not null;
+        float money = perParty ? 66 : 62;
+        var columns = new List<ReportColumn> { new("Order no.", perParty ? 56 : 50), new("Date", perParty ? 62 : 58) };
+        if (!perParty) columns.Add(new ReportColumn(partyWord));
+        columns.Add(perParty ? new ReportColumn("Company") : new ReportColumn("Company", 78));
+        if (perParty) columns.Add(new ReportColumn("Payment", 60));
+        columns.AddRange(new[]
+        {
+            new ReportColumn("Status", 40),
+            new ReportColumn("Total", money, RightAligned: true),
+            new ReportColumn("Paid", money, RightAligned: true),
+            new ReportColumn("Due", money, RightAligned: true),
+        });
+
+        var rows = orders.Select(o =>
+        {
+            var final = o.PostingStatus == PostingStatus.Final;
+            var cells = new List<string> { o.OrderNumber, o.OrderDate.ToString("dd MMM yyyy", Invariant) };
+            if (!perParty) cells.Add(o.PartyName);
+            cells.Add(o.CompanyName);
+            if (perParty) cells.Add(o.PaymentType.ToString());
+            cells.Add(o.PostingStatus.ToString());
+            cells.Add(Money.FormatPlain(o.TotalAmount));
+            cells.Add(Money.FormatPlain(o.TotalPaidAmount));
+            cells.Add(final ? Money.FormatPlain(o.DueAmount) : "-");
+            return new ReportRow(cells);
+        }).ToList();
+
+        var finals = orders.Where(o => o.PostingStatus == PostingStatus.Final).ToList();
+        var totals = new List<string> { "TOTAL", finals.Count == 1 ? "1 order" : $"{finals.Count} orders" };
+        totals.AddRange(Enumerable.Repeat("", columns.Count - 5));
+        totals.Add(Money.FormatPlain(finals.Sum(o => o.TotalAmount)));
+        totals.Add(Money.FormatPlain(finals.Sum(o => o.TotalPaidAmount)));
+        totals.Add(Money.FormatPlain(finals.Sum(o => o.DueAmount)));
+
+        var prefix = perParty
+            ? $"{(sales ? "customer" : "supplier")}-{partyCode ?? "orders"}-orders"
+            : sales ? "sales-orders" : "purchase-orders";
+        return new ReportDocument(
+            Title: perParty ? $"{partyWord} orders" : sales ? "Sales orders" : "Purchase orders",
+            BusinessName: await business.NameAsync(ct),
+            Filters: filters,
+            Columns: columns,
+            Rows: rows,
+            Totals: totals,
+            FileName: FileName(prefix, q.FromDate, q.ToDate));
     }
 
     // ------------------------------------------------------------------ printable report helpers
