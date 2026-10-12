@@ -12,6 +12,7 @@ export const routes: Routes = [
   // Public reading pages Google Play links to: open for anyone, signed in or not.
   { path: 'privacy', title: 'Privacy policy', loadComponent: () => import('./features/legal/legal-pages').then((m) => m.PrivacyPage) },
   { path: 'delete-account', title: 'Delete your account', loadComponent: () => import('./features/legal/legal-pages').then((m) => m.DeleteAccountPage) },
+  { path: 'help', title: 'User guide', loadComponent: () => import('./features/guide/guide-pages').then((m) => m.HelpPage) },
   { path: 'payment-result', title: 'Payment', loadComponent: () => import('./features/billing/payment-result').then((m) => m.PaymentResultPage) },
 
   // ---------------------------------------------------------------- app shell
@@ -25,6 +26,7 @@ export const routes: Routes = [
       { path: 'change-password', title: 'Change password', loadComponent: () => import('./features/auth/change-password').then((m) => m.ChangePasswordPage) },
       { path: 'more', title: 'Menu', loadComponent: () => import('./features/more/more').then((m) => m.MorePage) },
       { path: 'announcements', title: 'Announcements', canActivate: [businessGuard], loadComponent: () => import('./features/posts/announcements').then((m) => m.AnnouncementsPage) },
+      { path: 'guide', title: 'User guide', loadComponent: () => import('./features/guide/guide-pages').then((m) => m.GuidePage) },
       { path: 'profile', title: 'My profile', loadComponent: () => import('./features/profile/profile').then((m) => m.ProfilePage) },
 
       // master data

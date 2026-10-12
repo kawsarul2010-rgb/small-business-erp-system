@@ -85,6 +85,12 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Settings', icon: 'settings', link: '/settings', roles: ['ADMIN'] },
     ],
   },
+  {
+    title: 'Help',
+    items: [
+      { label: 'User guide', short: 'Guide', icon: 'menu_book', link: '/guide', roles: ['ADMIN', 'MANAGER', 'USER'] },
+    ],
+  },
 ];
 
 export function visibleGroups(groups: NavGroup[], user: CurrentUser | null): NavGroup[] {
@@ -115,6 +121,7 @@ export const FROZEN_GROUPS: NavGroup[] = [
     items: [
       { label: 'Billing', short: 'Billing', icon: 'credit_card', link: '/billing', roles: ['ADMIN', 'MANAGER', 'USER'] },
       { label: 'Announcements', short: 'News', icon: 'campaign', link: '/announcements', roles: ['ADMIN', 'MANAGER', 'USER'], badge: 'posts' },
+      { label: 'User guide', short: 'Guide', icon: 'menu_book', link: '/guide', roles: ['ADMIN', 'MANAGER', 'USER'] },
     ],
   },
 ];

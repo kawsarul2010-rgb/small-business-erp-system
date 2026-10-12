@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 import { APP_INFO, copyrightLine } from '../../core/app-info';
@@ -29,14 +29,16 @@ import { AppLogo } from '../../shared/app-logo';
         </div>
       </header>
 
-      <main class="legal-main">
-        <article class="card doc">
+      <main class="legal-main" [class.wide]="plain()">
+        <article [class.card]="!plain()" [class.doc]="!plain()">
           <ng-content />
         </article>
         <nav class="legal-links">
           <a routerLink="/privacy">{{ 'Privacy policy' | t }}</a>
           <span aria-hidden="true">·</span>
           <a routerLink="/delete-account">{{ 'Delete your account' | t }}</a>
+          <span aria-hidden="true">·</span>
+          <a routerLink="/help">{{ 'User guide' | t }}</a>
           <span aria-hidden="true">·</span>
           <a [routerLink]="auth.isLoggedIn() ? '/' : '/login'">{{ (auth.isLoggedIn() ? 'Back to the app' : 'Log in') | t }}</a>
         </nav>
@@ -56,6 +58,7 @@ import { AppLogo } from '../../shared/app-logo';
     .lang { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .2); }
     .lang button { border: 0; background: none; color: rgba(255, 255, 255, .85); font: inherit; font-size: 12.5px; font-weight: 600; padding: 5px 12px; border-radius: 999px; cursor: pointer; }
     .lang button.on { background: #fff; color: #312e81; }
+    .legal-main.wide { max-width: 1020px; }
     .legal-main { max-width: 820px; margin: 0 auto; padding: 28px 20px calc(36px + env(safe-area-inset-bottom, 0px)); box-sizing: border-box; }
     .doc { padding: 32px 36px; }
     .legal-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 10px; margin-top: 22px; font-size: 13px; color: var(--erp-faint); }
@@ -70,6 +73,8 @@ import { AppLogo } from '../../shared/app-logo';
   `,
 })
 export class LegalLayout {
+  /** No card around the content - for pages that bring their own cards (the user guide). */
+  readonly plain = input(false);
   readonly auth = inject(AuthService);
   readonly app = APP_INFO;
   readonly languages = LANGUAGES;

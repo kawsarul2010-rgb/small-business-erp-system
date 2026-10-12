@@ -1,18 +1,20 @@
 import { Component } from '@angular/core';
 import { APP_INFO, PUBLISHER_LINE, copyrightLine } from '../core/app-info';
 import { RouterLink } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '../core/i18n/translate.pipe';
 
 /** One-line publisher credit for pages outside the shell, such as the login screen. */
 @Component({
   selector: 'app-credit',
-  imports: [TranslatePipe, RouterLink],
+  imports: [TranslatePipe, RouterLink, MatIconModule],
   template: `
     <footer class="credit">
       <div>{{ app.name }} <span class="ver">v{{ app.version }}</span></div>
       <div>{{ 'A product of {name}' | t: { name: app.publisher.name } }}</div>
       <div class="role">{{ copyright() }}</div>
       <div class="links"><a routerLink="/privacy">{{ 'Privacy policy' | t }}</a> · <a routerLink="/delete-account">{{ 'Delete your account' | t }}</a></div>
+      <a class="guide" routerLink="/help"><mat-icon>menu_book</mat-icon>{{ 'User guide' | t }}</a>
     </footer>
   `,
   styles: `
@@ -28,6 +30,9 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
     .role { font-size: 11.5px; }
     .links { margin-top: 4px; font-size: 12px; color: var(--erp-faint); }
     .links a { color: var(--erp-muted); text-decoration: underline; text-underline-offset: 2px; }
+    .guide { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; padding: 7px 14px; border-radius: 999px;
+      border: 1px solid var(--erp-border); background: var(--erp-card); color: var(--erp-brand); font-weight: 600; font-size: 13px; text-decoration: none; }
+    .guide mat-icon { font-size: 18px; width: 18px; height: 18px; }
   `,
 })
 export class AppCredit {
