@@ -3,7 +3,9 @@ import { Component, input } from '@angular/core';
 let nextId = 0;
 
 /**
- * The Tasif Matrix mark: a "T" picked out of a 3 x 3 matrix on an indigo-to-teal tile.
+ * The Tasif Matrix Limited mark ("Matrix T"): a solid T on an indigo-to-teal tile, the rest of
+ * the 3 x 3 matrix as faint cells, and one mint "spark" cell. Same geometry as the brand files
+ * (Tasif Matrix Logo/svg/tasifmatrix-logo-mark.svg), scaled to a 40-unit box.
  * Drawn as SVG so it stays sharp at every size and needs no image file.
  */
 @Component({
@@ -13,24 +15,21 @@ let nextId = 0;
       <defs>
         <linearGradient [attr.id]="gid" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
           <stop offset="0" stop-color="#6d6af8" />
-          <stop offset=".5" stop-color="#4f46e5" />
+          <stop offset=".55" stop-color="#4f46e5" />
           <stop offset="1" stop-color="#14b8a6" />
         </linearGradient>
       </defs>
-      <rect width="40" height="40" rx="11" [attr.fill]="'url(#' + gid + ')'" />
+      <rect width="40" height="40" rx="9.6" [attr.fill]="'url(#' + gid + ')'" />
       <g fill="#fff">
-        <rect x="7" y="7" width="7" height="7" rx="2" />
-        <rect x="16.5" y="7" width="7" height="7" rx="2" />
-        <rect x="26" y="7" width="7" height="7" rx="2" />
-        <rect x="16.5" y="16.5" width="7" height="7" rx="2" />
-        <rect x="16.5" y="26" width="7" height="7" rx="2" />
+        <rect x="6.8" y="6.8" width="26.4" height="7.2" rx="2.2" />
+        <rect x="16.4" y="10.4" width="7.2" height="22.8" rx="2.2" />
       </g>
-      <g fill="#fff" opacity=".26">
-        <rect x="7" y="16.5" width="7" height="7" rx="2" />
-        <rect x="26" y="16.5" width="7" height="7" rx="2" />
-        <rect x="7" y="26" width="7" height="7" rx="2" />
-        <rect x="26" y="26" width="7" height="7" rx="2" />
+      <g fill="#fff" opacity=".28">
+        <rect x="6.8" y="16.4" width="7.2" height="7.2" rx="2.2" />
+        <rect x="26" y="16.4" width="7.2" height="7.2" rx="2.2" />
+        <rect x="6.8" y="26" width="7.2" height="7.2" rx="2.2" />
       </g>
+      <rect x="26" y="26" width="7.2" height="7.2" rx="2.2" fill="#5eead4" />
     </svg>
   `,
   styles: `:host { display: inline-flex; flex: none; } svg { display: block; }`,
