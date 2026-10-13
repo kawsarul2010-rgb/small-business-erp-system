@@ -90,7 +90,7 @@ or use your computer's LAN address while testing).
 1. Install [Android Studio](https://developer.android.com/studio) (it brings the Android SDK) and a JDK 21
    (`brew install --cask temurin@21` on macOS). Open Android Studio once and let it finish installing the SDK.
 2. Point the build at your API: edit `frontend/src/environments/environment.mobile.ts` and set
-   `apiBaseUrl` to your server, e.g. `https://tasifmatrix-erp.up.railway.app` (the build refuses to run while it says `CHANGE-ME`).
+   `apiBaseUrl` to your server, e.g. `https://tasifmatrix.com.bd` (the build refuses to run while it says `CHANGE-ME`).
 3. Allow the app's origin on the API: set `Cors__AllowedOrigins=https://localhost,capacitor://localhost,http://localhost`
    (Railway → Variables, or `appsettings.Development.json` locally). Without this the app cannot log in.
 4. Create the Android project once:
@@ -210,7 +210,7 @@ post-deploy checks and troubleshooting. The short version:
    - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (variable reference to the database service)
    - `Jwt__SigningKey` = a long random secret (`openssl rand -base64 48`)
    - `SEED_SUPERADMIN_EMAIL`, `SEED_SUPERADMIN_PASSWORD` (your platform-owner account; min. 8 chars with a letter and a number)
-   - `App__PublicBaseUrl` = your Railway URL, e.g. `https://tasifmatrix-erp.up.railway.app`
+   - `App__PublicBaseUrl` = your Railway URL, e.g. `https://tasifmatrix.com.bd`
    - SMS: `Sms__Enabled=true`, `Sms__Provider=BulkSmsBd`, `Sms__ApiKey`, `Sms__SenderId` (or `GenericHttp` settings)
    - Email: `Email__Provider=Brevo` (or `Resend`), `Email__ApiKey`, `Email__FromAddress`
 5. **Settings → Networking → Generate Domain**.
