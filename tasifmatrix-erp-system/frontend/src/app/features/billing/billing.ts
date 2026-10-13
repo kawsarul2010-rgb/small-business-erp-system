@@ -45,7 +45,7 @@ const STATE_ICONS: Record<string, { icon: string }> = {
       <div class="page-header">
         <div>
           <h1>{{ 'Billing' | t }}</h1>
-          <div class="subtitle">{{ (inApp ? 'Your subscription to {product}.' : 'Your subscription to {product} and its payments.') | t: { product: 'Tasif Matrix ERP' } }}</div>
+          <div class="subtitle">{{ (inApp ? 'Your subscription to {product}.' : 'Your subscription to {product} and its payments.') | t: { product: 'Tasif Matrix' } }}</div>
         </div>
       </div>
 

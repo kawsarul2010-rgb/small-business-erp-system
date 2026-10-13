@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Builds the signed Android App Bundle (.aab) of Tasif Matrix ERP for Google Play.
+# Builds the signed Android App Bundle (.aab) of Tasif Matrix for Google Play.
 #
 #   cd "~/Desktop/Sompriti Enterprice Project/tasifmatrix-erp-system"
 #   ./build-aab.sh

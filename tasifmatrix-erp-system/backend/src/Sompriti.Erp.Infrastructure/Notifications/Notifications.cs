@@ -126,7 +126,7 @@ public sealed class EmailOptions
     public string Provider { get; set; } = "Log";
     public string ApiKey { get; set; } = "";
     public string FromAddress { get; set; } = "no-reply@example.com";
-    public string FromName { get; set; } = "Tasif Matrix ERP";
+    public string FromName { get; set; } = "Tasif Matrix";
 }
 
 /// <summary>

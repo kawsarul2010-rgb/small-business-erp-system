@@ -1,4 +1,4 @@
-# Tasif Matrix ERP – Web and Android app
+# Tasif Matrix – Web and Android app
 
 Angular 22 + Angular Material. The same code runs as a website and, through Capacitor, as an Android app.
 

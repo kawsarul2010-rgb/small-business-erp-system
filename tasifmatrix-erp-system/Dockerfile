@@ -1,5 +1,5 @@
 # ---------------------------------------------------------------------------
-# Tasif Matrix ERP - single container: ASP.NET Core API + Angular SPA (wwwroot)
+# Tasif Matrix - single container: ASP.NET Core API + Angular SPA (wwwroot)
 # Build locally:  docker build -t tasifmatrix-erp .
 # ---------------------------------------------------------------------------
 

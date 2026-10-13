@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Builds the Android debug APK for Tasif Matrix ERP.
+# Builds the Android debug APK for Tasif Matrix.
 #
 #   cd "~/Desktop/Sompriti Enterprice Project/tasifmatrix-erp-system"
 #   ./build-apk.sh

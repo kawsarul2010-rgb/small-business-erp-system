@@ -148,7 +148,7 @@ public sealed class AppOptions
     /// The product's own name, used where no business applies: the super admin's emails and the
     /// "contact support" line. Each business's documents carry that business's name instead.
     /// </summary>
-    public string ProductName { get; set; } = "Tasif Matrix ERP";
+    public string ProductName { get; set; } = "Tasif Matrix";
 
     /// <summary>
     /// Whether anyone may register a new business from the sign-up page (they become its admin).

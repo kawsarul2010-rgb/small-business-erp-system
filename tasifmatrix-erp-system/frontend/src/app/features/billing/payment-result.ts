@@ -45,7 +45,7 @@ const RESULT_ICONS: Record<string, { icon: string }> = {
         @if (auth.isLoggedIn()) {
           <a mat-flat-button class="full-width submit cta" routerLink="/billing">{{ 'Go to Billing' | t }}</a>
         } @else {
-          <p class="muted hint">{{ 'Paid from the Tasif Matrix ERP app? You can go back to the app now.' | t }}</p>
+          <p class="muted hint">{{ 'Paid from the Tasif Matrix app? You can go back to the app now.' | t }}</p>
           <a mat-stroked-button class="full-width" routerLink="/login">{{ 'Log in' | t }}</a>
         }
       </div>

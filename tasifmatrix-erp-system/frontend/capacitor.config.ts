@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'tasifmatrix.business.management.app',
-  appName: 'Tasif Matrix ERP',
+  appName: 'Tasif Matrix',
   webDir: 'dist/frontend',
   android: {
     // The WebView origin becomes https://localhost, which must be allowed by the API's CORS setting.

@@ -94,7 +94,7 @@ export class InviteStaff {
     try {
       await navigator.share({
         title: t('Join {business}', { business: this.auth.user()?.businessName ?? '' }),
-        text: t('Join our business on {product}. Choose Create account → Join a business and enter the business code: {code}', { product: 'Tasif Matrix ERP', code }),
+        text: t('Join our business on {product}. Choose Create account → Join a business and enter the business code: {code}', { product: 'Tasif Matrix', code }),
         url: this.link(),
       });
     } catch {

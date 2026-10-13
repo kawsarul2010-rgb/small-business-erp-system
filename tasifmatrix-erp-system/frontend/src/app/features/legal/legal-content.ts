@@ -25,7 +25,7 @@ export const PRIVACY: Record<'en' | 'bn', LegalDoc> = {
   en: {
     title: 'Privacy policy',
     intro:
-      'Tasif Matrix ERP is a business management app - on the website and as an Android app - made by Tasif Matrix Limited, Bangladesh ("we", "us"). It helps shops and businesses manage purchases, sales, stock and payments. This policy explains what information we collect, why, who it is shared with, and the choices you have.',
+      'Tasif Matrix is a business management app - on the website and as an Android app - made by Tasif Matrix Limited, Bangladesh ("we", "us"). It helps shops and businesses manage purchases, sales, stock and payments. This policy explains what information we collect, why, who it is shared with, and the choices you have.',
     sections: [
       {
         heading: 'Information we collect',
@@ -63,7 +63,7 @@ export const PRIVACY: Record<'en' | 'bn', LegalDoc> = {
         blocks: [
           {
             list: [
-              'People in your business, according to the role their admin gives them. Other businesses using Tasif Matrix ERP cannot see your data: each business is kept separate in the database.',
+              'People in your business, according to the role their admin gives them. Other businesses using Tasif Matrix cannot see your data: each business is kept separate in the database.',
               'Tasif Matrix Limited sees what it needs to run the service: your business name and contact details, usage counts and your subscription. We do not look through your business records except when you ask us to help, or when the law requires it.',
               'Service providers that work for us: Railway (servers and database), Brevo (sending emails), bKash (subscription payments), and our SMS gateway (sending SMS). They may use the information only to provide their service to us.',
               'Authorities, when Bangladeshi law requires us to share it.',
@@ -99,7 +99,7 @@ export const PRIVACY: Record<'en' | 'bn', LegalDoc> = {
       },
       {
         heading: 'Children',
-        blocks: ['Tasif Matrix ERP is made for businesses and is not meant for anyone under 18.'],
+        blocks: ['Tasif Matrix is made for businesses and is not meant for anyone under 18.'],
       },
       {
         heading: 'Changes to this policy',
@@ -112,7 +112,7 @@ export const PRIVACY: Record<'en' | 'bn', LegalDoc> = {
   bn: {
     title: 'গোপনীয়তা নীতি',
     intro:
-      'Tasif Matrix ERP একটি ব্যবসা পরিচালনার অ্যাপ - ওয়েবসাইটে ও অ্যান্ড্রয়েড অ্যাপে - যা তৈরি করেছে বাংলাদেশের Tasif Matrix Limited ("আমরা")। এটি দোকান ও ব্যবসাকে ক্রয়, বিক্রয়, স্টক ও পেমেন্ট পরিচালনায় সাহায্য করে। আমরা কী তথ্য সংগ্রহ করি, কেন করি, কার সাথে শেয়ার করি এবং আপনার কী কী সুযোগ আছে - এই নীতিতে তা বলা হয়েছে।',
+      'Tasif Matrix একটি ব্যবসা পরিচালনার অ্যাপ - ওয়েবসাইটে ও অ্যান্ড্রয়েড অ্যাপে - যা তৈরি করেছে বাংলাদেশের Tasif Matrix Limited ("আমরা")। এটি দোকান ও ব্যবসাকে ক্রয়, বিক্রয়, স্টক ও পেমেন্ট পরিচালনায় সাহায্য করে। আমরা কী তথ্য সংগ্রহ করি, কেন করি, কার সাথে শেয়ার করি এবং আপনার কী কী সুযোগ আছে - এই নীতিতে তা বলা হয়েছে।',
     sections: [
       {
         heading: 'আমরা যে তথ্য সংগ্রহ করি',
@@ -150,7 +150,7 @@ export const PRIVACY: Record<'en' | 'bn', LegalDoc> = {
         blocks: [
           {
             list: [
-              'আপনার ব্যবসার লোকজন, তাদের অ্যাডমিন যে ভূমিকা দেন সে অনুযায়ী। Tasif Matrix ERP ব্যবহারকারী অন্য ব্যবসা আপনার তথ্য দেখতে পারে না: ডাটাবেসে প্রতিটি ব্যবসা আলাদা রাখা হয়।',
+              'আপনার ব্যবসার লোকজন, তাদের অ্যাডমিন যে ভূমিকা দেন সে অনুযায়ী। Tasif Matrix ব্যবহারকারী অন্য ব্যবসা আপনার তথ্য দেখতে পারে না: ডাটাবেসে প্রতিটি ব্যবসা আলাদা রাখা হয়।',
               'সেবা চালাতে Tasif Matrix Limited যা দরকার তা দেখে: আপনার ব্যবসার নাম ও যোগাযোগের তথ্য, ব্যবহারের সংখ্যা এবং আপনার সাবস্ক্রিপশন। আপনি সাহায্য না চাইলে বা আইন না চাইলে আমরা আপনার ব্যবসার রেকর্ড ঘেঁটে দেখি না।',
               'আমাদের হয়ে কাজ করা সেবাদাতা: Railway (সার্ভার ও ডাটাবেস), Brevo (ইমেইল পাঠানো), bKash (সাবস্ক্রিপশন পেমেন্ট), এবং আমাদের SMS গেটওয়ে (SMS পাঠানো)। তারা শুধু আমাদের সেবা দিতেই এই তথ্য ব্যবহার করতে পারে।',
               'বাংলাদেশের আইন অনুযায়ী প্রয়োজন হলে কর্তৃপক্ষ।',
@@ -186,7 +186,7 @@ export const PRIVACY: Record<'en' | 'bn', LegalDoc> = {
       },
       {
         heading: 'শিশু',
-        blocks: ['Tasif Matrix ERP ব্যবসার জন্য তৈরি এবং ১৮ বছরের কম বয়সীদের জন্য নয়।'],
+        blocks: ['Tasif Matrix ব্যবসার জন্য তৈরি এবং ১৮ বছরের কম বয়সীদের জন্য নয়।'],
       },
       {
         heading: 'এই নীতির পরিবর্তন',
@@ -202,9 +202,9 @@ export const PRIVACY: Record<'en' | 'bn', LegalDoc> = {
 
 export const DELETION: Record<'en' | 'bn', LegalDoc> = {
   en: {
-    title: 'Delete your Tasif Matrix ERP account',
+    title: 'Delete your Tasif Matrix account',
     intro:
-      'You can delete your Tasif Matrix ERP account yourself at any time, from the Android app or the website. Deletion happens straight away and cannot be undone.',
+      'You can delete your Tasif Matrix account yourself at any time, from the Android app or the website. Deletion happens straight away and cannot be undone.',
     sections: [
       {
         heading: 'How to delete it',
@@ -237,7 +237,7 @@ export const DELETION: Record<'en' | 'bn', LegalDoc> = {
         blocks: [
           {
             list: [
-              'Records you entered for your business (orders, payments, stock) stay with the business, without your name, while the business uses Tasif Matrix ERP. They belong to the business.',
+              'Records you entered for your business (orders, payments, stock) stay with the business, without your name, while the business uses Tasif Matrix. They belong to the business.',
               'For a closed business: its name and code, and its subscription payment records (invoice number, amount, date and bKash transaction ID), kept for our accounts for as long as the law requires.',
               'Deleted information can stay in our server backups for a short time, until those backups are replaced.',
             ],
@@ -247,9 +247,9 @@ export const DELETION: Record<'en' | 'bn', LegalDoc> = {
     ],
   },
   bn: {
-    title: 'আপনার Tasif Matrix ERP অ্যাকাউন্ট মুছুন',
+    title: 'আপনার Tasif Matrix অ্যাকাউন্ট মুছুন',
     intro:
-      'অ্যান্ড্রয়েড অ্যাপ বা ওয়েবসাইট থেকে যেকোনো সময় আপনি নিজেই আপনার Tasif Matrix ERP অ্যাকাউন্ট মুছতে পারেন। মোছা সঙ্গে সঙ্গে হয় এবং আর ফেরানো যায় না।',
+      'অ্যান্ড্রয়েড অ্যাপ বা ওয়েবসাইট থেকে যেকোনো সময় আপনি নিজেই আপনার Tasif Matrix অ্যাকাউন্ট মুছতে পারেন। মোছা সঙ্গে সঙ্গে হয় এবং আর ফেরানো যায় না।',
     sections: [
       {
         heading: 'কীভাবে মুছবেন',
@@ -282,7 +282,7 @@ export const DELETION: Record<'en' | 'bn', LegalDoc> = {
         blocks: [
           {
             list: [
-              'ব্যবসার জন্য আপনার এন্ট্রি করা রেকর্ড (অর্ডার, পেমেন্ট, স্টক) আপনার নাম ছাড়া ব্যবসার কাছেই থাকে, যতদিন ব্যবসাটি Tasif Matrix ERP ব্যবহার করে। এগুলো ব্যবসার সম্পদ।',
+              'ব্যবসার জন্য আপনার এন্ট্রি করা রেকর্ড (অর্ডার, পেমেন্ট, স্টক) আপনার নাম ছাড়া ব্যবসার কাছেই থাকে, যতদিন ব্যবসাটি Tasif Matrix ব্যবহার করে। এগুলো ব্যবসার সম্পদ।',
               'বন্ধ হওয়া ব্যবসার ক্ষেত্রে: এর নাম ও কোড, এবং এর সাবস্ক্রিপশন পেমেন্টের রেকর্ড (ইনভয়েস নম্বর, টাকার পরিমাণ, তারিখ ও bKash ট্রানজেকশন আইডি), আমাদের হিসাবের জন্য আইন যতদিন চায় ততদিন রাখা হয়।',
               'মুছে ফেলা তথ্য আমাদের সার্ভারের ব্যাকআপে অল্প সময় থেকে যেতে পারে, যতক্ষণ না সেই ব্যাকআপ বদলানো হয়।',
             ],

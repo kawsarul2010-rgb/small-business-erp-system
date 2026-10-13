@@ -1,4 +1,4 @@
-# Deploying Tasif Matrix ERP to Railway
+# Deploying Tasif Matrix to Railway
 
 One Railway project holds two services: **PostgreSQL** (managed) and **the app** (one Docker image that
 serves both the API and the Angular web app). The Android APK talks to the same URL.
@@ -113,7 +113,7 @@ SEED_SUPERADMIN_NAME=Md Kawsarul Islam
 SEED_SUPERADMIN_PHONE=01700000000
 
 App__PublicBaseUrl=https://${{RAILWAY_PUBLIC_DOMAIN}}
-App__ProductName=Tasif Matrix ERP
+App__ProductName=Tasif Matrix
 App__AllowBusinessSignup=true
 
 Cors__AllowedOrigins=https://localhost,capacitor://localhost,http://localhost
@@ -126,7 +126,7 @@ Sms__SenderId=PASTE_YOUR_SENDER_ID
 
 Email__Provider=Log
 Email__FromAddress=no-reply@yourdomain.com
-Email__FromName=Tasif Matrix ERP
+Email__FromName=Tasif Matrix
 ```
 
 Notes on the ones that matter:

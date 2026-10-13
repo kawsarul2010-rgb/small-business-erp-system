@@ -11,7 +11,7 @@ import { t } from './i18n/i18n';
  * (see the shell), and its own name on its invoices and reports.
  */
 export const APP_INFO = {
-  name: 'Tasif Matrix ERP',
+  name: 'Tasif Matrix',
   version: '1.0.2',
   /** Year the product was first released; the copyright line grows from it. */
   since: 2026,

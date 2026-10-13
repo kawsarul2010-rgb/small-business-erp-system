@@ -269,7 +269,7 @@ public class PdfMailerTests
     {
         public Task<string> NameAsync(CancellationToken ct) => Task.FromResult(name);
         public Task<string> NameOfAsync(Guid? tenantUuid, CancellationToken ct) => Task.FromResult(name);
-        public string ProductName => "Tasif Matrix ERP";
+        public string ProductName => "Tasif Matrix";
     }
 
     // The business's own name heads the email, not the software's.

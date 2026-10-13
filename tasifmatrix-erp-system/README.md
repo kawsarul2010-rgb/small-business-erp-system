@@ -1,4 +1,4 @@
-# Tasif Matrix ERP
+# Tasif Matrix
 
 Purchase, sales, stock and payments for small businesses in Bangladesh — **one deployment serving many
 businesses**, each completely separate from the others. A product of Tasif Matrix Limited.

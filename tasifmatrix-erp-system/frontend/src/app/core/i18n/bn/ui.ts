@@ -562,7 +562,7 @@ export const BN_UI: Record<string, string> = {
   "Packages for your business": "আপনার ব্যবসার প্যাকেজ",
   "Packages:": "প্যাকেজ:",
   "Paid": "পরিশোধিত",
-  "Paid from the Tasif Matrix ERP app? You can go back to the app now.": "Tasif Matrix ERP অ্যাপ থেকে পরিশোধ করেছেন? এখন অ্যাপে ফিরে যেতে পারেন।",
+  "Paid from the Tasif Matrix app? You can go back to the app now.": "Tasif Matrix অ্যাপ থেকে পরিশোধ করেছেন? এখন অ্যাপে ফিরে যেতে পারেন।",
   "Paid package": "পেইড প্যাকেজ",
   "Paid until": "পরিশোধিত মেয়াদ",
   "Paid until {date} - 1 day left.": "{date} পর্যন্ত পরিশোধিত - 1 দিন বাকি।",
