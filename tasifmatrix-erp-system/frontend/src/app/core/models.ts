@@ -255,6 +255,12 @@ export interface OrderDetail extends Audited {
   smsBlockedReason: string | null;
 }
 
+/** GET {orders}/{id}/receipt: the order and the business heading its POS receipt. */
+export interface OrderReceipt {
+  order: OrderDetail;
+  business: { name: string; address: string | null; phone: string | null; email: string | null; licenseNumber: string | null };
+}
+
 export interface OrderLineRequest {
   uuid: string | null;
   productUuid: string | null;

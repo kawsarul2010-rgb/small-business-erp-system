@@ -140,6 +140,19 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
             $"{(sales ? "Sales invoice" : "Purchase order")} {detail.OrderNumber}");
     }
 
+    /// <summary>
+    /// The order with its company's address and phone, for a POS receipt that the browser prints
+    /// on a thermal printer. Same access as the order itself.
+    /// </summary>
+    public async Task<OrderReceiptDto> ReceiptAsync(Guid id, CancellationToken ct)
+    {
+        var detail = await GetAsync(id, ct);
+        var c = await Db.Companies.AsNoTracking().FirstAsync(x => x.Uuid == detail.Company.Uuid, ct);
+        var address = string.Join(", ", new[] { c.AddressLine, c.City, c.State, c.PostalCode }.Where(s => !string.IsNullOrWhiteSpace(s)));
+        return new OrderReceiptDto(detail, new ReceiptBusinessDto(
+            c.CompanyName, address.Length > 0 ? address : null, c.PhoneNumber, c.Email, c.LicenseNumber));
+    }
+
     // ================================================================== draft editing
 
     public async Task<OrderDetailDto> CreateAsync(OrderSaveRequest r, CancellationToken ct)

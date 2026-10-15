@@ -60,3 +60,9 @@ public sealed record OrderSmsRequest(bool SendSms, Guid Revision);
 public sealed record VoidOrderRequest(Guid Revision, string? VoidReason);
 
 public sealed record AddPaymentRequest(Guid Revision, DateOnly? PaymentDate, decimal? PaymentAmount, PaymentMethod? PaymentMethod, string? PaymentNote);
+
+/// <summary>The selling or buying business as a POS receipt heads it.</summary>
+public sealed record ReceiptBusinessDto(string Name, string? Address, string? Phone, string? Email, string? LicenseNumber);
+
+/// <summary>Everything a POS (thermal) receipt prints: the order and the business it belongs to.</summary>
+public sealed record OrderReceiptDto(OrderDetailDto Order, ReceiptBusinessDto Business);

@@ -24,6 +24,7 @@ import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
 import { LabelPipe, MoneyPipe, QtyPipe, formatMoney } from '../../shared/pipes';
 import { openSharePdfDialog } from '../../shared/share-pdf-dialog';
+import { PosReceiptDialog } from '../../shared/pos-receipt';
 import { StatusChip } from '../../shared/status-chip';
 import { orderMeta } from './order-kind';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
@@ -171,6 +172,12 @@ export class OrderViewPage implements OnInit {
       },
       error: (e) => { this.notify.error(e); this.busy.set(false); },
     });
+  }
+
+  /** Previews and prints the order on a POS (thermal) receipt printer, 80 or 58 mm. */
+  posReceipt(): void {
+    const o = this.order()!;
+    this.dialog.open(PosReceiptDialog, { ...this.layout.dialog({ path: `${this.meta().api}/${o.uuid}` }, '460px'), autoFocus: false });
   }
 
   /**

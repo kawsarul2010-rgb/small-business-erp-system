@@ -1,4 +1,4 @@
-# Tasif Matrix
+# Tasif Matrix ERP
 
 Purchase, sales, stock and payments for small businesses in Bangladesh — **one deployment serving many
 businesses**, each completely separate from the others. A product of Tasif Matrix Limited.
@@ -90,7 +90,7 @@ or use your computer's LAN address while testing).
 1. Install [Android Studio](https://developer.android.com/studio) (it brings the Android SDK) and a JDK 21
    (`brew install --cask temurin@21` on macOS). Open Android Studio once and let it finish installing the SDK.
 2. Point the build at your API: edit `frontend/src/environments/environment.mobile.ts` and set
-   `apiBaseUrl` to your server, e.g. `https://tasifmatrix.com.bd` (the build refuses to run while it says `CHANGE-ME`).
+   `apiBaseUrl` to your server, e.g. `https://tasifmatrix-erp.up.railway.app` (the build refuses to run while it says `CHANGE-ME`).
 3. Allow the app's origin on the API: set `Cors__AllowedOrigins=https://localhost,capacitor://localhost,http://localhost`
    (Railway → Variables, or `appsettings.Development.json` locally). Without this the app cannot log in.
 4. Create the Android project once:
@@ -210,7 +210,7 @@ post-deploy checks and troubleshooting. The short version:
    - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (variable reference to the database service)
    - `Jwt__SigningKey` = a long random secret (`openssl rand -base64 48`)
    - `SEED_SUPERADMIN_EMAIL`, `SEED_SUPERADMIN_PASSWORD` (your platform-owner account; min. 8 chars with a letter and a number)
-   - `App__PublicBaseUrl` = your Railway URL, e.g. `https://tasifmatrix.com.bd`
+   - `App__PublicBaseUrl` = your Railway URL, e.g. `https://tasifmatrix-erp.up.railway.app`
    - SMS: `Sms__Enabled=true`, `Sms__Provider=BulkSmsBd`, `Sms__ApiKey`, `Sms__SenderId` (or `GenericHttp` settings)
    - Email: `Email__Provider=Brevo` (or `Resend`), `Email__ApiKey`, `Email__FromAddress`
 5. **Settings → Networking → Generate Domain**.
@@ -242,7 +242,7 @@ Base path `/api/v1`, JSON (camelCase, enums as `UPPER_SNAKE_CASE`), errors as RF
 | Master data | `companies`, `customers`, `suppliers`, `products` (list, `dropdown`, get, create, update, delete) |
 | Users | `users` (ADMIN) + `POST users/{id}/unlock` |
 | Stock | `GET stock/balances`, `GET stock/ledger`, `GET/POST stock/adjustments` |
-| Orders | `purchase-orders`, `sales-orders`: list, get, create, update (draft), delete (draft), `DELETE {id}/lines/{lineId}`, `POST {id}/finalize`, `POST {id}/void`, `POST {id}/payments`, `DELETE {id}/payments/{paymentId}`, `GET {id}/pdf` |
+| Orders | `purchase-orders`, `sales-orders`: list, get, create, update (draft), delete (draft), `DELETE {id}/lines/{lineId}`, `POST {id}/finalize`, `POST {id}/void`, `POST {id}/payments`, `DELETE {id}/payments/{paymentId}`, `GET {id}/pdf`, `GET {id}/receipt` (order + company address for a POS receipt) |
 | Reports | `GET reports/customers`, `reports/suppliers`, `reports/companies`, `GET dashboard` · printable PDFs: `GET reports/{customers,suppliers,companies,due/sales,due/purchase,sales-orders,purchase-orders}/pdf` (same filters as the screen; `sales-orders`/`purchase-orders` take the order-list filters, and with `partyUuid` print one customer's or supplier's orders), `POST …/pdf/email` |
 | SMS | `GET sms`, `POST sms/{id}/retry` (ADMIN) · orders: `POST {id}/sms` `{ sendSms, revision }` |
 | Billing | `GET billing`, `GET billing/status`, `GET billing/payments`, `POST billing/checkout`, `POST billing/size`, `POST billing/payments/{id}/verify`, `GET billing/bkash/callback` (bKash returns here) · super admin: `platform/billing/settings` (+ `test-bkash`), `sizes`, `plans`, `payments`, `businesses/{id}` (+ `/payments` to record a payment) |

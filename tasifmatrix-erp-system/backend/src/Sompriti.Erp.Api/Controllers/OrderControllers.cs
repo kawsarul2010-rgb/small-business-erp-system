@@ -28,6 +28,10 @@ public sealed class PurchaseOrdersController(PurchaseOrderService service, PdfMa
         return this.PdfFile(bytes, name, download);
     }
 
+    /// <summary>The order and its company's address, for a POS (thermal) receipt printed by the browser.</summary>
+    [HttpGet("{id:guid}/receipt"), Authorize(Roles = "ADMIN,USER")]
+    public Task<OrderReceiptDto> Receipt(Guid id, CancellationToken ct) => service.ReceiptAsync(id, ct);
+
     /// <summary>Emails the same PDF as an attachment. A browser cannot attach a file itself.</summary>
     [HttpPost("{id:guid}/pdf/email"), Authorize(Roles = "ADMIN,USER")]
     public async Task<IActionResult> EmailPdf(Guid id, EmailPdfRequest r, CancellationToken ct)
@@ -96,6 +100,10 @@ public sealed class SalesOrdersController(SalesOrderService service, PdfMailer m
         var (bytes, name, _) = await service.PdfAsync(id, ct);
         return this.PdfFile(bytes, name, download);
     }
+
+    /// <summary>The order and its company's address, for a POS (thermal) receipt printed by the browser.</summary>
+    [HttpGet("{id:guid}/receipt"), Authorize(Roles = "ADMIN,MANAGER,USER")]
+    public Task<OrderReceiptDto> Receipt(Guid id, CancellationToken ct) => service.ReceiptAsync(id, ct);
 
     /// <summary>Emails the same PDF as an attachment. A browser cannot attach a file itself.</summary>
     [HttpPost("{id:guid}/pdf/email"), Authorize(Roles = "ADMIN,MANAGER,USER")]

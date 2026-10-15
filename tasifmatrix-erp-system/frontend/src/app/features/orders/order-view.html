@@ -37,6 +37,7 @@
             <button mat-menu-item (click)="pdf(false)"><mat-icon>print</mat-icon>{{ 'Open PDF' | t }}</button>
             <button mat-menu-item (click)="pdf(true)"><mat-icon>download</mat-icon>{{ 'Download PDF' | t }}</button>
             @if (!platform.isNative) {
+              <button mat-menu-item (click)="posReceipt()"><mat-icon>receipt_long</mat-icon>{{ 'POS receipt' | t }}</button>
               <button mat-menu-item (click)="share()"><mat-icon>ios_share</mat-icon>{{ 'Share (WhatsApp, email)' | t }}</button>
             }
             @if (canWrite() && isDraft()) {
@@ -49,6 +50,10 @@
         <mat-menu #printMenu="matMenu">
           <button mat-menu-item (click)="pdf(false)"><mat-icon>open_in_new</mat-icon>{{ 'Open PDF' | t }}</button>
           <button mat-menu-item (click)="pdf(true)"><mat-icon>download</mat-icon>{{ 'Download PDF' | t }}</button>
+          <!-- Thermal receipt printers are driven from a computer's browser; the Android app has no print dialog. -->
+          @if (!platform.isNative) {
+            <button mat-menu-item (click)="posReceipt()"><mat-icon>receipt_long</mat-icon>{{ 'POS receipt' | t }}</button>
+          }
           <!-- The Android app shares through the system sheet behind "Open PDF". -->
           @if (!platform.isNative) {
             <button mat-menu-item (click)="share()"><mat-icon>ios_share</mat-icon>{{ 'Share (WhatsApp, email)' | t }}</button>
