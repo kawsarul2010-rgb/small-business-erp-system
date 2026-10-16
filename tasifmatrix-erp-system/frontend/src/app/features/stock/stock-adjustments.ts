@@ -141,7 +141,7 @@ export class StockAdjustmentsPage implements OnInit {
           </mat-form-field>
           <mat-form-field>
             <mat-label>{{ 'Date' | t }}</mat-label>
-            <input matInput [matDatepicker]="dp" formControlName="adjustmentDate" [max]="today" />
+            <input matInput [matDatepicker]="dp" formControlName="adjustmentDate" />
             <mat-datepicker-toggle matIconSuffix [for]="dp" /><mat-datepicker #dp />
           </mat-form-field>
           <mat-form-field class="span-2"><mat-label>{{ 'Note' | t }}</mat-label><textarea matInput rows="2" formControlName="note"></textarea><mat-error>{{ err('note', 'Note') }}</mat-error></mat-form-field>
@@ -159,7 +159,6 @@ export class AdjustmentDialog {
   private readonly api = inject(ApiService);
   private readonly ref = inject(MatDialogRef<AdjustmentDialog>);
   private readonly notify = inject(NotifyService);
-  readonly today = new Date();
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly selected = signal<ProductDropdownItem | null>(null);

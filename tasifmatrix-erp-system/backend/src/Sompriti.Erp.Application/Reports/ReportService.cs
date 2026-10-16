@@ -212,6 +212,12 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
         var rows = await CompanyReportAsync(q, ct);
         var withPurchases = rows.Count > 0 && rows[0].PurchaseCount is not null;
 
+        // A business has one company, named in the header already: then the page is that company's
+        // figures alone - no code or name column, and no total row repeating the one row.
+        if (rows.Count == 1 && await SingleCompanyNameAsync(ct) is not null)
+            return SingleCompanyDocument(rows[0], withPurchases, await business.NameAsync(ct), await FiltersAsync(q, extra: null, ct),
+                FileName("company-report", q.FromDate, q.ToDate));
+
         var columns = new List<ReportColumn>
         {
             new("Code", 60),
@@ -260,6 +266,38 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
         return new ReportDocument("Company report", await business.NameAsync(ct),
             await FiltersAsync(q, extra: null, ct), columns, body, totals,
             FileName("company-report", q.FromDate, q.ToDate));
+    }
+
+    private static ReportDocument SingleCompanyDocument(CompanyReportRow r, bool withPurchases, string businessName,
+        IReadOnlyList<(string, string)> filters, string fileName)
+    {
+        var columns = new List<ReportColumn>
+        {
+            new("Sales", 56, RightAligned: true),
+            new("Sales total", 0, RightAligned: true),
+            new("Sales paid", 0, RightAligned: true),
+            new("Sales due", 0, RightAligned: true),
+        };
+        var cells = new List<string>
+        {
+            r.SalesCount.ToString(Invariant), Money.FormatPlain(r.SalesTotal), Money.FormatPlain(r.SalesPaid), Money.FormatPlain(r.SalesDue),
+        };
+        if (withPurchases)
+        {
+            columns.AddRange(new ReportColumn[]
+            {
+                new("Purchases", 64, RightAligned: true),
+                new("Purchase total", 0, RightAligned: true),
+                new("Purchase paid", 0, RightAligned: true),
+                new("Purchase due", 0, RightAligned: true),
+            });
+            cells.AddRange(new[]
+            {
+                (r.PurchaseCount ?? 0).ToString(Invariant), Money.FormatPlain(r.PurchaseTotal ?? 0),
+                Money.FormatPlain(r.PurchasePaid ?? 0), Money.FormatPlain(r.PurchaseDue ?? 0),
+            });
+        }
+        return new ReportDocument("Company report", businessName, filters, columns, [new ReportRow(cells)], [], fileName);
     }
 
     /// <summary>Finalized orders still carrying a due, oldest first.</summary>

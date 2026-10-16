@@ -118,7 +118,6 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
         v.When(r.Reason is null, "reason", "Reason is required.");
         v.When(r.Reason == AdjustmentReason.Other && string.IsNullOrWhiteSpace(r.Note), "note", "Note is required when reason is OTHER.");
         v.MaxLength("note", r.Note, "Note", 500);
-        v.When(r.AdjustmentDate > today, "adjustmentDate", "Adjustment date cannot be in the future.");
         v.ThrowIfInvalid();
 
         var product = await db.Products.AsNoTracking()

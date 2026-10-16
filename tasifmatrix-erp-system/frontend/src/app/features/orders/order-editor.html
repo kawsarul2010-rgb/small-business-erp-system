@@ -60,7 +60,7 @@
 
           <mat-form-field>
             <mat-label>{{ 'Order date' | t }}</mat-label>
-            <input matInput [matDatepicker]="dp" formControlName="orderDate" [max]="today" />
+            <input matInput [matDatepicker]="dp" formControlName="orderDate" />
             <mat-datepicker-toggle matIconSuffix [for]="dp" />
             <mat-datepicker #dp />
             <mat-error>{{ err(form.controls.orderDate, 'Order date') }}</mat-error>

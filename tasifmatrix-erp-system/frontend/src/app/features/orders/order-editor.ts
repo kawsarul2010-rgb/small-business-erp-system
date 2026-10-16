@@ -87,7 +87,6 @@ export class OrderEditorPage implements OnInit {
   readonly order = signal<OrderDetail | null>(null);
   /** The business's SMS switches; null until loaded (or when they could not be read). */
   readonly settings = signal<BusinessSettings | null>(null);
-  readonly today = new Date();
 
   /** Product info per line, parallel to the lines FormArray. */
   readonly lineProducts = signal<(LineProduct | null)[]>([]);

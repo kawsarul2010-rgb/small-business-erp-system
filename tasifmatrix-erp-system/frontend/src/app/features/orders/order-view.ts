@@ -252,7 +252,7 @@ export class OrderViewPage implements OnInit {
           </mat-form-field>
           <mat-form-field>
             <mat-label>{{ 'Payment date' | t }}</mat-label>
-            <input matInput [matDatepicker]="dp" formControlName="paymentDate" [min]="minDate" [max]="today" />
+            <input matInput [matDatepicker]="dp" formControlName="paymentDate" [min]="minDate" />
             <mat-datepicker-toggle matIconSuffix [for]="dp" /><mat-datepicker #dp />
             <mat-error>{{ err('paymentDate', 'Payment date') }}</mat-error>
           </mat-form-field>
@@ -279,7 +279,6 @@ export class PaymentDialog {
   private readonly ref = inject(MatDialogRef<PaymentDialog>);
   private readonly api = inject(ApiService);
   private readonly notify = inject(NotifyService);
-  readonly today = new Date();
   readonly minDate = isoToDate(this.data.order.orderDate);
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);

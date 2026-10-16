@@ -234,7 +234,6 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
             .Required("partyUuid", r.PartyUuid, PartyLabel)
             .MaxLength("notes", r.Notes, "Notes", 1000);
         v.When(r.PaymentType is null, "paymentType", "Payment type is required.");
-        v.When(r.OrderDate > Today, "orderDate", "Order date cannot be in the future.");
         v.ThrowIfInvalid();
 
         if (!await Db.Companies.AnyAsync(c => c.Uuid == r.CompanyUuid && c.Status == RecordStatus.Active, ct))
@@ -407,10 +406,11 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
 
     public async Task<OrderDetailDto> AddPaymentAsync(Guid id, AddPaymentRequest r, CancellationToken ct)
     {
+        // Order and payment dates may be in the future: "today" in Bangladesh is still yesterday for
+        // someone east of it (Malaysia, say) after midnight, and a date set ahead is the user's choice.
         var today = Today;
         var v = new Validator().MaxLength("paymentNote", r.PaymentNote, "Payment note", 500);
         v.When(r.PaymentAmount is not > 0, "paymentAmount", "Payment amount must be greater than 0.");
-        v.When(r.PaymentDate > today, "paymentDate", "Payment date cannot be in the future.");
         v.ThrowIfInvalid();
 
         await using var tx = await Db.Database.BeginTransactionAsync(ct);
