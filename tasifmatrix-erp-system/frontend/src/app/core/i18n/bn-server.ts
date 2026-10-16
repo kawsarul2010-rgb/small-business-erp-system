@@ -21,6 +21,7 @@ export const BN_SERVER_PATTERNS: [RegExp, (m: RegExpExecArray) => string][] = [
   [/^(.+) is required\.$/, (m) => `${t(m[1])} আবশ্যক।`],
   [/^(.+) must be at most (\d+) characters\.$/, (m) => `${t(m[1])} সর্বোচ্চ ${m[2]} অক্ষরের হতে পারে।`],
   [/^(.+) was not found\.$/, (m) => `${t(m[1])} পাওয়া যায়নি।`],
+  [/^Buy at least (\d+) SMS\.$/, (m) => `কমপক্ষে ${m[1]}টি SMS কিনুন।`],
   [/^Company code '(.+)' is already used\.$/, (m) => `কোম্পানি কোড '${m[1]}' আগে থেকেই ব্যবহৃত হচ্ছে।`],
   [/^Product code '(.+)' is already used\.$/, (m) => `পণ্যের কোড '${m[1]}' আগে থেকেই ব্যবহৃত হচ্ছে।`],
   [/^Not enough stock\. (.+)$/s, (m) => `পর্যাপ্ত স্টক নেই। ${shortages(m[1])}`],

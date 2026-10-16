@@ -62,6 +62,7 @@ public interface IAppDbContext
     DbSet<SuperAdminPost> SuperAdminPosts { get; }
     DbSet<AppRelease> AppReleases { get; }
     DbSet<BusinessPlanPrice> BusinessPlanPrices { get; }
+    DbSet<SmsCredit> SmsCredits { get; }
 
     DbSet<TEntity> Set<TEntity>() where TEntity : class;
     DatabaseFacade Database { get; }

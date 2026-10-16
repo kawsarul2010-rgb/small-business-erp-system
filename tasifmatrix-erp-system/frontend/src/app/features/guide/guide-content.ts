@@ -331,6 +331,9 @@ const EN: GuideSection[] = [
         ],
       },
     ],
+    tips: [
+      'Each message uses SMS from your SMS balance — a long message uses 2 or more. The SMS log page shows how many you have left and when they expire. With none left, messages are kept as Skipped; press Retry on them once you have SMS again.',
+    ],
   },
   {
     id: 'billing', icon: 'credit_card', title: 'Your subscription', roles: ADMIN, webOnly: true,
@@ -341,6 +344,15 @@ const EN: GuideSection[] = [
         steps: [
           'Packages for your business size — monthly, 3 months and longer. Paying early never loses days: the time is added after your current end date.',
           'Pay with bKash. After paying you return to Billing and your new end date is shown.',
+        ],
+      },
+      {
+        title: 'Buying SMS',
+        steps: [
+          'The SMS balance on Billing shows how many SMS you have left and when they expire. Open "SMS packs" to see each purchase.',
+          'Press Buy SMS, choose how many (for example 300 or 500) and pay with bKash. The SMS are added as soon as bKash confirms the payment.',
+          'When you pay for a package you can switch on "Add SMS to this payment" to buy both in one payment. You can also buy SMS on their own at any time, for example when they run out in the middle of your package.',
+          'Bought SMS last for a few months from the day you buy them. Older SMS are used first.',
         ],
       },
     ],
@@ -678,6 +690,9 @@ const BN: GuideSection[] = [
         ],
       },
     ],
+    tips: [
+      'প্রতিটি বার্তা আপনার SMS ব্যালেন্স থেকে SMS নেয় — বড় বার্তায় 2 বা তার বেশি লাগে। SMS লগ পাতায় দেখা যায় কতটি বাকি আছে এবং কবে মেয়াদ শেষ হবে। SMS না থাকলে বার্তাগুলো Skipped থাকে; আবার SMS পেলে সেগুলোতে Retry চাপুন।',
+    ],
   },
   {
     id: 'billing', icon: 'credit_card', title: 'আপনার সাবস্ক্রিপশন', roles: ADMIN, webOnly: true,
@@ -688,6 +703,15 @@ const BN: GuideSection[] = [
         steps: [
           'আপনার ব্যবসার আকার অনুযায়ী প্যাকেজ — মাসিক, ৩ মাস ও আরও বেশি। আগে পরিশোধ করলে একদিনও নষ্ট হয় না: সময়টি বর্তমান মেয়াদ শেষের পরে যোগ হয়।',
           'বিকাশে পরিশোধ করুন। পরিশোধের পর বিলিং পাতায় ফিরে নতুন মেয়াদ দেখতে পাবেন।',
+        ],
+      },
+      {
+        title: 'SMS কেনা',
+        steps: [
+          'বিলিং পাতার SMS ব্যালেন্সে দেখা যায় কতটি SMS বাকি আছে এবং কবে মেয়াদ শেষ হবে। প্রতিটি কেনা দেখতে "SMS প্যাক" খুলুন।',
+          'SMS কিনুন চাপুন, কতটি কিনবেন বেছে নিন (যেমন 300 বা 500) এবং বিকাশে পরিশোধ করুন। বিকাশ পেমেন্ট নিশ্চিত করলেই SMS যোগ হয়ে যায়।',
+          'প্যাকেজের টাকা দেওয়ার সময় "এই পেমেন্টে SMS যোগ করুন" চালু করে একই পেমেন্টে দুটোই কিনতে পারেন। আবার প্যাকেজের মাঝখানে SMS শেষ হয়ে গেলে যেকোনো সময় শুধু SMS-ও কিনতে পারেন।',
+          'কেনা SMS কেনার দিন থেকে কয়েক মাস চলে। পুরোনো SMS আগে খরচ হয়।',
         ],
       },
     ],

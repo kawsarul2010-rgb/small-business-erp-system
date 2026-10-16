@@ -151,6 +151,18 @@ public class BillingSettings
     public string? BkashPassword { get; set; }
     public DateTimeOffset UpdatedDate { get; set; }
     public string UpdatedByUserName { get; set; } = "";
+
+    // ---- prepaid SMS
+    /// <summary>On: a business sends SMS only from SMS it bought (or was given). Off: SMS is not counted against a balance.</summary>
+    public bool SmsCreditRequired { get; set; }
+    /// <summary>Taka per SMS part, unless the business has its own price (Tenant.SmsPrice).</summary>
+    public decimal SmsUnitPrice { get; set; } = 0.55m;
+    /// <summary>Months a bought SMS pack lasts from the day it is bought.</summary>
+    public int SmsValidityMonths { get; set; } = 3;
+    /// <summary>The fewest SMS a business can buy at once.</summary>
+    public int SmsMinPurchase { get; set; } = 100;
+    /// <summary>SMS given to a new business (and, when prepaid SMS is switched on, to businesses that never had any). 0: none.</summary>
+    public int SmsFreeOnSignup { get; set; } = 20;
 }
 
 /// <summary>One payment attempt for a business's subscription (bKash, or recorded by hand).</summary>
@@ -176,6 +188,29 @@ public class BillingPayment : ITenantOwned
     public DateTimeOffset CreatedDate { get; set; }
     public DateTimeOffset? CompletedDate { get; set; }
     public Guid CreatedByUserUuid { get; set; }
+    public string CreatedByUserName { get; set; } = "";
+    /// <summary>SMS bought with this payment (0: none). A payment for SMS only has no package (DurationMonths 0).</summary>
+    public int SmsQuantity { get; set; }
+    /// <summary>The price per SMS charged, as it was at the time.</summary>
+    public decimal? SmsUnitPrice { get; set; }
+}
+
+/// <summary>
+/// A pack of SMS a business can send: bought, given at sign-up, or added by the super admin.
+/// Each pack lasts until ExpiresAt; messages use the pack that expires first.
+/// </summary>
+public class SmsCredit : ITenantOwned
+{
+    public Guid Uuid { get; set; }
+    public Guid TenantUuid { get; set; }
+    public SmsCreditSource Source { get; set; }
+    public int Quantity { get; set; }
+    public int UsedQuantity { get; set; }
+    public decimal? UnitPrice { get; set; }
+    public Guid? PaymentUuid { get; set; }
+    public string? Note { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset CreatedDate { get; set; }
     public string CreatedByUserName { get; set; } = "";
 }
 
@@ -414,4 +449,6 @@ public class SmsOutbox : ITenantOwned
     public string? ProviderMessageId { get; set; }
     public DateTimeOffset CreatedDate { get; set; }
     public DateTimeOffset? SentDate { get; set; }
+    /// <summary>SMS taken from the business's balance for this message; given back if it finally fails.</summary>
+    public short ChargedParts { get; set; }
 }

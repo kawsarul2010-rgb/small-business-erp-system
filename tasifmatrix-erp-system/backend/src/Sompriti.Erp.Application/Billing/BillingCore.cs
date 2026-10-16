@@ -61,7 +61,7 @@ public sealed record SubscriptionStatusDto(SubscriptionState State, DateTimeOffs
 public sealed record BillingPaymentDto(Guid Uuid, Guid BusinessUuid, string? BusinessName, string InvoiceNumber, string PlanName,
     string? SizeName, int DurationMonths, decimal Amount, BillingProvider Provider, BillingPaymentStatus Status, string? TrxId,
     string? PayerAccount, string? StatusMessage, string? Note, DateTimeOffset? PeriodStart, DateTimeOffset? PeriodEnd,
-    DateTimeOffset CreatedDate, DateTimeOffset? CompletedDate, string CreatedByUserName);
+    DateTimeOffset CreatedDate, DateTimeOffset? CompletedDate, string CreatedByUserName, int SmsQuantity = 0);
 
 public sealed record SizeOptionDto(Guid Uuid, string Name, string? Description);
 
@@ -106,7 +106,7 @@ public static class BillingMapping
 
     public static BillingPaymentDto ToDto(BillingPayment p, string? businessName = null) => new(p.Uuid, p.TenantUuid, businessName,
         p.InvoiceNumber, p.PlanName, p.SizeName, p.DurationMonths, p.Amount, p.Provider, p.Status, p.TrxId, p.PayerAccount,
-        p.StatusMessage, p.Note, p.PeriodStart, p.PeriodEnd, p.CreatedDate, p.CompletedDate, p.CreatedByUserName);
+        p.StatusMessage, p.Note, p.PeriodStart, p.PeriodEnd, p.CreatedDate, p.CompletedDate, p.CreatedByUserName, p.SmsQuantity);
 
     /// <summary>The gateway credentials, decrypted; null when bKash is off or not fully set up.</summary>
     public static BkashCredentials? Bkash(BillingSettings s, ISecretProtector protector)
@@ -130,8 +130,9 @@ public static class BillingMapping
 }
 
 /// <summary>
-/// Marks a payment as paid and extends the business's subscription - once, however many times
-/// bKash calls back or someone presses "check again". Runs as the database owner.
+/// Marks a payment as paid and delivers what it bought - the package's months and/or its SMS -
+/// once, however many times bKash calls back or someone presses "check again". Runs as the
+/// database owner.
 /// </summary>
 public sealed class SubscriptionLedger(TimeProvider clock)
 {
@@ -150,19 +151,43 @@ public sealed class SubscriptionLedger(TimeProvider clock)
         var tenant = (await sys.Tenants.FromSqlRaw("SELECT * FROM tenant WHERE uuid = {0} FOR UPDATE", payment.TenantUuid)
             .ToListAsync(ct)).First();
         var now = clock.GetUtcNow();
-        var (start, end) = SubscriptionRules.Extend(tenant.SubscriptionEndsAt, now, payment.DurationMonths);
 
         payment.Status = BillingPaymentStatus.Completed;
         payment.TrxId = trxId ?? payment.TrxId;
         payment.PayerAccount = payer ?? payment.PayerAccount;
         payment.StatusMessage = message;
         payment.CompletedDate = now;
-        payment.PeriodStart = start;
-        payment.PeriodEnd = end;
 
-        tenant.SubscriptionEndsAt = end;
-        tenant.OnTrial = false;
-        if (payment.PlanUuid is { } plan) tenant.SubscriptionPlanUuid = plan;
+        // The package: its months are added to the subscription. A payment for SMS only has none.
+        if (payment.DurationMonths > 0)
+        {
+            var (start, end) = SubscriptionRules.Extend(tenant.SubscriptionEndsAt, now, payment.DurationMonths);
+            payment.PeriodStart = start;
+            payment.PeriodEnd = end;
+            tenant.SubscriptionEndsAt = end;
+            tenant.OnTrial = false;
+            if (payment.PlanUuid is { } plan) tenant.SubscriptionPlanUuid = plan;
+        }
+
+        // The SMS: a new pack, lasting the months the super admin set, from today.
+        if (payment.SmsQuantity > 0 && !await sys.SmsCredits.IgnoreQueryFilters().AnyAsync(c => c.PaymentUuid == payment.Uuid, ct))
+        {
+            var settings = await sys.BillingSettings.AsNoTracking().FirstOrDefaultAsync(x => x.Id == BillingSettings.SingletonId, ct)
+                           ?? new BillingSettings();
+            sys.SmsCredits.Add(new SmsCredit
+            {
+                Uuid = Guid.NewGuid(),
+                TenantUuid = payment.TenantUuid,
+                Source = SmsCreditSource.Purchase,
+                Quantity = payment.SmsQuantity,
+                UnitPrice = payment.SmsUnitPrice,
+                PaymentUuid = payment.Uuid,
+                Note = payment.InvoiceNumber,
+                ExpiresAt = SmsCredits.ExpiresAt(now, settings.SmsValidityMonths),
+                CreatedDate = now,
+                CreatedByUserName = payment.CreatedByUserName,
+            });
+        }
 
         await sys.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);

@@ -27,6 +27,10 @@ public sealed class BillingController(BillingService service) : ControllerBase
     [HttpGet("payments"), Authorize(Roles = Roles.Admin)]
     public Task<PagedResult<BillingPaymentDto>> Payments([FromQuery] PageQuery q, CancellationToken ct) => service.PaymentsAsync(q, ct);
 
+    /// <summary>The business's SMS balance: how many it can still send, and each pack with its expiry.</summary>
+    [HttpGet("sms"), Authorize(Roles = "ADMIN,MANAGER")]
+    public Task<SmsBalanceDto> Sms(CancellationToken ct) => service.SmsAsync(ct);
+
     /// <summary>Starts a bKash payment; the app then opens RedirectUrl (bKash's payment page).</summary>
     [HttpPost("checkout"), Authorize(Roles = Roles.Admin)]
     public Task<CheckoutResultDto> Checkout(CheckoutRequest r, CancellationToken ct) => service.CheckoutAsync(r, ct);
@@ -102,6 +106,14 @@ public sealed class PlatformBillingController(PlatformBillingService service) : 
     [HttpPost("businesses/{id:guid}/payments")]
     public Task<BillingPaymentDto> RecordPayment(Guid id, ManualPaymentRequest r, CancellationToken ct) =>
         service.RecordManualPaymentAsync(id, r, ct);
+
+    /// <summary>One business's SMS balance and packs.</summary>
+    [HttpGet("businesses/{id:guid}/sms")]
+    public Task<SmsBalanceDto> SmsBalance(Guid id, CancellationToken ct) => service.SmsBalanceAsync(id, ct);
+
+    /// <summary>Adds SMS to a business: paid outside the app (an amount is recorded as a payment) or given.</summary>
+    [HttpPost("businesses/{id:guid}/sms")]
+    public Task<SmsBalanceDto> AddSms(Guid id, AddSmsRequest r, CancellationToken ct) => service.AddSmsAsync(id, r, ct);
 
     /// <summary>Businesses above their size's monthly order limit (for the alert on the Businesses page).</summary>
     [HttpGet("size-alerts")]

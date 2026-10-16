@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
@@ -13,11 +14,12 @@ import { ApiService, problemOf } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { BillingStore, durationLabel } from '../../core/billing';
 import { LayoutService } from '../../core/layout.service';
-import { BillingOverview, BillingPayment, Paged, PlanOption } from '../../core/models';
+import { BillingOverview, BillingPayment, Paged, PlanOption, SmsBalance } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { PlatformService } from '../../core/platform.service';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { MoneyPipe } from '../../shared/pipes';
+import { SmsBalanceCard, openBuySms, paymentWhat } from '../../shared/sms-credits';
 import { StatusChip } from '../../shared/status-chip';
 
 /** Written as icon: '...' so the icon font build includes them. */
@@ -39,7 +41,7 @@ const STATE_ICONS: Record<string, { icon: string }> = {
  */
 @Component({
   selector: 'app-billing',
-  imports: [TranslatePipe, DatePipe, FormsModule, MatButtonModule, MatIconModule, MatProgressBarModule, MatFormFieldModule, MatSelectModule, MatTooltipModule, MoneyPipe, StatusChip],
+  imports: [TranslatePipe, DatePipe, FormsModule, MatButtonModule, MatIconModule, MatProgressBarModule, MatFormFieldModule, MatSelectModule, MatTooltipModule, MoneyPipe, StatusChip, SmsBalanceCard],
   template: `
     <div class="page">
       <div class="page-header">
@@ -84,6 +86,11 @@ const STATE_ICONS: Record<string, { icon: string }> = {
             </div>
           </div>
         </section>
+
+        <!-- ---------------------------------------------------------- prepaid SMS -->
+        @if (showSms()) {
+          <app-sms-balance class="sms-block" [balance]="sms()" [canBuy]="canBuySms()" [inApp]="inApp" (buy)="buySms()" />
+        }
 
         <!-- packages, prices and paying: website only (see the class comment) -->
         @if (!inApp && d.billingEnabled && d.status.state !== 'NOT_BILLED') {
@@ -165,7 +172,7 @@ const STATE_ICONS: Record<string, { icon: string }> = {
             @for (p of payments(); track p.uuid) {
               <div class="pay-row">
                 <div class="pay-main">
-                  <div class="pay-title">{{ p.planName }} · {{ length(p.durationMonths) }} <app-status [value]="p.status" /></div>
+                  <div class="pay-title">{{ what(p) }} <app-status [value]="p.status" /></div>
                   <div class="muted small">
                     {{ p.createdDate | date: 'd MMM yyyy, h:mm a' }} · <span class="mono">{{ p.invoiceNumber }}</span>
                     @if (p.provider === 'BKASH') { · bKash }
@@ -206,6 +213,7 @@ const STATE_ICONS: Record<string, { icon: string }> = {
     .facts .k { color: var(--erp-muted); margin-right: 4px; }
     .mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; }
     .size-pick { margin-bottom: 20px; }
+    .sms-block { margin-bottom: 20px; }
     .size-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
     .size-row mat-form-field { min-width: 260px; }
     .section-head { margin: 4px 0 12px; }
@@ -254,7 +262,12 @@ export class BillingPage implements OnInit, OnDestroy {
   /** Inside the Android app: no packages, prices or paying (see the class comment). */
   readonly inApp = this.platform.isNative;
 
+  private readonly dialog = inject(MatDialog);
   readonly data = signal<BillingOverview | null>(null);
+  /** Prepaid SMS; null until loaded, or for people who may not see it. */
+  readonly sms = signal<SmsBalance | null>(null);
+  readonly showSms = computed(() => !!this.sms()?.required && !this.sms()?.exempt);
+  readonly canBuySms = computed(() => !this.inApp && !!this.data()?.canPay && !!this.sms()?.canBuy);
   readonly payments = signal<BillingPayment[]>([]);
   readonly loading = signal(true);
   readonly busy = signal(false);
@@ -289,7 +302,12 @@ export class BillingPage implements OnInit, OnDestroy {
     return durationLabel(months);
   }
 
+  what(p: BillingPayment): string {
+    return paymentWhat(p);
+  }
+
   load(): void {
+    this.loadSms();
     this.loading.set(true);
     this.api.get<BillingOverview>('/billing').subscribe({
       next: (d) => {
@@ -301,6 +319,19 @@ export class BillingPage implements OnInit, OnDestroy {
       },
       error: (e) => { this.error.set(problemOf(e).title ?? 'Could not load billing.'); this.loading.set(false); },
     });
+  }
+
+  private loadSms(): void {
+    if (this.auth.isUser()) return; // a customer's or supplier's account has no business balance to see
+    this.api.get<SmsBalance>('/billing/sms').subscribe({
+      next: (b) => this.sms.set(b),
+      error: () => this.sms.set(null),
+    });
+  }
+
+  /** SMS only, any time - also in the middle of a package, when the SMS run out. */
+  buySms(): void {
+    openBuySms(this.dialog, this.layout, this.sms());
   }
 
   private loadPayments(): void {
@@ -320,6 +351,11 @@ export class BillingPage implements OnInit, OnDestroy {
 
   /** Starts the bKash payment and opens bKash's page; bKash brings the payer back to the result page. */
   pay(plan: PlanOption): void {
+    // With prepaid SMS on, the payment can carry SMS too: the dialog asks.
+    if (this.canBuySms()) {
+      openBuySms(this.dialog, this.layout, this.sms(), plan);
+      return;
+    }
     this.busy.set(true);
     this.api.post<{ redirectUrl: string; invoiceNumber: string }>('/billing/checkout', { planUuid: plan.uuid }).subscribe({
       next: (r) => { window.location.href = r.redirectUrl; },

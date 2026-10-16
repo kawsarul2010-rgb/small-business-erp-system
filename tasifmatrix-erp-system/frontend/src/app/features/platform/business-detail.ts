@@ -9,7 +9,9 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { ApiService, problemOf } from '../../core/api.service';
 import { LayoutService } from '../../core/layout.service';
-import { BillingPayment, BusinessAdmin, BusinessDetail, BusinessSmsUsage, BusinessSubscription, IssuedCredentials, Paged } from '../../core/models';
+import { BillingPayment, BusinessAdmin, BusinessDetail, BusinessSmsUsage, BusinessSubscription, IssuedCredentials, Paged, SmsBalance, SmsCreditSource } from '../../core/models';
+import { AddSmsDialog } from './add-sms-dialog';
+import { paymentWhat, smsSourceLabel } from '../../shared/sms-credits';
 import { ManualPaymentDialog, SubscriptionDialog } from './subscription-dialogs';
 import { SpecialPricesDialog } from './special-prices-dialog';
 import { NotifyService } from '../../core/notify.service';
@@ -164,7 +166,7 @@ import { t } from '../../core/i18n/i18n';
               <div class="sub-payments">
                 @for (p of payments(); track p.uuid) {
                   <div class="sub-pay">
-                    <span>{{ p.createdDate | date: 'd MMM yyyy' }} · {{ p.planName }} · {{ p.provider === 'BKASH' ? 'bKash' : ('By hand' | t) }}@if (p.trxId) { · {{ p.trxId }} }</span>
+                    <span>{{ p.createdDate | date: 'd MMM yyyy' }} · {{ what(p) }} · {{ p.provider === 'BKASH' ? 'bKash' : ('By hand' | t) }}@if (p.trxId) { · {{ p.trxId }} }</span>
                     <span class="nowrap"><app-status [value]="p.status" /> <strong>{{ p.amount | money }}</strong></span>
                   </div>
                 }
@@ -215,16 +217,54 @@ import { t } from '../../core/i18n/i18n';
         <section class="card card-pad sms-card">
           <div class="section-head">
             <div>
-              <h2 class="card-title">{{ 'SMS usage' | t }}</h2>
+              <h2 class="card-title">{{ 'SMS' | t }}</h2>
               <div class="muted small">
-                @if (b.smsPrice !== null) { {{ 'Billed at {price} per SMS. Change the price with Edit.' | t: { price: (b.smsPrice | money) } }} }
-                @else { {{ 'No SMS price set. Add one with Edit to see the amount to bill.' | t }} }
+                @if (b.smsPrice !== null) { {{ 'Special price: {price} per SMS. Change it with Edit.' | t: { price: (b.smsPrice | money) } }} }
+                @else if (balance(); as bl) { {{ 'Standard price: {price} per SMS.' | t: { price: (bl.standardPrice | money) } }} }
               </div>
               @if (!b.smsEnabledByBusiness) {
                 <div class="sms-off-note"><mat-icon>speaker_notes_off</mat-icon>{{ 'This business has turned SMS off in its settings.' | t }}</div>
               }
             </div>
           </div>
+          @if (balance(); as bl) {
+            @if (bl.exempt) {
+              <p class="muted small">{{ 'Never billed: this business sends SMS without a balance.' | t }}</p>
+            } @else if (!bl.required) {
+              <p class="muted small">{{ 'Businesses do not buy SMS yet (Subscriptions → SMS).' | t }}</p>
+            } @else {
+              <div class="sms-balance">
+                <div>
+                  <span class="sms-left">{{ bl.available | number }}</span> <span class="muted">{{ 'SMS left' | t }}</span>
+                  @if (bl.nextExpiry && bl.available > 0) { <div class="muted small">{{ '{n} expire on {date}' | t: { n: (bl.nextExpiryCount | number), date: (bl.nextExpiry | date: 'd MMM yyyy') } }}</div> }
+                  @if (bl.available === 0) { <div class="negative small">{{ 'No SMS left: its SMS are not sent.' | t }}</div> }
+                </div>
+                @if (b.status !== 'CLOSED') {
+                  <button mat-stroked-button (click)="addSms(b, bl)" [disabled]="busy()"><mat-icon>add</mat-icon>{{ 'Add SMS' | t }}</button>
+                }
+              </div>
+              @if (bl.packs.length) {
+                <details class="packs">
+                  <summary>{{ 'SMS packs ({n})' | t: { n: bl.packs.length } }}</summary>
+                  <table class="sms-table">
+                    <thead><tr><th>{{ 'Added' | t }}</th><th>{{ 'From' | t }}</th><th class="num">{{ 'SMS' | t }}</th><th class="num">{{ 'Left' | t }}</th><th>{{ 'Expires' | t }}</th></tr></thead>
+                    <tbody>
+                      @for (p of bl.packs; track p.uuid) {
+                        <tr [class.gone]="p.expired || p.left === 0">
+                          <td class="nowrap">{{ p.createdDate | date: 'd MMM yyyy' }}</td>
+                          <td>{{ source(p.source) | t }}@if (p.note) { <span class="muted small"> · {{ p.note | t }}</span> }</td>
+                          <td class="num">{{ p.quantity | number }}</td>
+                          <td class="num">{{ p.left | number }}</td>
+                          <td class="nowrap">{{ p.expiresAt | date: 'd MMM yyyy' }}@if (p.expired) { <span class="negative small"> {{ 'Expired' | t }}</span> }</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </details>
+              }
+            }
+          }
+          <h3 class="usage-title">{{ 'Sent per month' | t }}</h3>
           @if (sms(); as u) {
             <div class="table-wrap">
               <table class="sms-table">
@@ -257,6 +297,13 @@ import { t } from '../../core/i18n/i18n';
     </div>
   `,
   styles: `
+    .sms-balance { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 12px 0 4px;
+      padding: 12px 14px; border-radius: 12px; background: var(--erp-card-2); border: 1px solid var(--erp-border); }
+    .sms-left { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; margin-right: 6px; }
+    .packs { margin: 8px 0 4px; }
+    .packs summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--erp-brand); }
+    .packs tr.gone td { opacity: .55; }
+    .usage-title { font-size: 14px; margin: 16px 0 4px; }
     .back-link { display: inline-block; margin-bottom: 8px; font-size: 13px; color: var(--erp-brand); text-decoration: none; font-weight: 550; }
     .back-link::before { content: '← '; }
     h1 app-status { vertical-align: middle; margin-left: 8px; }
@@ -341,6 +388,7 @@ export class BusinessDetailPage implements OnInit {
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly sms = signal<BusinessSmsUsage | null>(null);
+  readonly balance = signal<SmsBalance | null>(null);
   readonly payments = signal<BillingPayment[]>([]);
 
   ngOnInit(): void {
@@ -392,7 +440,27 @@ export class BusinessDetailPage implements OnInit {
     });
   }
 
+  source(s: SmsCreditSource): string {
+    return s === 'MANUAL' ? 'Added by you' : smsSourceLabel(s);
+  }
+
+  what(p: BillingPayment): string {
+    return paymentWhat(p);
+  }
+
+  addSms(b: BusinessDetail, balance: SmsBalance): void {
+    this.dialog.open(AddSmsDialog, this.layout.dialog({ business: b, balance }, '520px')).afterClosed().subscribe((updated?: SmsBalance) => {
+      if (!updated) return;
+      this.balance.set(updated);
+      this.loadPayments();
+    });
+  }
+
   loadSms(): void {
+    this.api.get<SmsBalance>(`/platform/billing/businesses/${this.id()}/sms`).subscribe({
+      next: (b) => this.balance.set(b),
+      error: () => this.balance.set(null),
+    });
     this.api.get<BusinessSmsUsage>(`/platform/businesses/${this.id()}/sms-usage`, { months: 12 }).subscribe({
       next: (u) => this.sms.set(u),
       error: () => this.sms.set({ smsPrice: null, months: [] }),

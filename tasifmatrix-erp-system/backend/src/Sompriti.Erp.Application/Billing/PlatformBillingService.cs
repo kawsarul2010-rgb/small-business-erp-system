@@ -12,15 +12,24 @@ namespace Sompriti.Erp.Application.Billing;
 /// <summary>The billing configuration as the super admin sees it. Secrets are never sent back, only whether they are set.</summary>
 public sealed record BillingSettingsDto(bool BillingEnabled, int TrialDays, int GraceDays, int ReminderDays, string? SupportPhone,
     string? SupportEmail, bool BkashEnabled, bool BkashSandbox, string? BkashAppKey, bool HasBkashAppSecret, string? BkashUsername,
-    bool HasBkashPassword, bool BkashReady, DateTimeOffset UpdatedDate, string UpdatedByUserName);
+    bool HasBkashPassword, bool BkashReady, DateTimeOffset UpdatedDate, string UpdatedByUserName,
+    bool SmsCreditRequired, decimal SmsUnitPrice, int SmsValidityMonths, int SmsMinPurchase, int SmsFreeOnSignup);
 
 /// <summary>Secrets: null or empty keeps the saved value; ClearBkashSecrets removes both.</summary>
 public sealed record BillingSettingsRequest(bool? BillingEnabled, int? TrialDays, int? GraceDays, int? ReminderDays, string? SupportPhone,
     string? SupportEmail, bool? BkashEnabled, bool? BkashSandbox, string? BkashAppKey, string? BkashAppSecret, string? BkashUsername,
-    string? BkashPassword, bool ClearBkashSecrets = false);
+    string? BkashPassword, bool ClearBkashSecrets = false,
+    bool? SmsCreditRequired = null, decimal? SmsUnitPrice = null, int? SmsValidityMonths = null, int? SmsMinPurchase = null, int? SmsFreeOnSignup = null);
 
 /// <summary>BusinessesStarted: businesses whose free trial began because billing was just switched on.</summary>
-public sealed record BillingSettingsSavedDto(BillingSettingsDto Settings, int BusinessesStarted);
+/// <summary>BusinessesGivenSms: businesses that got their free SMS because prepaid SMS was just switched on.</summary>
+public sealed record BillingSettingsSavedDto(BillingSettingsDto Settings, int BusinessesStarted, int BusinessesGivenSms = 0);
+
+/// <summary>
+/// SMS the super admin adds to a business. Amount above 0: money received outside the app, recorded
+/// as a payment. Otherwise the SMS are given.
+/// </summary>
+public sealed record AddSmsRequest(int? Quantity, decimal? Amount, string? Note);
 
 /// <summary>MaxOrdersPerMonth: the most orders a month (3-month average) for this size; null: no limit.</summary>
 public sealed record SizeDto(Guid Uuid, string Name, string? Description, int SortOrder, bool IsActive, int Businesses, Guid Revision,
@@ -76,7 +85,7 @@ public sealed record KeepSizeRequest(int? Days);
 /// database owner, so the normal context is used, opting out of the business filter where needed.
 /// </summary>
 public sealed class PlatformBillingService(IAppDbContext db, ICurrentUser currentUser, ISecretProtector protector, IBkashGateway bkash,
-    BillingSettingsCache settingsCache, SubscriptionLedger ledger, BillingService billing, TimeProvider clock)
+    BillingSettingsCache settingsCache, SubscriptionLedger ledger, BillingService billing, SmsCreditService credits, TimeProvider clock)
 {
     private void EnsureSuperAdmin()
     {
@@ -96,6 +105,7 @@ public sealed class PlatformBillingService(IAppDbContext db, ICurrentUser curren
         EnsureSuperAdmin();
         var s = await LoadSettingsAsync(ct);
         var wasEnabled = s.BillingEnabled;
+        var smsWasRequired = s.SmsCreditRequired;
         Apply(s, r);
 
         var v = new Validator()
@@ -106,7 +116,11 @@ public sealed class PlatformBillingService(IAppDbContext db, ICurrentUser curren
             .MaxLength("supportEmail", s.SupportEmail, "Support email", 200)
             .When(s.SupportEmail is not null && !Validator.IsEmail(s.SupportEmail), "supportEmail", "Support email is not valid.")
             .MaxLength("bkashAppKey", s.BkashAppKey, "App key", 200)
-            .MaxLength("bkashUsername", s.BkashUsername, "Username", 200);
+            .MaxLength("bkashUsername", s.BkashUsername, "Username", 200)
+            .When(s.SmsUnitPrice is < 0 or > 100, "smsUnitPrice", "Price per SMS must be 0 to 100 taka.")
+            .When(s.SmsValidityMonths is < 1 or > 36, "smsValidityMonths", "SMS must last 1 to 36 months.")
+            .When(s.SmsMinPurchase is < 1 or > SmsCredits.MaxPurchase, "smsMinPurchase", "Smallest purchase must be 1 to 100,000 SMS.")
+            .When(s.SmsFreeOnSignup is < 0 or > 10_000, "smsFreeOnSignup", "Free SMS must be 0 to 10,000.");
         if (s.BkashEnabled)
         {
             v.When(string.IsNullOrWhiteSpace(s.BkashAppKey), "bkashAppKey", "App key is required to switch bKash on.")
@@ -133,9 +147,22 @@ public sealed class PlatformBillingService(IAppDbContext db, ICurrentUser curren
             }
             started = waiting.Count;
         }
+
+        // Switching prepaid SMS on gives the free SMS to every business that never had any, so
+        // nobody's SMS stop the moment it begins.
+        var given = 0;
+        if (s.SmsCreditRequired && !smsWasRequired && s.SmsFreeOnSignup > 0)
+        {
+            var now = clock.GetUtcNow();
+            var withSms = db.SmsCredits.IgnoreQueryFilters().Select(c => c.TenantUuid);
+            var waiting = await db.Tenants.Where(t => t.Status != TenantStatus.Closed && !t.BillingExempt && !withSms.Contains(t.Uuid))
+                .Select(t => t.Uuid).ToListAsync(ct);
+            foreach (var id in waiting) db.SmsCredits.Add(SmsCreditService.FreePack(s, id, now)!);
+            given = waiting.Count;
+        }
         await db.SaveChangesAsync(ct);
         settingsCache.Invalidate();
-        return new BillingSettingsSavedDto(ToDto(s), started);
+        return new BillingSettingsSavedDto(ToDto(s), started, given);
     }
 
     /// <summary>Asks bKash for a token with the given (or saved) account, without saving anything.</summary>
@@ -184,12 +211,17 @@ public sealed class PlatformBillingService(IAppDbContext db, ICurrentUser curren
         }
         if (!string.IsNullOrWhiteSpace(r.BkashAppSecret)) s.BkashAppSecret = protector.Protect(r.BkashAppSecret.Trim());
         if (!string.IsNullOrWhiteSpace(r.BkashPassword)) s.BkashPassword = protector.Protect(r.BkashPassword);
+        if (r.SmsCreditRequired is { } sr) s.SmsCreditRequired = sr;
+        if (r.SmsUnitPrice is { } up) s.SmsUnitPrice = Money.Round(up);
+        if (r.SmsValidityMonths is { } vm) s.SmsValidityMonths = vm;
+        if (r.SmsMinPurchase is { } mp) s.SmsMinPurchase = mp;
+        if (r.SmsFreeOnSignup is { } fs) s.SmsFreeOnSignup = fs;
     }
 
     private BillingSettingsDto ToDto(BillingSettings s) => new(s.BillingEnabled, s.TrialDays, s.GraceDays, s.ReminderDays, s.SupportPhone,
         s.SupportEmail, s.BkashEnabled, s.BkashSandbox, s.BkashAppKey, protector.Unprotect(s.BkashAppSecret) is not null, s.BkashUsername,
         protector.Unprotect(s.BkashPassword) is not null, BillingMapping.Bkash(s, protector) is not null,
-        s.UpdatedDate, s.UpdatedByUserName);
+        s.UpdatedDate, s.UpdatedByUserName, s.SmsCreditRequired, s.SmsUnitPrice, s.SmsValidityMonths, s.SmsMinPurchase, s.SmsFreeOnSignup);
 
     // ------------------------------------------------------------------ sizes
 
@@ -476,5 +508,75 @@ public sealed class PlatformBillingService(IAppDbContext db, ICurrentUser curren
         await db.SaveChangesAsync(ct);
         var done = await ledger.CompleteAsync(db, payment.Uuid, null, null, "Recorded by the super admin.", ct);
         return BillingMapping.ToDto(done, t.TenantName);
+    }
+
+    // ------------------------------------------------------------------ SMS of one business
+
+    public async Task<SmsBalanceDto> SmsBalanceAsync(Guid businessId, CancellationToken ct)
+    {
+        EnsureSuperAdmin();
+        (await db.Tenants.AsNoTracking().FirstOrDefaultAsync(x => x.Uuid == businessId, ct)).OrNotFound("Business");
+        return await credits.BalanceAsync(db, businessId, ct);
+    }
+
+    /// <summary>
+    /// Adds a pack of SMS to a business, lasting the usual months. With an amount, it is recorded as
+    /// a payment taken outside the app (cash, bank) and completed like a bKash payment.
+    /// </summary>
+    public async Task<SmsBalanceDto> AddSmsAsync(Guid businessId, AddSmsRequest r, CancellationToken ct)
+    {
+        EnsureSuperAdmin();
+        var t = (await db.Tenants.AsNoTracking().FirstOrDefaultAsync(x => x.Uuid == businessId, ct)).OrNotFound("Business");
+        Platform.PlatformService.EnsureNotClosed(t);
+        new Validator()
+            .When(r.Quantity is not (>= 1 and <= SmsCredits.MaxPurchase), "quantity", "Enter 1 to 100,000 SMS.")
+            .When(r.Amount is < 0, "amount", "The amount cannot be negative.")
+            .MaxLength("note", r.Note, "Note", 300)
+            .ThrowIfInvalid();
+
+        var now = clock.GetUtcNow();
+        var quantity = r.Quantity!.Value;
+        var note = Validator.Clean(r.Note);
+        if (r.Amount is > 0)
+        {
+            var amount = Money.Round(r.Amount.Value);
+            var payment = new BillingPayment
+            {
+                Uuid = Guid.NewGuid(),
+                TenantUuid = t.Uuid,
+                PlanName = "SMS",
+                DurationMonths = 0,
+                Amount = amount,
+                SmsQuantity = quantity,
+                SmsUnitPrice = Money.Round(amount / quantity),
+                Provider = BillingProvider.Manual,
+                Status = BillingPaymentStatus.Initiated,
+                InvoiceNumber = BillingMapping.NewInvoiceNumber(now),
+                Note = note,
+                CreatedDate = now,
+                CreatedByUserUuid = currentUser.UserUuid,
+                CreatedByUserName = currentUser.UserName,
+            };
+            db.BillingPayments.Add(payment);
+            await db.SaveChangesAsync(ct);
+            await ledger.CompleteAsync(db, payment.Uuid, null, null, "Recorded by the super admin.", ct);
+        }
+        else
+        {
+            var s = await LoadSettingsAsync(ct);
+            db.SmsCredits.Add(new SmsCredit
+            {
+                Uuid = Guid.NewGuid(),
+                TenantUuid = t.Uuid,
+                Source = SmsCreditSource.Manual,
+                Quantity = quantity,
+                Note = note,
+                ExpiresAt = SmsCredits.ExpiresAt(now, s.SmsValidityMonths),
+                CreatedDate = now,
+                CreatedByUserName = currentUser.UserName,
+            });
+            await db.SaveChangesAsync(ct);
+        }
+        return await credits.BalanceAsync(db, businessId, ct);
     }
 }

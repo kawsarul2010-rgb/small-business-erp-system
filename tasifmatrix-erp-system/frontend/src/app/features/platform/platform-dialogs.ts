@@ -52,10 +52,10 @@ import { BUSINESS_CODE_PATTERN, suggestBusinessCode } from '../../shared/busines
             <mat-error>{{ err('contactEmail', 'Contact email') }}</mat-error>
           </mat-form-field>
           <mat-form-field floatLabel="always" class="span-2">
-            <mat-label>{{ 'Price per SMS' | t }}</mat-label>
+            <mat-label>{{ 'Special price per SMS' | t }}</mat-label>
             <span matTextPrefix>Tk&nbsp;</span>
-            <input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="smsPrice" [placeholder]="'Not charged' | t" />
-            <mat-hint>{{ 'What you charge this business for each SMS it sends. Leave empty to not charge.' | t }}</mat-hint>
+            <input matInput type="number" inputmode="decimal" min="0" step="0.01" formControlName="smsPrice" [placeholder]="'Standard price' | t" />
+            <mat-hint>{{ 'Only if this business pays a different price per SMS than the standard price (Subscriptions → SMS). Leave empty for the standard price.' | t }}</mat-hint>
             <mat-error>{{ err('smsPrice', 'SMS price') }}</mat-error>
           </mat-form-field>
           @if (!data && sizes().length > 0) {

@@ -398,8 +398,9 @@ public sealed record AccountTotals(decimal Total, decimal Paid)
 
 /// <summary>
 /// The two SMS a customer or supplier receives: when an order is finalized and when a payment is added.
-/// Both carry the running account (total, paid, due) so the person always sees where they stand.
-/// Kept in plain English so a message fits one 160-character SMS part in the usual case.
+/// Both carry the running account (total, paid, due) so the person always sees where they stand,
+/// and end with the product's website. Kept in plain English so a message fits one 160-character
+/// SMS part in the usual case.
 /// </summary>
 public static class SmsTemplates
 {
@@ -423,10 +424,15 @@ public static class SmsTemplates
     {
         var company = companyName.Length > 30 ? companyName[..30] : companyName;
         var text = $"{company}: {what} Your account: total Tk {Amount(account.Total)}, paid Tk {Amount(account.Paid)}, due Tk {Amount(account.Due)}.";
-        // The courtesy line only when it does not make the message cost an extra SMS part.
-        var polite = text + " Thank you.";
-        return SmsParts.Count(polite) <= SmsParts.Count(text) ? polite : text;
+        // Every message ends with the product's website, on its own line. The courtesy line goes in
+        // only when it does not make the message cost an extra SMS part.
+        var withLink = text + "\n" + Website;
+        var polite = text + " Thank you.\n" + Website;
+        return SmsParts.Count(polite) <= SmsParts.Count(withLink) ? polite : withLink;
     }
+
+    /// <summary>The product's website, closing every SMS so each one also introduces the app.</summary>
+    public const string Website = "https://tasifmatrix.com.bd";
 
     private static string Amount(decimal value) => value.ToString("#,##0.##", CultureInfo.InvariantCulture);
 }
@@ -465,6 +471,70 @@ public static class SmsParts
 
     private static int Parts(int length, int single, int multi) =>
         Math.Min(Max, length <= single ? 1 : (length + multi - 1) / multi);
+}
+
+/// <summary>One SMS pack as the balance rules see it.</summary>
+public sealed record SmsLot(Guid Uuid, int Quantity, int Used, DateTimeOffset ExpiresAt)
+{
+    public int Left => Math.Max(0, Quantity - Used);
+    public bool IsLive(DateTimeOffset now) => ExpiresAt > now;
+}
+
+/// <summary>
+/// Prepaid SMS. A business buys packs of SMS; each pack lasts a number of months. A message takes
+/// as many SMS from the balance as the operator charges parts for it, from the pack that expires
+/// first, so nothing bought later is used while an older pack is about to run out.
+/// </summary>
+public static class SmsCredits
+{
+    public const int MaxPurchase = 100_000;
+
+    /// <summary>SMS that can still be sent: what is left in packs that have not expired.</summary>
+    public static int Available(IEnumerable<SmsLot> lots, DateTimeOffset now) => lots.Where(l => l.IsLive(now)).Sum(l => l.Left);
+
+    /// <summary>
+    /// Which packs to take <paramref name="parts"/> SMS from, soonest expiry first. Null when the
+    /// balance is not enough: then nothing is taken at all.
+    /// </summary>
+    public static IReadOnlyList<(Guid Uuid, int Take)>? Allocate(IEnumerable<SmsLot> lots, int parts, DateTimeOffset now)
+    {
+        if (parts <= 0) return [];
+        var plan = new List<(Guid, int)>();
+        var needed = parts;
+        foreach (var lot in lots.Where(l => l.IsLive(now) && l.Left > 0).OrderBy(l => l.ExpiresAt).ThenBy(l => l.Uuid))
+        {
+            var take = Math.Min(needed, lot.Left);
+            plan.Add((lot.Uuid, take));
+            needed -= take;
+            if (needed == 0) return plan;
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Gives back <paramref name="parts"/> SMS of a message that could not be delivered: into packs
+    /// that have not expired, the one lasting longest first, so the business keeps them longest.
+    /// What cannot be given back (every used pack has expired) is lost, as it would have been anyway.
+    /// </summary>
+    public static IReadOnlyList<(Guid Uuid, int Give)> Refund(IEnumerable<SmsLot> lots, int parts, DateTimeOffset now)
+    {
+        var plan = new List<(Guid, int)>();
+        var left = parts;
+        foreach (var lot in lots.Where(l => l.IsLive(now) && l.Used > 0).OrderByDescending(l => l.ExpiresAt).ThenBy(l => l.Uuid))
+        {
+            if (left <= 0) break;
+            var give = Math.Min(left, lot.Used);
+            plan.Add((lot.Uuid, give));
+            left -= give;
+        }
+        return plan;
+    }
+
+    /// <summary>What <paramref name="quantity"/> SMS cost at <paramref name="unitPrice"/> taka each.</summary>
+    public static decimal Price(int quantity, decimal unitPrice) => Money.Round(quantity * unitPrice);
+
+    /// <summary>When a pack bought now runs out.</summary>
+    public static DateTimeOffset ExpiresAt(DateTimeOffset boughtAt, int validityMonths) => boughtAt.AddMonths(validityMonths);
 }
 
 /// <summary>

@@ -567,6 +567,43 @@ export interface BillingPayment {
   createdDate: string;
   completedDate: string | null;
   createdByUserName: string;
+  /** SMS bought with this payment (0: none). A payment for SMS only has no package (durationMonths 0). */
+  smsQuantity: number;
+}
+
+export type SmsCreditSource = 'PURCHASE' | 'FREE' | 'MANUAL';
+
+/** One pack of SMS. Left: what can still be sent from it (0 once expired). */
+export interface SmsPack {
+  uuid: string;
+  source: SmsCreditSource;
+  quantity: number;
+  used: number;
+  left: number;
+  expiresAt: string;
+  createdDate: string;
+  expired: boolean;
+  note: string | null;
+}
+
+/** GET /billing/sms: a business's prepaid SMS. */
+export interface SmsBalance {
+  /** SMS must be bought before they are sent (the super admin's switch). */
+  required: boolean;
+  /** This business is never charged ("Never billed"). */
+  exempt: boolean;
+  available: number;
+  /** When the pack used next runs out, and how many SMS it still has. */
+  nextExpiry: string | null;
+  nextExpiryCount: number;
+  unitPrice: number;
+  standardPrice: number;
+  specialPrice: boolean;
+  minPurchase: number;
+  validityMonths: number;
+  /** SMS can be bought online now (prepaid SMS on, bKash ready). */
+  canBuy: boolean;
+  packs: SmsPack[];
 }
 
 export interface PlanPrice {
@@ -608,6 +645,11 @@ export interface BillingSettings {
   bkashReady: boolean;
   updatedDate: string;
   updatedByUserName: string;
+  smsCreditRequired: boolean;
+  smsUnitPrice: number;
+  smsValidityMonths: number;
+  smsMinPurchase: number;
+  smsFreeOnSignup: number;
 }
 
 export interface SizeAdmin {

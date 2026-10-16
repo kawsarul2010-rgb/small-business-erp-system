@@ -1,4 +1,4 @@
-# Tasif Matrix ERP
+# Tasif Matrix
 
 Purchase, sales, stock and payments for small businesses in Bangladesh — **one deployment serving many
 businesses**, each completely separate from the others. A product of Tasif Matrix Limited.
@@ -90,7 +90,7 @@ or use your computer's LAN address while testing).
 1. Install [Android Studio](https://developer.android.com/studio) (it brings the Android SDK) and a JDK 21
    (`brew install --cask temurin@21` on macOS). Open Android Studio once and let it finish installing the SDK.
 2. Point the build at your API: edit `frontend/src/environments/environment.mobile.ts` and set
-   `apiBaseUrl` to your server, e.g. `https://tasifmatrix-erp.up.railway.app` (the build refuses to run while it says `CHANGE-ME`).
+   `apiBaseUrl` to your server, e.g. `https://tasifmatrix.com.bd` (the build refuses to run while it says `CHANGE-ME`).
 3. Allow the app's origin on the API: set `Cors__AllowedOrigins=https://localhost,capacitor://localhost,http://localhost`
    (Railway → Variables, or `appsettings.Development.json` locally). Without this the app cannot log in.
 4. Create the Android project once:
@@ -210,7 +210,7 @@ post-deploy checks and troubleshooting. The short version:
    - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (variable reference to the database service)
    - `Jwt__SigningKey` = a long random secret (`openssl rand -base64 48`)
    - `SEED_SUPERADMIN_EMAIL`, `SEED_SUPERADMIN_PASSWORD` (your platform-owner account; min. 8 chars with a letter and a number)
-   - `App__PublicBaseUrl` = your Railway URL, e.g. `https://tasifmatrix-erp.up.railway.app`
+   - `App__PublicBaseUrl` = your Railway URL, e.g. `https://tasifmatrix.com.bd`
    - SMS: `Sms__Enabled=true`, `Sms__Provider=BulkSmsBd`, `Sms__ApiKey`, `Sms__SenderId` (or `GenericHttp` settings)
    - Email: `Email__Provider=Brevo` (or `Resend`), `Email__ApiKey`, `Email__FromAddress`
 5. **Settings → Networking → Generate Domain**.
@@ -250,4 +250,5 @@ Base path `/api/v1`, JSON (camelCase, enums as `UPPER_SNAKE_CASE`), errors as RF
 | Account | `GET auth/delete-account` (what deleting involves), `POST auth/delete-account` (password; the only admin also `closeBusiness` + `businessCode`) |
 | App versions | `GET app/version?platform=android&current=1.0.0` (anonymous; advice `UP_TO_DATE` / `OPTIONAL` / `REQUIRED`) · super admin: `GET/POST platform/app-releases`, `PUT/DELETE platform/app-releases/{id}` |
 | Sizes & special prices | `GET platform/billing/size-alerts`, `POST platform/billing/businesses/{id}/keep-size`, `PUT platform/billing/businesses/{id}/prices` (sizes take `maxOrdersPerMonth`) |
+| Prepaid SMS | `GET billing/sms` (balance and packs), `POST billing/checkout` with `smsQuantity` (SMS alone, or with `planUuid` for both in one payment) · super admin: SMS settings in `platform/billing/settings` (`smsCreditRequired`, `smsUnitPrice`, `smsValidityMonths`, `smsMinPurchase`, `smsFreeOnSignup`), `GET`/`POST platform/billing/businesses/{id}/sms` (balance; add SMS, with an `amount` to record a payment) |
 | Settings | `GET settings` (ADMIN, MANAGER), `PUT settings` (ADMIN): `smsEnabled`, `smsOnNewOrders` |

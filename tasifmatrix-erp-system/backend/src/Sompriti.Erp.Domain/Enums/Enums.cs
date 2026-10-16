@@ -48,6 +48,12 @@ public enum BillingPaymentStatus { Initiated, Completed, Failed, Cancelled }
 
 public enum BillingProvider { Bkash, Manual }
 
+/// <summary>
+/// Where a business's SMS came from. Purchase: paid for (bKash, or money recorded by the super
+/// admin). Free: the welcome SMS for a new business. Manual: added by the super admin without a payment.
+/// </summary>
+public enum SmsCreditSource { Purchase, Free, Manual }
+
 /// <summary>Where a super admin post appears: the website and the Android app, or only one of them.</summary>
 public enum PostChannel { All, Web, App }
 

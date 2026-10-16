@@ -290,6 +290,8 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
         await db.SaveChangesAsync(ct);
         db.Users.Add(user);
         db.Companies.Add(MasterData.CompanyService.NewForBusiness(tenant));
+        // Free SMS to start with, when the super admin gives some.
+        if (Billing.SmsCreditService.FreePack(billing, tenant.Uuid, clock.GetUtcNow()) is { } welcomeSms) db.SmsCredits.Add(welcomeSms);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
 

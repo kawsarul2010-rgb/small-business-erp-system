@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Sompriti.Erp.Application.Billing;
 using Sompriti.Erp.Application.Common;
 using Sompriti.Erp.Domain.Common;
 using Sompriti.Erp.Domain.Entities;
@@ -16,7 +17,7 @@ public sealed record SmsLogQuery : PageQuery
     public SmsStatus? Status { get; init; }
 }
 
-public sealed class SmsService(IAppDbContext db, ISmsSender sender, TimeProvider clock, ILogger<SmsService> logger)
+public sealed class SmsService(IAppDbContext db, ISmsSender sender, SmsCreditService credits, TimeProvider clock, ILogger<SmsService> logger)
 {
     /// <summary>Retry delays after each failed attempt (SRS 11.3): 1, 5, 15, 60, 240 minutes.</summary>
     public static readonly int[] RetryMinutes = [1, 5, 15, 60, 240];
@@ -42,10 +43,22 @@ public sealed class SmsService(IAppDbContext db, ISmsSender sender, TimeProvider
             throw DomainException.Rule(ErrorCodes.BusinessRule, "Only FAILED or SKIPPED messages can be retried.");
         if (!sender.Enabled)
             throw DomainException.Rule(ErrorCodes.BusinessRule, "SMS sending is disabled in configuration.");
+
+        // Prepaid SMS: a message that holds no SMS from the balance (skipped for lack of balance, or
+        // failed and given back) takes them now.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        if (sms.ChargedParts == 0 && await credits.ChargesAsync(sms.TenantUuid, ct))
+        {
+            if (!await SmsCreditService.TryChargeAsync(db, sms.TenantUuid, sms.SmsParts, clock.GetUtcNow(), ct))
+                throw DomainException.Rule(ErrorCodes.BusinessRule, SmsCreditService.NotEnoughToRetry);
+            sms.ChargedParts = sms.SmsParts;
+        }
         sms.Status = SmsStatus.Pending;
         sms.AttemptCount = 0;
         sms.NextAttemptDate = clock.GetUtcNow();
+        sms.LastError = null;
         await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 
     /// <summary>
@@ -85,6 +98,12 @@ public sealed class SmsService(IAppDbContext db, ISmsSender sender, TimeProvider
                 {
                     sms.Status = SmsStatus.Failed;
                     sms.NextAttemptDate = null;
+                    // Never delivered, so its SMS go back to the business's balance.
+                    if (sms.ChargedParts > 0)
+                    {
+                        await SmsCreditService.RefundAsync(db, sms.TenantUuid, sms.ChargedParts, clock.GetUtcNow(), ct);
+                        sms.ChargedParts = 0;
+                    }
                     logger.LogError("SMS {SmsUuid} to {Number} failed permanently: {Error}", sms.Uuid, sms.RecipientNumber, error);
                 }
                 else

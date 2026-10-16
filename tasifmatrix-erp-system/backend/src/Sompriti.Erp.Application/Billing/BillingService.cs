@@ -5,6 +5,7 @@ using Sompriti.Erp.Application.Common;
 using Sompriti.Erp.Domain.Common;
 using Sompriti.Erp.Domain.Entities;
 using Sompriti.Erp.Domain.Enums;
+using Sompriti.Erp.Domain.Rules;
 
 namespace Sompriti.Erp.Application.Billing;
 
@@ -22,7 +23,8 @@ public sealed record BillingOverviewDto(SubscriptionStatusDto Status, Guid? Size
     bool BillingEnabled, bool CanPayOnline, bool CanPay, string? SupportPhone, string? SupportEmail, int GraceDays, string BusinessCode,
     IReadOnlyList<SizeOptionDto> Sizes);
 
-public sealed record CheckoutRequest(Guid? PlanUuid);
+/// <summary>A package, SMS, or both in one payment. SmsQuantity null or 0: no SMS.</summary>
+public sealed record CheckoutRequest(Guid? PlanUuid, int? SmsQuantity = null);
 
 public sealed record ChooseSizeRequest(Guid? SizeUuid);
 
@@ -38,9 +40,16 @@ public sealed record CallbackOutcome(string Status, string? InvoiceNumber);
 /// every query is narrowed to the signed-in business explicitly.
 /// </summary>
 public sealed class BillingService(ICurrentUser currentUser, ISystemDbFactory systemDb, ISecretProtector protector,
-    IBkashGateway bkash, SubscriptionLedger ledger, BillingSettingsCache settingsCache, IOptions<AppOptions> app,
+    IBkashGateway bkash, SubscriptionLedger ledger, BillingSettingsCache settingsCache, SmsCreditService credits, IOptions<AppOptions> app,
     TimeProvider clock, ILogger<BillingService> logger)
 {
+    /// <summary>The business's SMS balance and packs (everyone in the business may see it; only an admin buys).</summary>
+    public Task<SmsBalanceDto> SmsAsync(CancellationToken ct)
+    {
+        var tenantId = currentUser.RequireTenant();
+        return credits.BalanceAsync(systemDb.Create(), tenantId, ct);
+    }
+
     public async Task<SubscriptionStatusDto> StatusAsync(CancellationToken ct) => (await OverviewAsync(ct)).Status;
 
     public async Task<BillingOverviewDto> OverviewAsync(CancellationToken ct)
@@ -99,41 +108,71 @@ public sealed class BillingService(ICurrentUser currentUser, ISystemDbFactory sy
         return new PagedResult<BillingPaymentDto>(page.Items.Select(p => BillingMapping.ToDto(p)).ToList(), page.Page, page.PageSize, page.TotalCount);
     }
 
-    /// <summary>Starts a bKash payment for a package; the browser then goes to bKash's page.</summary>
+    /// <summary>
+    /// Starts a bKash payment for a package, for SMS, or for both together; the browser then goes
+    /// to bKash's page.
+    /// </summary>
     public async Task<CheckoutResultDto> CheckoutAsync(CheckoutRequest r, CancellationToken ct)
     {
         if (currentUser.Role != Role.Admin) throw DomainException.Forbidden("Only an admin can pay for the subscription.");
         var tenantId = currentUser.RequireTenant();
-        if (r.PlanUuid is null) throw DomainException.Validation("planUuid", "Choose a package.");
+        var smsQuantity = r.SmsQuantity ?? 0;
+        if (r.PlanUuid is null && smsQuantity <= 0) throw DomainException.Validation("planUuid", "Choose a package or how many SMS to buy.");
 
         var sys = systemDb.Create();
         var s = await settingsCache.GetAsync(sys, ct);
-        if (!s.BillingEnabled) throw DomainException.Rule(ErrorCodes.BusinessRule, "Billing is not switched on.");
+        if (r.PlanUuid is not null && !s.BillingEnabled) throw DomainException.Rule(ErrorCodes.BusinessRule, "Billing is not switched on.");
         var credentials = BillingMapping.Bkash(s, protector)
             ?? throw DomainException.Rule(ErrorCodes.BusinessRule, "Online payment is not available yet. Please contact support.");
 
         var t = await sys.Tenants.AsNoTracking().FirstAsync(x => x.Uuid == tenantId, ct);
-        // The same price the Billing page showed: the special price for this business, else its size's.
-        var plan = (await BusinessPricing.OffersAsync(sys, tenantId, t.BusinessSizeUuid, activeOnly: true, ct))
-            .FirstOrDefault(o => o.PlanUuid == r.PlanUuid && o.Price is not null);
-        if (plan is null && t.BusinessSizeUuid is null)
-            throw DomainException.Rule(ErrorCodes.BusinessRule, "Your business size is not set yet. Please contact support.");
-        if (plan is null) throw DomainException.Validation("planUuid", "This package is not available for your business.");
-        var sizeName = t.BusinessSizeUuid is { } sid
-            ? await sys.BusinessSizes.AsNoTracking().Where(z => z.Uuid == sid).Select(z => z.SizeName).FirstOrDefaultAsync(ct) : null;
-        var offer = new { Uuid = plan.PlanUuid, PlanName = plan.Name, plan.DurationMonths, Price = plan.Price!.Value, SizeName = sizeName };
-        if (offer.Price <= 0) throw DomainException.Rule(ErrorCodes.BusinessRule, "This package is free; there is nothing to pay.");
+
+        // The package, at the same price the Billing page showed: the special price for this business, else its size's.
+        PlanOffer? plan = null;
+        string? sizeName = null;
+        if (r.PlanUuid is { } planId)
+        {
+            plan = (await BusinessPricing.OffersAsync(sys, tenantId, t.BusinessSizeUuid, activeOnly: true, ct))
+                .FirstOrDefault(o => o.PlanUuid == planId && o.Price is not null);
+            if (plan is null && t.BusinessSizeUuid is null)
+                throw DomainException.Rule(ErrorCodes.BusinessRule, "Your business size is not set yet. Please contact support.");
+            if (plan is null) throw DomainException.Validation("planUuid", "This package is not available for your business.");
+            if (plan.Price <= 0 && smsQuantity <= 0)
+                throw DomainException.Rule(ErrorCodes.BusinessRule, "This package is free; there is nothing to pay.");
+            sizeName = t.BusinessSizeUuid is { } sid
+                ? await sys.BusinessSizes.AsNoTracking().Where(z => z.Uuid == sid).Select(z => z.SizeName).FirstOrDefaultAsync(ct) : null;
+        }
+
+        // The SMS, at this business's price per SMS.
+        decimal? smsPrice = null;
+        var smsAmount = 0m;
+        if (smsQuantity > 0)
+        {
+            if (!s.SmsCreditRequired || t.BillingExempt)
+                throw DomainException.Rule(ErrorCodes.BusinessRule, "Your business does not need to buy SMS.");
+            new Validator()
+                .When(smsQuantity < s.SmsMinPurchase, "smsQuantity", $"Buy at least {s.SmsMinPurchase} SMS.")
+                .When(smsQuantity > SmsCredits.MaxPurchase, "smsQuantity", "You can buy up to 100,000 SMS at once.")
+                .ThrowIfInvalid();
+            smsPrice = t.SmsPrice ?? s.SmsUnitPrice;
+            smsAmount = SmsCredits.Price(smsQuantity, smsPrice.Value);
+        }
+
+        var amount = Money.Round((plan?.Price ?? 0) + smsAmount);
+        if (amount <= 0) throw DomainException.Rule(ErrorCodes.BusinessRule, "There is nothing to pay.");
 
         var now = clock.GetUtcNow();
         var payment = new BillingPayment
         {
             Uuid = Guid.NewGuid(),
             TenantUuid = tenantId,
-            PlanUuid = offer.Uuid,
-            PlanName = offer.PlanName,
-            SizeName = offer.SizeName,
-            DurationMonths = offer.DurationMonths,
-            Amount = offer.Price,
+            PlanUuid = plan?.PlanUuid,
+            PlanName = plan?.Name ?? "SMS",
+            SizeName = sizeName,
+            DurationMonths = plan?.DurationMonths ?? 0,
+            Amount = amount,
+            SmsQuantity = smsQuantity,
+            SmsUnitPrice = smsPrice,
             Provider = BillingProvider.Bkash,
             Status = BillingPaymentStatus.Initiated,
             InvoiceNumber = BillingMapping.NewInvoiceNumber(now),

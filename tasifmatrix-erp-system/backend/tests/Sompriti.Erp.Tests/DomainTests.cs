@@ -361,7 +361,8 @@ public class SmsTemplateTests
     public void Finalized_sales_message_has_order_and_account_and_fits_one_segment()
     {
         var text = SmsTemplates.OrderFinalized(TransactionType.Sales, "Sompriti Enterprise", "100042", 12450m, Account);
-        Assert.Equal("Sompriti Enterprise: Invoice #100042 of Tk 12,450 confirmed. Your account: total Tk 148,200, paid Tk 120,000, due Tk 28,200. Thank you.", text);
+        // The courtesy line would make this two parts, so only the website is added.
+        Assert.Equal("Sompriti Enterprise: Invoice #100042 of Tk 12,450 confirmed. Your account: total Tk 148,200, paid Tk 120,000, due Tk 28,200.\nhttps://tasifmatrix.com.bd", text);
         Assert.True(text.Length <= 160, $"length {text.Length}");
     }
 
@@ -391,12 +392,35 @@ public class SmsTemplateTests
     }
 
     [Fact]
-    public void Long_names_and_big_amounts_drop_the_courtesy_line_before_spilling_over()
+    public void Long_names_and_big_amounts_never_add_a_part_for_the_courtesy_line()
     {
         var text = SmsTemplates.Payment(TransactionType.Sales, "A very long company name that goes on and on", "100001",
             1234567.89m, new AccountTotals(98765432.1m, 87654321.12m));
         Assert.StartsWith("A very long company name that : ", text);
-        Assert.DoesNotContain("Thank you", text);
+        // Already two parts with the website; the courtesy line fits in them without a third.
+        Assert.Equal(2, SmsParts.Count(text));
+        Assert.EndsWith("\nhttps://tasifmatrix.com.bd", text);
+    }
+
+    [Fact]
+    public void Short_messages_keep_the_courtesy_line_and_end_with_the_website()
+    {
+        var text = SmsTemplates.Payment(TransactionType.Sales, "Tasif Matrix", "100002", 50m, new AccountTotals(200m, 150m));
+        Assert.Equal("Tasif Matrix: Received Tk 50 for Invoice #100002. Your account: total Tk 200, paid Tk 150, due Tk 50. Thank you.\nhttps://tasifmatrix.com.bd", text);
+        Assert.Equal(1, SmsParts.Count(text));
+    }
+
+    [Theory]
+    [InlineData("Sompriti Enterprise", 12450, 148200, 120000)]
+    [InlineData("A company name thirty chars xx", 99999, 999999, 999999)]
+    public void Every_message_ends_with_the_website(string company, int amount, int total, int paid)
+    {
+        foreach (var type in new[] { TransactionType.Sales, TransactionType.Purchase })
+        {
+            var account = new AccountTotals(total, paid);
+            Assert.EndsWith("\n" + SmsTemplates.Website, SmsTemplates.OrderFinalized(type, company, "100042", amount, account));
+            Assert.EndsWith("\n" + SmsTemplates.Website, SmsTemplates.Payment(type, company, "100042", amount, account));
+        }
     }
 }
 
@@ -519,5 +543,68 @@ public class BusinessClockTests
         var utc = new DateTimeOffset(2026, 1, 1, 20, 0, 0, TimeSpan.Zero);
         Assert.Equal(new DateOnly(2026, 1, 2), BusinessClock.Today(utc));
         Assert.Equal(new DateTimeOffset(2026, 1, 1, 18, 0, 0, TimeSpan.Zero), BusinessClock.StartOfDayUtc(new DateOnly(2026, 1, 2)));
+    }
+}
+
+public class SmsCreditTests
+{
+    private static readonly DateTimeOffset Now = new(2026, 10, 16, 6, 0, 0, TimeSpan.Zero);
+    private static readonly Guid A = Guid.Parse("00000000-0000-0000-0000-00000000000a");
+    private static readonly Guid B = Guid.Parse("00000000-0000-0000-0000-00000000000b");
+    private static readonly Guid C = Guid.Parse("00000000-0000-0000-0000-00000000000c");
+
+    [Fact]
+    public void Available_counts_only_what_is_left_in_packs_that_have_not_expired()
+    {
+        var lots = new[]
+        {
+            new SmsLot(A, 300, 120, Now.AddMonths(2)),
+            new SmsLot(B, 20, 5, Now.AddDays(-1)),    // expired: its 15 are gone
+            new SmsLot(C, 100, 100, Now.AddMonths(3)), // used up
+        };
+        Assert.Equal(180, SmsCredits.Available(lots, Now));
+    }
+
+    [Fact]
+    public void A_message_uses_the_pack_that_expires_first_and_spills_into_the_next()
+    {
+        var lots = new[] { new SmsLot(A, 100, 0, Now.AddMonths(3)), new SmsLot(B, 20, 19, Now.AddDays(10)) };
+        var plan = SmsCredits.Allocate(lots, 2, Now)!;
+        Assert.Equal(new[] { (B, 1), (A, 1) }, plan);
+    }
+
+    [Fact]
+    public void A_short_balance_takes_nothing()
+    {
+        var lots = new[] { new SmsLot(A, 10, 9, Now.AddMonths(1)), new SmsLot(B, 50, 0, Now.AddDays(-2)) };
+        Assert.Null(SmsCredits.Allocate(lots, 2, Now));
+        Assert.Empty(SmsCredits.Allocate(lots, 0, Now)!);
+    }
+
+    [Fact]
+    public void A_failed_message_gives_its_sms_back_to_the_pack_lasting_longest()
+    {
+        var lots = new[]
+        {
+            new SmsLot(A, 100, 1, Now.AddMonths(3)),
+            new SmsLot(B, 20, 20, Now.AddDays(10)),
+            new SmsLot(C, 50, 50, Now.AddDays(-1)), // expired: never refilled
+        };
+        Assert.Equal(new[] { (A, 1), (B, 1) }, SmsCredits.Refund(lots, 2, Now));
+        Assert.Empty(SmsCredits.Refund([new SmsLot(C, 50, 50, Now.AddDays(-1))], 2, Now));
+    }
+
+    [Theory]
+    [InlineData(300, 0.55, 165.00)]
+    [InlineData(100, 0.35, 35.00)]
+    [InlineData(333, 0.333, 110.89)]
+    public void Price_is_quantity_times_price_rounded_to_paisa(int quantity, double unit, double expected) =>
+        Assert.Equal((decimal)expected, SmsCredits.Price(quantity, (decimal)unit));
+
+    [Fact]
+    public void A_pack_lasts_the_set_number_of_months()
+    {
+        Assert.Equal(new DateTimeOffset(2027, 1, 16, 6, 0, 0, TimeSpan.Zero), SmsCredits.ExpiresAt(Now, 3));
+        Assert.Equal(new DateTimeOffset(2027, 2, 28, 0, 0, 0, TimeSpan.Zero), SmsCredits.ExpiresAt(new DateTimeOffset(2026, 11, 30, 0, 0, 0, TimeSpan.Zero), 3));
     }
 }

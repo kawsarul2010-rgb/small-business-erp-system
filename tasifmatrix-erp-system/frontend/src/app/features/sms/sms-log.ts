@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -10,16 +11,18 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ApiService } from '../../core/api.service';
 import { LayoutService } from '../../core/layout.service';
-import { Paged, SmsLog, SmsStatus } from '../../core/models';
+import { Paged, SmsBalance, SmsLog, SmsStatus } from '../../core/models';
+import { PlatformService } from '../../core/platform.service';
 import { NotifyService } from '../../core/notify.service';
 import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
+import { SmsBalanceCard, openBuySms } from '../../shared/sms-credits';
 import { StatusChip } from '../../shared/status-chip';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-sms-log',
-  imports: [TranslatePipe, DatePipe, MatTableModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatTooltipModule, ListFooter, StatusChip],
+  imports: [TranslatePipe, DatePipe, MatTableModule, MatButtonModule, MatButtonToggleModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatTooltipModule, ListFooter, StatusChip, SmsBalanceCard],
   template: `
     <div class="page">
       <div class="page-header">
@@ -29,6 +32,9 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
         </div>
         <div class="actions"><button mat-stroked-button (click)="list.reload()"><mat-icon>refresh</mat-icon>{{ 'Refresh' | t }}</button></div>
       </div>
+      @if (sms()?.required && !sms()?.exempt) {
+        <app-sms-balance class="balance" [balance]="sms()" [compact]="true" [inApp]="inApp" [canBuy]="!inApp && !!sms()?.canBuy" (buy)="buy()" />
+      }
       <div class="card">
         <div class="toolbar">
           <mat-button-toggle-group [value]="status()" (change)="status.set($event.value); list.resetToFirstPage()" hideSingleSelectionIndicator>
@@ -63,7 +69,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                   </div>
                 </div>
                 <div class="message">{{ s.message }}</div>
-                @if (s.lastError) { <div class="negative small">{{ s.lastError }}</div> }
+                @if (s.lastError) { <div class="negative small">{{ s.lastError | t }}</div> }
               </div>
             }
           </div>
@@ -74,7 +80,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
             <ng-container matColumnDef="created"><th mat-header-cell *matHeaderCellDef>{{ 'Queued' | t }}</th><td mat-cell *matCellDef="let s" class="nowrap">{{ s.createdDate | date: 'dd MMM, h:mm a' }}</td></ng-container>
             <ng-container matColumnDef="to"><th mat-header-cell *matHeaderCellDef>{{ 'To' | t }}</th><td mat-cell *matCellDef="let s" class="nowrap">{{ s.recipientNumber }}</td></ng-container>
             <ng-container matColumnDef="message"><th mat-header-cell *matHeaderCellDef>{{ 'Message' | t }}</th>
-              <td mat-cell *matCellDef="let s">{{ s.message }}@if (s.lastError) { <div class="negative small">{{ s.lastError }}</div> }</td></ng-container>
+              <td mat-cell *matCellDef="let s">{{ s.message }}@if (s.lastError) { <div class="negative small">{{ s.lastError | t }}</div> }</td></ng-container>
             <ng-container matColumnDef="status"><th mat-header-cell *matHeaderCellDef>{{ 'Status' | t }}</th><td mat-cell *matCellDef="let s"><app-status [value]="s.status" /></td></ng-container>
             <ng-container matColumnDef="attempts"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Tries' | t }}</th><td mat-cell *matCellDef="let s" class="num">{{ s.attemptCount }}</td></ng-container>
             <ng-container matColumnDef="sent"><th mat-header-cell *matHeaderCellDef>{{ 'Sent / next try' | t }}</th>
@@ -96,6 +102,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
   `,
   styles: `
     .small { font-size: 12px; }
+    .balance { margin-bottom: 16px; }
     .message { margin-top: 10px; font-size: 13px; line-height: 1.45; color: var(--erp-muted); }
   `,
 })
@@ -107,13 +114,27 @@ export class SmsLogPage implements OnInit {
   readonly columns = ['created', 'to', 'message', 'status', 'attempts', 'sent', 'actions'];
   readonly list = new ListState<SmsLog>((q) => this.api.get<Paged<SmsLog>>('/sms', { ...q, status: this.status() || null }), 50);
 
+  private readonly dialog = inject(MatDialog);
+  /** Inside the Android app: the balance only, no buying (see the Billing page). */
+  readonly inApp = inject(PlatformService).isNative;
+  readonly sms = signal<SmsBalance | null>(null);
+
   ngOnInit(): void {
     this.list.reload();
+    this.loadSms();
+  }
+
+  private loadSms(): void {
+    this.api.get<SmsBalance>('/billing/sms').subscribe({ next: (b) => this.sms.set(b), error: () => this.sms.set(null) });
+  }
+
+  buy(): void {
+    openBuySms(this.dialog, this.layout, this.sms());
   }
 
   retry(s: SmsLog): void {
     this.api.post(`/sms/${s.uuid}/retry`).subscribe({
-      next: () => { this.notify.success('Queued for retry.'); this.list.reload(); },
+      next: () => { this.notify.success('Queued for retry.'); this.list.reload(); this.loadSms(); },
       error: (e) => this.notify.error(e),
     });
   }

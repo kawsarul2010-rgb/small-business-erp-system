@@ -21,6 +21,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
 import { PasswordToggle } from '../../shared/password-toggle';
 import { MoneyPipe } from '../../shared/pipes';
+import { paymentWhat } from '../../shared/sms-credits';
 import { StatusChip } from '../../shared/status-chip';
 
 /**
@@ -180,6 +181,74 @@ import { StatusChip } from '../../shared/status-chip';
           </div>
         </mat-tab>
 
+        <!-- ======================================================== prepaid SMS -->
+        <mat-tab [label]="'SMS' | t">
+          <div class="tab-body">
+            <form class="card card-pad" [formGroup]="smsForm" (ngSubmit)="saveSms()">
+              <div class="switch-row" [class.off]="!smsForm.controls.smsCreditRequired.value">
+                <mat-icon>{{ smsForm.controls.smsCreditRequired.value ? 'sms' : 'speaker_notes_off' }}</mat-icon>
+                <div class="switch-text">
+                  <span class="switch-title">{{ 'Businesses buy SMS before sending' | t }}</span>
+                  <span class="switch-hint">{{ (smsForm.controls.smsCreditRequired.value
+                    ? 'On: each SMS part a business sends comes out of the SMS it bought. With none left, its SMS are not sent until it buys more.'
+                    : 'Off: businesses send SMS without a balance. Use the usage on each business page to bill them.') | t }}</span>
+                </div>
+                <mat-slide-toggle formControlName="smsCreditRequired" [attr.aria-label]="'Businesses buy SMS before sending' | t" />
+              </div>
+              @if (smsForm.controls.smsCreditRequired.value && !settings()?.smsCreditRequired) {
+                <p class="heads-up"><mat-icon>info</mat-icon>
+                  {{ (smsForm.controls.smsFreeOnSignup.value > 0
+                    ? 'When you save, every business that never had SMS gets {n} free SMS. After that, a business sends SMS only while it has some left.'
+                    : 'When you save, businesses send SMS only while they have some left. Businesses without SMS stop sending until they buy.') | t: { n: smsForm.controls.smsFreeOnSignup.value } }}
+                  {{ 'Businesses marked "Never billed" are never charged for SMS.' | t }}
+                </p>
+              }
+
+              <div class="form-grid three">
+                <mat-form-field>
+                  <mat-label>{{ 'Price per SMS' | t }}</mat-label>
+                  <span matTextPrefix>Tk&nbsp;</span>
+                  <input matInput type="number" inputmode="decimal" min="0" max="100" step="0.01" formControlName="smsUnitPrice" />
+                  <mat-hint>{{ 'Unless a business has its own price.' | t }}</mat-hint>
+                  <mat-error>{{ err(smsForm, 'smsUnitPrice', 'Price per SMS') }}</mat-error>
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>{{ 'SMS last' | t }}</mat-label>
+                  <input matInput type="number" min="1" max="36" formControlName="smsValidityMonths" />
+                  <span matTextSuffix>{{ 'months' | t }}</span>
+                  <mat-hint>{{ 'From the day they are bought.' | t }}</mat-hint>
+                  <mat-error>{{ err(smsForm, 'smsValidityMonths', 'SMS last') }}</mat-error>
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>{{ 'Smallest purchase' | t }}</mat-label>
+                  <input matInput type="number" min="1" max="100000" formControlName="smsMinPurchase" />
+                  <span matTextSuffix>SMS</span>
+                  <mat-error>{{ err(smsForm, 'smsMinPurchase', 'Smallest purchase') }}</mat-error>
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>{{ 'Free SMS for a new business' | t }}</mat-label>
+                  <input matInput type="number" min="0" max="10000" formControlName="smsFreeOnSignup" />
+                  <span matTextSuffix>SMS</span>
+                  <mat-hint>{{ 'Given when a business signs up. 0 = none.' | t }}</mat-hint>
+                  <mat-error>{{ err(smsForm, 'smsFreeOnSignup', 'Free SMS') }}</mat-error>
+                </mat-form-field>
+              </div>
+              <div class="timeline">
+                <span class="step"><b>{{ 'Example' | t }}</b> {{ '{n} SMS × {price} = {total}' | t: { n: 300, price: (smsForm.controls.smsUnitPrice.value | money), total: (300 * smsForm.controls.smsUnitPrice.value | money) } }}</span>
+                <span class="step">{{ 'usable for {n} months' | t: { n: smsForm.controls.smsValidityMonths.value } }}</span>
+                <span class="step warn">{{ 'a long message uses 2 or more SMS' | t }}</span>
+              </div>
+              @if (!settings()?.bkashReady) {
+                <p class="muted small">{{ 'Businesses can buy SMS online once bKash is set up. You can always add SMS to a business on its page.' | t }}</p>
+              }
+              @if (smsError()) { <p class="negative">{{ smsError() | t }}</p> }
+              <div class="form-actions">
+                <button mat-flat-button type="submit" [disabled]="busy()">{{ 'Save' | t }}</button>
+              </div>
+            </form>
+          </div>
+        </mat-tab>
+
         <!-- ======================================================== packages -->
         <mat-tab [label]="'Packages' | t">
           <div class="tab-body">
@@ -266,7 +335,7 @@ import { StatusChip } from '../../shared/status-chip';
                   <div class="pay-main">
                     <div class="pay-title">
                       <a [routerLink]="['/platform/businesses', p.businessUuid]">{{ p.businessName }}</a>
-                      <span class="muted">· {{ p.planName }}@if (p.sizeName) { ({{ p.sizeName }}) }</span>
+                      <span class="muted">· {{ what(p) }}@if (p.sizeName) { ({{ p.sizeName }}) }</span>
                       <app-status [value]="p.status" />
                     </div>
                     <div class="muted small">
@@ -363,6 +432,7 @@ export class PlatformBillingPage implements OnInit {
   readonly paymentFilter = signal<BillingPaymentStatus | null>(null);
   readonly settingsError = signal<string | null>(null);
   readonly bkashError = signal<string | null>(null);
+  readonly smsError = signal<string | null>(null);
   readonly callbackUrl = `${location.origin}/api/v1/billing/bkash/callback`;
 
   readonly settingsForm = this.fb.nonNullable.group({
@@ -372,6 +442,14 @@ export class PlatformBillingPage implements OnInit {
     reminderDays: [7, [Validators.required, Validators.min(0), Validators.max(60)]],
     supportPhone: [''],
     supportEmail: ['', Validators.email],
+  });
+
+  readonly smsForm = this.fb.nonNullable.group({
+    smsCreditRequired: [false],
+    smsUnitPrice: [0.55, [Validators.required, Validators.min(0), Validators.max(100)]],
+    smsValidityMonths: [3, [Validators.required, Validators.min(1), Validators.max(36)]],
+    smsMinPurchase: [100, [Validators.required, Validators.min(1), Validators.max(100000)]],
+    smsFreeOnSignup: [20, [Validators.required, Validators.min(0), Validators.max(10000)]],
   });
 
   readonly bkashForm = this.fb.nonNullable.group({
@@ -395,6 +473,10 @@ export class PlatformBillingPage implements OnInit {
     return controlError(form.get(path) as never, label);
   }
 
+  what(p: BillingPayment): string {
+    return paymentWhat(p);
+  }
+
   priceOf(p: PlanAdmin, sizeUuid: string): number | null {
     return p.prices.find((x) => x.sizeUuid === sizeUuid)?.price ?? null;
   }
@@ -415,6 +497,10 @@ export class PlatformBillingPage implements OnInit {
     this.settingsForm.reset({
       billingEnabled: s.billingEnabled, trialDays: s.trialDays, graceDays: s.graceDays, reminderDays: s.reminderDays,
       supportPhone: s.supportPhone ?? '', supportEmail: s.supportEmail ?? '',
+    });
+    this.smsForm.reset({
+      smsCreditRequired: s.smsCreditRequired, smsUnitPrice: s.smsUnitPrice, smsValidityMonths: s.smsValidityMonths,
+      smsMinPurchase: s.smsMinPurchase, smsFreeOnSignup: s.smsFreeOnSignup,
     });
     this.bkashForm.reset({
       bkashEnabled: s.bkashEnabled, bkashSandbox: s.bkashSandbox, bkashAppKey: s.bkashAppKey ?? '', bkashAppSecret: '',
@@ -443,7 +529,7 @@ export class PlatformBillingPage implements OnInit {
 
   /** Both forms go up together: the server keeps secrets that are left empty. */
   private body(): Record<string, unknown> {
-    return { ...this.settingsForm.getRawValue(), ...this.bkashForm.getRawValue() };
+    return { ...this.settingsForm.getRawValue(), ...this.bkashForm.getRawValue(), ...this.smsForm.getRawValue() };
   }
 
   saveSettings(): void {
@@ -455,14 +541,20 @@ export class PlatformBillingPage implements OnInit {
     this.save(this.bkashForm, this.bkashError);
   }
 
-  private save(form: typeof this.settingsForm | typeof this.bkashForm, error: ReturnType<typeof signal<string | null>>): void {
+  saveSms(): void {
+    if (this.smsForm.invalid) { this.smsForm.markAllAsTouched(); return; }
+    this.save(this.smsForm, this.smsError);
+  }
+
+  private save(form: typeof this.settingsForm | typeof this.bkashForm | typeof this.smsForm, error: ReturnType<typeof signal<string | null>>): void {
     this.busy.set(true);
     error.set(null);
-    this.api.put<{ settings: BillingSettings; businessesStarted: number }>('/platform/billing/settings', this.body()).subscribe({
+    this.api.put<{ settings: BillingSettings; businessesStarted: number; businessesGivenSms: number }>('/platform/billing/settings', this.body()).subscribe({
       next: (r) => {
         this.applySettings(r.settings);
         this.busy.set(false);
         if (r.businessesStarted > 0) this.notify.success('Saved. {n} businesses started their free trial today.', { n: r.businessesStarted });
+        else if (r.businessesGivenSms > 0) this.notify.success('Saved. {n} businesses got their free SMS.', { n: r.businessesGivenSms });
         else this.notify.success('Saved.');
       },
       error: (e) => { this.busy.set(false); error.set(applyServerErrors(form as never, e)); },

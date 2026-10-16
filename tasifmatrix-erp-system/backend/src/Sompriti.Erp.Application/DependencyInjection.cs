@@ -43,6 +43,7 @@ public static class DependencyInjection
         services.AddMemoryCache();
         services.AddSingleton<BillingSettingsCache>();
         services.AddSingleton<SubscriptionLedger>();
+        services.AddScoped<SmsCreditService>();
         services.AddScoped<BillingService>();
         services.AddScoped<PlatformBillingService>();
         services.AddScoped<PostService>();

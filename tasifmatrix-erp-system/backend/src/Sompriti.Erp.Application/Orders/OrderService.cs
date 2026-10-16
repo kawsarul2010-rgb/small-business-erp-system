@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sompriti.Erp.Application.Billing;
 using Sompriti.Erp.Application.Common;
 using Sompriti.Erp.Application.MasterData;
 using Sompriti.Erp.Application.Settings;
@@ -15,7 +16,7 @@ namespace Sompriti.Erp.Application.Orders;
 /// Stock direction and party type are supplied by the concrete service.
 /// </summary>
 public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
-    IAppDbContext db, ICurrentUser user, StockService stock, ISmsSender sms, IOrderPdfRenderer pdf, TimeProvider clock)
+    IAppDbContext db, ICurrentUser user, StockService stock, ISmsSender sms, IOrderPdfRenderer pdf, SmsCreditService credits, TimeProvider clock)
     where TOrder : OrderHeader, new()
     where TLine : OrderLine, new()
     where TPayment : OrderPayment, new()
@@ -118,6 +119,9 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
 
         var smsSettings = await BusinessSettingsService.SmsAsync(Db, ct);
         var smsBlocked = SmsRules.BlockedReason(smsSettings.SmsEnabled, party.SmsEnabled, Type);
+        // Prepaid SMS: an empty balance also stops the SMS (staff see why; a customer's own view skips the check).
+        if (smsBlocked is null && o.SendSms && o.PostingStatus != PostingStatus.Void && User.Role != Role.User)
+            smsBlocked = await credits.ShortageReasonAsync(Db, o.TenantUuid, ct);
 
         return new OrderDetailDto(o.Uuid, o.TransactionType, o.OrderNumber!,
             new OrderCompanyDto(company.Uuid, company.CompanyName, company.CompanyCode),
@@ -470,16 +474,31 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
 
         var now = clock.GetUtcNow();
         var text = message(company.CompanyName, account);
+        var parts = SmsParts.Count(text);
+
+        // Prepaid SMS: the message takes its parts from the balance in this same transaction. With
+        // too few left it is kept as SKIPPED with the reason, and can be sent later with Retry.
+        var status = sms.Enabled ? SmsStatus.Pending : SmsStatus.Skipped;
+        string? reason = null;
+        short charged = 0;
+        if (sms.Enabled && await credits.ChargesAsync(order.TenantUuid, ct))
+        {
+            if (await SmsCreditService.TryChargeAsync(Db, order.TenantUuid, parts, now, ct)) charged = (short)parts;
+            else (status, reason) = (SmsStatus.Skipped, SmsCreditService.NoBalanceMessage);
+        }
+
         Db.SmsOutbox.Add(new SmsOutbox
         {
             Uuid = Guid.NewGuid(),
             RecipientNumber = party.MobileNumber,
             Message = text,
-            SmsParts = (short)SmsParts.Count(text),
+            SmsParts = (short)parts,
+            ChargedParts = charged,
             ReferenceType = referenceType,
             ReferenceUuid = referenceUuid,
-            Status = sms.Enabled ? SmsStatus.Pending : SmsStatus.Skipped,
-            NextAttemptDate = sms.Enabled ? now : null,
+            Status = status,
+            NextAttemptDate = status == SmsStatus.Pending ? now : null,
+            LastError = reason,
             CreatedDate = now,
         });
     }
@@ -522,8 +541,9 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
     private static void Touch(TOrder order) => order.Revision = Guid.NewGuid();
 }
 
-public sealed class PurchaseOrderService(IAppDbContext db, ICurrentUser user, StockService stock, ISmsSender sms, IOrderPdfRenderer pdf, TimeProvider clock)
-    : OrderService<PurchaseOrder, PurchaseOrderLineItem, PurchaseOrderPayment, Supplier>(db, user, stock, sms, pdf, clock)
+public sealed class PurchaseOrderService(IAppDbContext db, ICurrentUser user, StockService stock, ISmsSender sms, IOrderPdfRenderer pdf,
+    SmsCreditService credits, TimeProvider clock)
+    : OrderService<PurchaseOrder, PurchaseOrderLineItem, PurchaseOrderPayment, Supplier>(db, user, stock, sms, pdf, credits, clock)
 {
     protected override TransactionType Type => TransactionType.Purchase;
     protected override string OrderTable => "purchase_order";
@@ -533,8 +553,9 @@ public sealed class PurchaseOrderService(IAppDbContext db, ICurrentUser user, St
     protected override decimal DefaultPrice(Product product) => product.ProductPurchasePrice;
 }
 
-public sealed class SalesOrderService(IAppDbContext db, ICurrentUser user, StockService stock, ISmsSender sms, IOrderPdfRenderer pdf, TimeProvider clock)
-    : OrderService<SalesOrder, SalesOrderLineItem, SalesOrderPayment, Customer>(db, user, stock, sms, pdf, clock)
+public sealed class SalesOrderService(IAppDbContext db, ICurrentUser user, StockService stock, ISmsSender sms, IOrderPdfRenderer pdf,
+    SmsCreditService credits, TimeProvider clock)
+    : OrderService<SalesOrder, SalesOrderLineItem, SalesOrderPayment, Customer>(db, user, stock, sms, pdf, credits, clock)
 {
     private readonly StockService _stock = stock;
 
