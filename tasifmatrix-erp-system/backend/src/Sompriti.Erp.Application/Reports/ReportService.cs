@@ -281,17 +281,19 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
             : await purchaseOrders.ListAsync(listQuery, ct);
 
         var today = BusinessClock.Today(clock.GetUtcNow());
+        // With one company (the usual case) a company column would repeat the same name on every row.
+        var showCompany = await SingleCompanyNameAsync(ct) is null;
         var rows = paged.Items.Select(o => new ReportRow(new[]
         {
             o.OrderNumber,
             o.OrderDate.ToString("dd MMM yyyy", Invariant),
             Math.Max(0, today.DayNumber - o.OrderDate.DayNumber).ToString(Invariant),
             o.PartyName,
-            o.CompanyName,
+            showCompany ? o.CompanyName : null,
             Money.FormatPlain(o.TotalAmount),
             Money.FormatPlain(o.TotalPaidAmount),
             Money.FormatPlain(o.DueAmount),
-        })).ToList();
+        }.OfType<string>().ToArray())).ToList();
 
         return new ReportDocument(
             Title: sales ? "Customer due report" : "Supplier due report",
@@ -303,19 +305,19 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
                 new ReportColumn("Date", 68),
                 new ReportColumn("Days", 34, RightAligned: true),
                 new ReportColumn(sales ? "Customer" : "Supplier"),
-                new ReportColumn("Company", 92),
+                showCompany ? new ReportColumn("Company", 92) : null,
                 new ReportColumn("Total", 70, RightAligned: true),
                 new ReportColumn("Paid", 70, RightAligned: true),
                 new ReportColumn("Due", 70, RightAligned: true),
-            },
+            }.OfType<ReportColumn>().ToArray(),
             Rows: rows,
             Totals: new[]
             {
-                "TOTAL", "", "", "", "",
+                "TOTAL", "", "", "", showCompany ? "" : null,
                 Money.FormatPlain(paged.Items.Sum(o => o.TotalAmount)),
                 Money.FormatPlain(paged.Items.Sum(o => o.TotalPaidAmount)),
                 Money.FormatPlain(paged.Items.Sum(o => o.DueAmount)),
-            },
+            }.OfType<string>().ToArray(),
             FileName: FileName(sales ? "customer-due-report" : "supplier-due-report", q.FromDate, q.ToDate));
     }
 
@@ -364,12 +366,14 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
         filters.Add(("Totals", "Finalized orders only"));
 
         // One party: room for the payment type. All parties: the narrowest columns, so names fit.
+        // The company column only when the business has more than one (it has one, normally).
         var perParty = partyUuid is not null;
+        var showCompany = await SingleCompanyNameAsync(ct) is null;
         float money = perParty ? 66 : 62;
         var columns = new List<ReportColumn> { new("Order no.", perParty ? 56 : 50), new("Date", perParty ? 62 : 58) };
         if (!perParty) columns.Add(new ReportColumn(partyWord));
-        columns.Add(perParty ? new ReportColumn("Company") : new ReportColumn("Company", 78));
-        if (perParty) columns.Add(new ReportColumn("Payment", 60));
+        if (showCompany) columns.Add(perParty ? new ReportColumn("Company") : new ReportColumn("Company", 78));
+        if (perParty) columns.Add(showCompany ? new ReportColumn("Payment", 60) : new ReportColumn("Payment"));
         columns.AddRange(new[]
         {
             new ReportColumn("Status", 40),
@@ -383,7 +387,7 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
             var final = o.PostingStatus == PostingStatus.Final;
             var cells = new List<string> { o.OrderNumber, o.OrderDate.ToString("dd MMM yyyy", Invariant) };
             if (!perParty) cells.Add(o.PartyName);
-            cells.Add(o.CompanyName);
+            if (showCompany) cells.Add(o.CompanyName);
             if (perParty) cells.Add(o.PaymentType.ToString());
             cells.Add(o.PostingStatus.ToString());
             cells.Add(Money.FormatPlain(o.TotalAmount));
@@ -429,11 +433,19 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
         }
         else
         {
-            lines.Add(("Company", "All companies"));
+            // A business has one company, so "All companies" would only puzzle the reader: name it.
+            lines.Add(("Company", await SingleCompanyNameAsync(ct) ?? "All companies"));
         }
 
         if (extra is not null) lines.Add(("Filter", extra));
         return lines;
+    }
+
+    /// <summary>The business's company name when it has exactly one (the usual case), else null.</summary>
+    private async Task<string?> SingleCompanyNameAsync(CancellationToken ct)
+    {
+        var names = await db.Companies.AsNoTracking().Select(c => c.CompanyName).Take(2).ToListAsync(ct);
+        return names.Count == 1 ? names[0] : null;
     }
 
     private static string Period(DateOnly? from, DateOnly? to) => (from, to) switch

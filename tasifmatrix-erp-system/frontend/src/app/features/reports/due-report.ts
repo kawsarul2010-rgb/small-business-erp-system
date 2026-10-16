@@ -12,7 +12,7 @@ import { Router, RouterLink } from '@angular/router';
 import { ApiService, dateToIso } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { LayoutService } from '../../core/layout.service';
-import { OrderKind, OrderListItem, Paged } from '../../core/models';
+import { DropdownItem, OrderKind, OrderListItem, Paged } from '../../core/models';
 import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { MoneyPipe } from '../../shared/pipes';
@@ -91,8 +91,8 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
             <ng-container matColumnDef="total"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Total' | t }}</th><td mat-cell *matCellDef="let o" class="num nowrap">{{ o.totalAmount | money }}</td></ng-container>
             <ng-container matColumnDef="paid"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Paid' | t }}</th><td mat-cell *matCellDef="let o" class="num nowrap">{{ o.totalPaidAmount | money }}</td></ng-container>
             <ng-container matColumnDef="due"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Due' | t }}</th><td mat-cell *matCellDef="let o" class="num nowrap negative"><strong>{{ o.dueAmount | money }}</strong></td></ng-container>
-            <tr mat-header-row *matHeaderRowDef="columns"></tr>
-            <tr mat-row class="clickable" *matRowDef="let row; columns: columns" (click)="open(row)"></tr>
+            <tr mat-header-row *matHeaderRowDef="columns()"></tr>
+            <tr mat-row class="clickable" *matRowDef="let row; columns: columns()" (click)="open(row)"></tr>
           </table>
         </div>
         }
@@ -118,7 +118,10 @@ export class DueReportPage implements OnInit {
   });
   readonly kind = signal<OrderKind>(this.kinds()[0] ?? 'sales');
   readonly meta = computed(() => orderMeta(this.kind()));
-  readonly columns = ['orderNumber', 'orderDate', 'age', 'party', 'company', 'total', 'paid', 'due'];
+  /** A business has one company; its column only appears if there are more. */
+  readonly companies = signal<DropdownItem[]>([]);
+  readonly columns = computed(() =>
+    ['orderNumber', 'orderDate', 'age', 'party', 'company', 'total', 'paid', 'due'].filter((c) => c !== 'company' || this.companies().length > 1));
   readonly from = new FormControl<Date | null>(null);
   readonly to = new FormControl<Date | null>(null);
 
@@ -146,6 +149,7 @@ export class DueReportPage implements OnInit {
 
   ngOnInit(): void {
     if (this.kinds().length > 0) this.list.reload();
+    this.api.get<DropdownItem[]>('/companies/dropdown').subscribe({ next: (c) => this.companies.set(c), error: () => {} });
   }
 
   switchKind(k: OrderKind): void {

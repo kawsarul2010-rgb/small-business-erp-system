@@ -1,8 +1,9 @@
 import { Component, DestroyRef, OnInit, effect, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -20,7 +21,8 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
   template: `
     <mat-form-field [appearance]="appearance()" class="full" [subscriptSizing]="subscript()">
       <mat-label>{{ label() | t }}</mat-label>
-      <input matInput [formControl]="text" [matAutocomplete]="auto" (blur)="onBlur()" [attr.aria-label]="label() | t" />
+      <input matInput [formControl]="text" [matAutocomplete]="auto" (blur)="onBlur()" [attr.aria-label]="label() | t"
+             [errorStateMatcher]="errorState" [required]="required()" />
       @if (control().value && !control().disabled) {
         <button matSuffix mat-icon-button type="button" [attr.aria-label]="'Clear' | t" (click)="clear()"><mat-icon>close</mat-icon></button>
       }
@@ -34,7 +36,7 @@ import { TranslatePipe } from '../core/i18n/translate.pipe';
           <mat-option disabled>{{ (loading() ? 'Searching…' : 'No matches') | t }}</mat-option>
         }
       </mat-autocomplete>
-      @if (control().touched && control().invalid) {
+      @if (showError() && errorText()) {
         <mat-error>{{ errorText() | t }}</mat-error>
       }
     </mat-form-field>
@@ -51,6 +53,7 @@ export class SearchSelect<T extends DropdownItem = DropdownItem> implements OnIn
   readonly fetch = input.required<(term: string) => Observable<T[]>>();
   /** Label for an already-selected value (edit screens). */
   readonly initialLabel = input<string | null>(null);
+  /** The message under the field when nothing is chosen; empty: just the red outline (the line says why). */
   readonly errorText = input('This field is required.');
   readonly appearance = input<'fill' | 'outline'>('outline');
   readonly subscript = input<'fixed' | 'dynamic'>('fixed');
@@ -58,6 +61,20 @@ export class SearchSelect<T extends DropdownItem = DropdownItem> implements OnIn
   readonly selected = output<T | null>();
 
   readonly text = new FormControl<string | T>('', { nonNullable: true });
+
+  /**
+   * The text box only holds what is typed; whether a value is chosen lives in the bound control.
+   * So the field turns red (and shows its message) from that control - for example after
+   * "Save" marks the form as touched with nothing chosen.
+   */
+  readonly errorState: ErrorStateMatcher = { isErrorState: () => this.showError() };
+  /**
+   * The bound control's state as a signal. The control belongs to the parent form, so "Save"
+   * marking it touched would not otherwise re-check this component: its events update this.
+   */
+  readonly showError = signal(false);
+  /** Shows the required star when the bound control requires a value. */
+  readonly required = () => this.control().hasValidator(Validators.required);
   readonly options = signal<T[]>([]);
   readonly loading = signal(false);
   private selectedLabel = '';
@@ -79,6 +96,7 @@ export class SearchSelect<T extends DropdownItem = DropdownItem> implements OnIn
   ngOnInit(): void {
     const ctrl = this.control();
     if (ctrl.disabled) this.text.disable({ emitEvent: false });
+    ctrl.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.showError.set(ctrl.invalid && ctrl.touched));
     ctrl.statusChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => {
       if (ctrl.disabled) this.text.disable({ emitEvent: false });
       else this.text.enable({ emitEvent: false });

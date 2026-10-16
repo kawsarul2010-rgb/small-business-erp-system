@@ -420,12 +420,37 @@ export class OrderEditorPage implements OnInit {
 
   // ---------------------------------------------------------------- save
 
+  /** Says what is missing ("Choose the customer."), not just that something is. */
+  private missingMessage(): string {
+    const c = this.form.controls;
+    if (c.partyUuid.invalid) return this.isSales() ? 'Choose the customer.' : 'Choose the supplier.';
+    if (c.companyUuid.invalid) return 'Choose the company.';
+    if (c.orderDate.invalid) return 'Enter the order date.';
+    const line = this.lines.controls.findIndex((l) => l.invalid);
+    if (line >= 0) {
+      return this.lines.controls[line].controls.productUuid.invalid
+        ? t('Choose a product on line {n}.', { n: line + 1 })
+        : t('Check the quantity and prices on line {n}.', { n: line + 1 });
+    }
+    return 'Please complete the highlighted fields.';
+  }
+
+  /** Brings the first field in red into view and puts the cursor in it. */
+  private focusFirstInvalid(): void {
+    setTimeout(() => {
+      const el = document.querySelector<HTMLElement>('app-order-editor .mat-form-field-invalid input, app-order-editor .mat-form-field-invalid mat-select');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.focus({ preventScroll: true });
+    });
+  }
+
   save(): void {
     this.error.set(null);
     this.shortages.set([]);
     if (this.form.invalid) {
       this.form.markAllAsTouched();
-      this.error.set('Please complete the highlighted fields.');
+      this.error.set(this.missingMessage());
+      this.focusFirstInvalid();
       return;
     }
     if (this.stockWarnings().length > 0) {

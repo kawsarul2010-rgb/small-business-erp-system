@@ -59,7 +59,7 @@ type PartyKind = 'customer' | 'supplier';
               <mat-label>{{ 'Search name or code' | t }}</mat-label>
               <input matInput (input)="list.search($any($event.target).value)" />
             </mat-form-field>
-            @if (!layout.isHandset()) {
+            @if (!layout.isHandset() && companies().length > 1) {
               <mat-form-field subscriptSizing="dynamic" style="width: 180px">
                 <mat-label>{{ 'Company' | t }}</mat-label>
                 <mat-select [formControl]="company" (selectionChange)="list.resetToFirstPage()">

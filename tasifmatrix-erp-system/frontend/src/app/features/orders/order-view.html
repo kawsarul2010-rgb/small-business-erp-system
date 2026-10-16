@@ -92,7 +92,6 @@
         }
         @if (layout.isHandset()) {
           <div class="mini-kv">
-            <div><span class="k">{{ 'Company' | t }}</span><span>{{ o.company.companyName }}</span></div>
             <div><span class="k">{{ 'Order date' | t }}</span><span>{{ o.orderDate | date: 'dd MMM yyyy' }}</span></div>
             <div><span class="k">{{ 'Payment type' | t }}</span><span>{{ o.paymentType | label }}</span></div>
           </div>
@@ -104,7 +103,6 @@
         <section class="card card-pad">
           <h2 class="card-title">{{ 'Order' | t }}</h2>
           <dl class="kv">
-            <dt>{{ 'Company' | t }}</dt><dd>{{ o.company.companyName }}</dd>
             <dt>{{ 'Order date' | t }}</dt><dd>{{ o.orderDate | date: 'dd MMM yyyy' }}</dd>
             <dt>{{ 'Payment type' | t }}</dt><dd>{{ o.paymentType | label }}</dd>
             @if (o.notes) { <dt>{{ 'Notes' | t }}</dt><dd class="notes">{{ o.notes }}</dd> }

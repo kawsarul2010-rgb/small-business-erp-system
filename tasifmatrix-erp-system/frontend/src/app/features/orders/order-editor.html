@@ -30,16 +30,19 @@
     <form [formGroup]="form" (ngSubmit)="save()">
       <!-- ---------------------------------------------------------- header -->
       <section class="card card-pad header-card">
-        <div class="header-grid">
-          <mat-form-field>
-            <mat-label>{{ 'Company' | t }}</mat-label>
-            <mat-select formControlName="companyUuid">
-              @for (c of companies(); track c.uuid) {
-                <mat-option [value]="c.uuid">{{ c.name }} <span class="code">{{ c.code }}</span></mat-option>
-              }
-            </mat-select>
-            <mat-error>{{ err(form.controls.companyUuid, 'Company') }}</mat-error>
-          </mat-form-field>
+        <div class="header-grid" [class.with-company]="companies().length > 1">
+          <!-- A business has one company, chosen automatically; the choice only appears if there are more. -->
+          @if (companies().length > 1) {
+            <mat-form-field>
+              <mat-label>{{ 'Company' | t }}</mat-label>
+              <mat-select formControlName="companyUuid">
+                @for (c of companies(); track c.uuid) {
+                  <mat-option [value]="c.uuid">{{ c.name }} <span class="code">{{ c.code }}</span></mat-option>
+                }
+              </mat-select>
+              <mat-error>{{ err(form.controls.companyUuid, 'Company') }}</mat-error>
+            </mat-form-field>
+          }
 
           <app-search-select
             [label]="meta().partyLabel"
@@ -109,6 +112,7 @@
                     [label]="'Product' | t"
                     [control]="line.controls.productUuid"
                     [fetch]="fetchProducts"
+                    errorText=""
                     [hint]="productHint"
                     [initialLabel]="productMeta(i)?.label ?? null"
                     subscript="dynamic"
@@ -185,6 +189,7 @@
                     [label]="'Product' | t"
                     [control]="line.controls.productUuid"
                     [fetch]="fetchProducts"
+                    errorText=""
                     [hint]="productHint"
                     [initialLabel]="productMeta(i)?.label ?? null"
                     subscript="dynamic"

@@ -51,10 +51,13 @@ export class OrderListPage implements OnInit {
     this.auth.isUser() ? (this.kind() === 'sales' ? 'My purchases' : 'My supplies') : this.meta().title,
   );
   readonly canCreate = computed(() => (this.kind() === 'purchase' ? this.auth.isAdmin() : this.auth.canSales()));
+  /** A business has one company; the company filter and column only appear if it has more. */
+  readonly multiCompany = computed(() => this.companies().length > 1);
   readonly columns = computed(() =>
-    this.auth.isUser()
+    (this.auth.isUser()
       ? ['orderNumber', 'orderDate', 'company', 'paymentType', 'status', 'totalAmount', 'paid', 'due']
-      : ['orderNumber', 'orderDate', 'partyName', 'company', 'paymentType', 'status', 'totalAmount', 'paid', 'due'],
+      : ['orderNumber', 'orderDate', 'partyName', 'company', 'paymentType', 'status', 'totalAmount', 'paid', 'due'])
+      .filter((c) => c !== 'company' || this.multiCompany()),
   );
 
   readonly statuses: (PostingStatus | '')[] = ['', 'DRAFT', 'FINAL', 'VOID'];
@@ -188,13 +191,15 @@ interface FilterSheetData {
       @if (data.showParty) {
         <app-search-select [label]="data.partyLabelText" [control]="data.party" [fetch]="data.fetchParties" [initialLabel]="data.partyInitialLabel" />
       }
-      <mat-form-field class="full-width">
-        <mat-label>{{ 'Company' | t }}</mat-label>
-        <mat-select [formControl]="data.company">
-          <mat-option [value]="null">{{ 'All companies' | t }}</mat-option>
-          @for (c of data.companies; track c.uuid) { <mat-option [value]="c.uuid">{{ c.name }}</mat-option> }
-        </mat-select>
-      </mat-form-field>
+      @if (data.companies.length > 1) {
+        <mat-form-field class="full-width">
+          <mat-label>{{ 'Company' | t }}</mat-label>
+          <mat-select [formControl]="data.company">
+            <mat-option [value]="null">{{ 'All companies' | t }}</mat-option>
+            @for (c of data.companies; track c.uuid) { <mat-option [value]="c.uuid">{{ c.name }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+      }
       <mat-form-field class="full-width">
         <mat-label>{{ 'Order date' | t }}</mat-label>
         <mat-date-range-input [rangePicker]="picker">
