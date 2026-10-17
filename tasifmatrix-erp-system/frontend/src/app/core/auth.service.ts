@@ -106,7 +106,21 @@ export class AuthService {
     const refreshToken = this.session()?.refreshToken;
     this.clear();
     if (refreshToken) this.http.post(`${API_BASE}/auth/logout`, { refreshToken }).subscribe({ error: () => {} });
-    if (redirect) void this.router.navigate(['/login']);
+    if (redirect) this.toLogin();
+  }
+
+  /**
+   * Opens the login page. If the app cannot get there (a tab left open across a new release can no
+   * longer load the login screen's code), the page is loaded afresh instead of staying on the old
+   * screen with nobody signed in.
+   */
+  private toLogin(): void {
+    const hard = () => {
+      if (!this.isLoggedIn()) window.location.replace('/login');
+    };
+    this.router.navigateByUrl('/login', { replaceUrl: true }).then((ok) => {
+      if (!ok && !this.router.url.startsWith('/login')) hard();
+    }, hard);
   }
 
   /** The account (or the whole business) was just deleted: forget the session and say so. */
