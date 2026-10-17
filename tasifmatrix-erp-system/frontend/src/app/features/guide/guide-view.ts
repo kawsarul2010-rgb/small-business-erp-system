@@ -1,31 +1,50 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '../../core/auth.service';
 import { currentLang } from '../../core/i18n/i18n';
+import { LayoutService } from '../../core/layout.service';
 import { PlatformService } from '../../core/platform.service';
-import { GUIDE, GuideLang, GuideSection } from './guide-content';
+import { GUIDE, GuideDevice, GuideLang, GuidePart, GuideSection } from './guide-content';
+
+/** A section as shown: its phone or computer version, with each picture's address worked out. */
+interface ShownSection extends Omit<GuideSection, 'parts'> {
+  parts: (GuidePart & { src: string | null; wide: boolean })[];
+}
+
+const DEVICE_KEY = 'tasifmatrix.guideDevice';
+const SITE = 'tasifmatrix.com.bd';
 
 /**
  * The step-by-step user guide, in English or Bangla (chosen here, independent of the app
- * language). Each part is one annotated screenshot whose numbered markers match the numbered
- * steps beside it. Signed in, it shows the sections for the user's role; on the public help
- * page it shows everything.
+ * language), for the phone or for a computer. Each part is one annotated screenshot whose
+ * numbered markers match the numbered steps. Signed in, it shows the sections for the user's
+ * role; on the public help page it shows everything.
  */
 @Component({
   selector: 'app-guide-view',
-  imports: [MatButtonToggleModule, MatIconModule],
+  imports: [NgTemplateOutlet, MatButtonToggleModule, MatIconModule],
   template: `
+    <!-- Guide text with the website address as a link that opens in a new tab (the browser, in the app). -->
+    <ng-template #rich let-text><span>@for (seg of linked(text); track $index) {@if (seg.href) {<a class="site" [href]="seg.href" target="_blank" rel="noopener">{{ seg.text }}</a>}@else{{{ seg.text }}}}</span></ng-template>
+
     <div class="guide" [attr.lang]="lang()">
       <header class="head">
         <div class="titles">
           <h1>{{ text().title }}</h1>
           <p class="sub">{{ text().subtitle }}</p>
         </div>
-        <mat-button-toggle-group class="lang" [value]="lang()" (change)="lang.set($event.value)" hideSingleSelectionIndicator aria-label="Guide language / নির্দেশিকার ভাষা">
-          <mat-button-toggle value="en" lang="en">English</mat-button-toggle>
-          <mat-button-toggle value="bn" lang="bn">বাংলা</mat-button-toggle>
-        </mat-button-toggle-group>
+        <div class="switches">
+          <mat-button-toggle-group class="device" [value]="device()" (change)="setDevice($event.value)" hideSingleSelectionIndicator [attr.aria-label]="text().device">
+            <mat-button-toggle value="mobile"><mat-icon>mobile</mat-icon>{{ text().mobile }}</mat-button-toggle>
+            <mat-button-toggle value="desktop"><mat-icon>computer</mat-icon>{{ text().desktop }}</mat-button-toggle>
+          </mat-button-toggle-group>
+          <mat-button-toggle-group class="lang" [value]="lang()" (change)="lang.set($event.value)" hideSingleSelectionIndicator aria-label="Guide language / নির্দেশিকার ভাষা">
+            <mat-button-toggle value="en" lang="en">English</mat-button-toggle>
+            <mat-button-toggle value="bn" lang="bn">বাংলা</mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
       </header>
 
       <nav class="toc card" [attr.aria-label]="text().contents">
@@ -49,13 +68,14 @@ import { GUIDE, GuideLang, GuideSection } from './guide-content';
               <h2>{{ s.title }}</h2>
             </div>
           </div>
-          @if (s.intro) { <p class="intro">{{ s.intro }}</p> }
+          @if (s.intro) { <p class="intro"><ng-container *ngTemplateOutlet="rich; context: { $implicit: s.intro }" /></p> }
 
           @for (p of s.parts; track $index) {
-            <div class="part" [class.no-shot]="!p.shot">
-              @if (p.shot) {
-                <button type="button" class="shot" (click)="zoom.set(src(p.shot))" [attr.aria-label]="text().enlarge">
-                  <img [src]="src(p.shot)" [alt]="p.title ?? s.title" loading="lazy" width="720" height="1480" />
+            <div class="part" [class.no-shot]="!p.src" [class.wide]="p.wide">
+              @if (p.src; as src) {
+                <button type="button" class="shot" [class.wide]="p.wide" (click)="zoom.set(src)" [attr.aria-label]="text().enlarge">
+                  @if (p.wide) { <img [src]="src" [alt]="p.title ?? s.title" loading="lazy" /> }
+                  @else { <img [src]="src" [alt]="p.title ?? s.title" loading="lazy" width="720" height="1480" /> }
                   <span class="zoom"><mat-icon>zoom_in</mat-icon></span>
                 </button>
               }
@@ -63,7 +83,7 @@ import { GUIDE, GuideLang, GuideSection } from './guide-content';
                 @if (p.title) { <h3>{{ p.title }}</h3> }
                 <ol>
                   @for (st of p.steps; track $index) {
-                    <li><span class="num">{{ $index + 1 }}</span><span class="st">{{ st }}</span></li>
+                    <li><span class="num">{{ $index + 1 }}</span><span class="st"><ng-container *ngTemplateOutlet="rich; context: { $implicit: st }" /></span></li>
                   }
                 </ol>
               </div>
@@ -73,13 +93,13 @@ import { GUIDE, GuideLang, GuideSection } from './guide-content';
           @if (s.tips?.length) {
             <div class="tips">
               <mat-icon>lightbulb</mat-icon>
-              <ul>@for (tip of s.tips; track $index) { <li>{{ tip }}</li> }</ul>
+              <ul>@for (tip of s.tips; track $index) { <li><ng-container *ngTemplateOutlet="rich; context: { $implicit: tip }" /></li> }</ul>
             </div>
           }
           @if (s.faq?.length) {
             <div class="faq">
               @for (f of s.faq; track $index) {
-                <details><summary>{{ f.q }}</summary><p>{{ f.a }}</p></details>
+                <details><summary>{{ f.q }}</summary><p><ng-container *ngTemplateOutlet="rich; context: { $implicit: f.a }" /></p></details>
               }
             </div>
           }
@@ -97,12 +117,15 @@ import { GUIDE, GuideLang, GuideSection } from './guide-content';
   `,
   styles: `
     :host { display: block; }
+    a.site { color: var(--erp-brand); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
     .guide { max-width: 980px; margin: 0 auto; }
     .guide[lang='bn'] { line-height: 1.7; }
     .head { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; }
     h1 { font-size: 26px; line-height: 1.2; letter-spacing: -0.02em; margin: 0; }
     .sub { margin: 6px 0 0; color: var(--erp-muted); font-size: 14px; max-width: 60ch; }
-    .lang { flex: none; }
+    .switches { display: flex; flex-wrap: wrap; gap: 8px; }
+    .lang, .device { flex: none; }
+    .device mat-icon { font-size: 18px; width: 18px; height: 18px; margin-right: 6px; vertical-align: -4px; }
 
     .toc { padding: 16px; margin-bottom: 16px; }
     .toc-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--erp-faint); margin-bottom: 10px; }
@@ -123,7 +146,11 @@ import { GUIDE, GuideLang, GuideSection } from './guide-content';
     .intro { margin: 12px 0 0; font-size: 14.5px; color: var(--erp-text); line-height: 1.6; }
 
     .part { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px; align-items: start; margin-top: 18px; padding-top: 18px; border-top: 1px dashed var(--erp-border); }
-    .part.no-shot { grid-template-columns: minmax(0, 1fr); }
+    .part.no-shot, .part.wide { grid-template-columns: minmax(0, 1fr); }
+    .part.wide { gap: 14px; }
+    .shot.wide { width: auto; max-width: 100%; justify-self: start; padding: 0; border-radius: 12px; background: var(--erp-card-2);
+      border: 1px solid var(--erp-border); box-shadow: 0 6px 18px rgba(15, 23, 42, .12); overflow: hidden; }
+    .shot.wide img { border-radius: 0; max-height: 640px; width: auto; max-width: 100%; }
     .shot { position: relative; display: block; padding: 6px; border: 0; border-radius: 26px; background: #0f0f1f; cursor: zoom-in;
       box-shadow: 0 10px 24px rgba(15, 23, 42, .18); width: 250px; }
     .shot img { display: block; width: 100%; height: auto; border-radius: 20px; }
@@ -154,8 +181,9 @@ import { GUIDE, GuideLang, GuideSection } from './guide-content';
 
     @media (max-width: 700px) {
       h1 { font-size: 22px; }
-      .head .lang { width: 100%; }
-      .head .lang mat-button-toggle { flex: 1; }
+      .switches { width: 100%; }
+      .head .lang, .head .device { width: 100%; }
+      .head .lang mat-button-toggle, .head .device mat-button-toggle { flex: 1; }
       .toc { padding: 12px; }
       .toc-grid { grid-template-columns: minmax(0, 1fr); }
       .sec { padding: 16px 14px; }
@@ -170,19 +198,48 @@ export class GuideView {
 
   private readonly auth = inject(AuthService);
   private readonly platform = inject(PlatformService);
+  private readonly layout = inject(LayoutService);
   readonly lang = signal<GuideLang>(currentLang() === 'bn' ? 'bn' : 'en');
+  /** Phone or computer: the reader's last choice, else the device they are on. */
+  readonly device = signal<GuideDevice>(this.initialDevice());
   readonly zoom = signal<string | null>(null);
 
   readonly text = computed(() => GUIDE[this.lang()].text);
-  readonly sections = computed<GuideSection[]>(() => {
+  readonly sections = computed<ShownSection[]>(() => {
     const role = this.forRole() ? this.auth.user()?.role : null;
-    return GUIDE[this.lang()].sections.filter(
-      (s) => (!s.webOnly || !this.platform.isNative) && (!role || !s.roles || s.roles.includes(role)),
-    );
+    const lang = this.lang();
+    const desktop = this.device() === 'desktop';
+    return GUIDE[lang].sections
+      .filter((s) => (!s.webOnly || !this.platform.isNative) && (!role || !s.roles || s.roles.includes(role)))
+      .map((s) => {
+        const d = desktop ? GUIDE[lang].desktop[s.id] : undefined;
+        const wide = !!d?.parts;
+        const parts = (d?.parts ?? s.parts).map((p) => ({
+          ...p,
+          wide: wide && !!p.shot,
+          src: p.shot ? `guide/${lang}/${wide ? 'desktop/' : ''}${p.shot}.webp` : null,
+        }));
+        return { ...s, intro: d?.intro ?? s.intro, tips: d?.tips ?? s.tips, parts };
+      });
   });
 
-  src(shot: string): string {
-    return `guide/${this.lang()}/${shot}.webp`;
+  /** Splits guide text around the website address so it can be shown as a link. */
+  linked(text: string): { text: string; href?: string }[] {
+    return text.split(/(tasifmatrix\.com\.bd)/).filter((t) => t !== '')
+      .map((t) => (t === SITE ? { text: t, href: `https://${SITE}` } : { text: t }));
+  }
+
+  setDevice(d: GuideDevice): void {
+    this.device.set(d);
+    try { localStorage.setItem(DEVICE_KEY, d); } catch { /* not remembered */ }
+  }
+
+  private initialDevice(): GuideDevice {
+    try {
+      const saved = localStorage.getItem(DEVICE_KEY);
+      if (saved === 'mobile' || saved === 'desktop') return saved;
+    } catch { /* fall through */ }
+    return this.platform.isNative || this.layout.isHandset() ? 'mobile' : 'desktop';
   }
 
   jump(id: string | null): void {

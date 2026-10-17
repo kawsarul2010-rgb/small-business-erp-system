@@ -1,4 +1,5 @@
 import { Role } from '../../core/models';
+import { DESKTOP } from './guide-desktop';
 
 /**
  * The user guide, in English and Bangla.
@@ -10,9 +11,13 @@ import { Role } from '../../core/models';
  * and check the steps still match the markers.
  *
  * The billing section is web only: Google Play does not allow payment instructions in the app.
+ *
+ * Two versions: the phone (these sections) and the computer (guide-desktop.ts, wide screenshots
+ * under public/guide/{lang}/desktop/). The reader switches between them at the top of the guide.
  */
 
 export type GuideLang = 'en' | 'bn';
+export type GuideDevice = 'mobile' | 'desktop';
 
 /** One annotated screenshot and its steps; the numbered markers on the picture match the step numbers. */
 export interface GuidePart {
@@ -36,7 +41,17 @@ export interface GuideSection {
   webOnly?: boolean;
 }
 
-export interface GuideText { title: string; subtitle: string; contents: string; section: string; enlarge: string }
+/** A section on a computer: its own pictures and steps; intro and tips replace the phone's when given. */
+export interface GuideDesktop {
+  intro?: string;
+  parts?: GuidePart[];
+  tips?: string[];
+}
+
+export interface GuideText {
+  title: string; subtitle: string; contents: string; section: string; enlarge: string;
+  mobile: string; desktop: string; device: string;
+}
 
 const STAFF: Role[] = ['ADMIN', 'MANAGER'];
 const ADMIN: Role[] = ['ADMIN'];
@@ -84,7 +99,10 @@ const EN: GuideSection[] = [
         ],
       },
     ],
-    tips: ['English or বাংলা: tap the language switch at the top of the log-in page, or later in More → Language.'],
+    tips: [
+      'English or বাংলা: tap the language switch at the top of the log-in page, or later in More → Language.',
+      'On a computer, open tasifmatrix.com.bd in any browser and log in with the same email and password.',
+    ],
   },
   {
     id: 'home', icon: 'dashboard', title: 'Home screen and menu', roles: STAFF,
@@ -113,7 +131,7 @@ const EN: GuideSection[] = [
   },
   {
     id: 'company', icon: 'apartment', title: 'Your company details', roles: ADMIN,
-    intro: 'Your company is created when you register. Its name, address and phone are printed on every invoice, so keep them correct. Open More → Companies, tap ⋮ next to your company and choose Edit.',
+    intro: 'Your company is created when you register, and every order belongs to it automatically. Its name, address and phone are printed on every invoice, receipt and report, so keep them correct. Open More → Companies, tap ⋮ next to your company and choose Edit.',
     parts: [
       {
         shot: 'company-form',
@@ -168,10 +186,10 @@ const EN: GuideSection[] = [
       {
         shot: 'sales-editor', title: 'Order details',
         steps: [
-          'Company — filled in for you.',
           'Customer — type part of the name, code or mobile number and pick from the list.',
           'Payment type: Cash, Due (pay later) or Installment.',
-          'Order date — today by default.',
+          'Order date — today by default. You can pick any date.',
+          'Send SMS to the customer — on: the customer gets an SMS when the order is finalized and for each payment.',
         ],
       },
       {
@@ -187,7 +205,7 @@ const EN: GuideSection[] = [
       },
     ],
     tips: [
-      'Send SMS: switch it on in the order to text the customer when the order is finalized and for every payment.',
+      'Something missing when you tap Save draft? That box turns red and the message under the order says what to fill in, for example "Choose the customer."',
       'You cannot sell more than you have in stock — the line shows "Not enough stock".',
     ],
   },
@@ -198,9 +216,9 @@ const EN: GuideSection[] = [
       {
         shot: 'purchase-editor',
         steps: [
-          'Company — filled in for you.',
           'Supplier — type part of the name and pick from the list.',
           'Payment type: Cash, Due or Installment.',
+          'Order date — today by default.',
           'Add products and quantities exactly as in a sales order, then tap Save draft.',
         ],
       },
@@ -222,8 +240,8 @@ const EN: GuideSection[] = [
         steps: [
           'Add payment — record money you received (or paid a supplier). The button shows how much is still due.',
           'SMS switch for this order.',
-          'Order details: customer, company, payment type, total, paid and due.',
-          '⋮ — Print, Download PDF or Share the invoice (WhatsApp, email). Void cancels a finalized order and returns its stock (remove its payments first).',
+          'Order details: customer, payment type, total, paid and due.',
+          '⋮ — open or download the invoice as a PDF and share it (WhatsApp, email). Void cancels a finalized order and returns its stock (remove its payments first).',
         ],
       },
       {
@@ -240,6 +258,7 @@ const EN: GuideSection[] = [
     tips: [
       'Customers pay in parts? Add a payment each time; the due amount goes down and every payment is listed in the payment history.',
       'Due report shows every order that still has money due.',
+      'Printing a small receipt on a POS (thermal) printer is done from a computer — see the Desktop guide.',
     ],
   },
   {
@@ -396,6 +415,9 @@ const EN: GuideSection[] = [
       { q: 'Can I use it on my phone and on a computer?', a: 'Yes. Install the Android app or open the website, and log in with the same email and password.' },
       { q: 'How do I sell by box and by piece?', a: 'Set the product\'s unit to BOX and say how many pieces one box holds. On each order line choose BOX or pieces.' },
       { q: 'Is my business data private?', a: 'Yes. Each business sees only its own data, and the connection is encrypted. You can delete your account at any time from My profile.' },
+      { q: 'How do I print on a POS (receipt) printer?', a: 'On a computer: open the order, click Print → POS receipt, choose 80 mm or 58 mm paper and click Print receipt. In the print window choose your receipt printer, Margins None and Scale 100%.' },
+      { q: 'How many SMS do I have left?', a: 'The SMS log page shows your SMS balance and when it expires. A long message uses 2 or more SMS.' },
+      { q: 'Can I enter an order for another day?', a: 'Yes. Change the order date when you make the order — earlier or later dates are both allowed. A payment cannot be dated before its order.' },
     ],
   },
 ];
@@ -443,7 +465,10 @@ const BN: GuideSection[] = [
         ],
       },
     ],
-    tips: ['English বা বাংলা: লগ ইন পাতার উপরের ভাষা বোতাম চাপুন, অথবা পরে আরও → ভাষা থেকে বদলান।'],
+    tips: [
+      'English বা বাংলা: লগ ইন পাতার উপরের ভাষা বোতাম চাপুন, অথবা পরে আরও → ভাষা থেকে বদলান।',
+      'কম্পিউটারে যেকোনো ব্রাউজারে tasifmatrix.com.bd খুলুন এবং একই ইমেইল ও পাসওয়ার্ড দিয়ে লগ ইন করুন।',
+    ],
   },
   {
     id: 'home', icon: 'dashboard', title: 'হোম স্ক্রিন ও মেনু', roles: STAFF,
@@ -472,7 +497,7 @@ const BN: GuideSection[] = [
   },
   {
     id: 'company', icon: 'apartment', title: 'আপনার কোম্পানির তথ্য', roles: ADMIN,
-    intro: 'নিবন্ধনের সময় আপনার কোম্পানি তৈরি হয়। এর নাম, ঠিকানা ও ফোন প্রতিটি ইনভয়েসে ছাপা হয়, তাই এগুলো ঠিক রাখুন। আরও → কোম্পানি খুলে আপনার কোম্পানির পাশে ⋮ চাপুন এবং "সম্পাদনা" বেছে নিন।',
+    intro: 'নিবন্ধনের সময় আপনার কোম্পানি তৈরি হয়, এবং প্রতিটি অর্ডার নিজে থেকেই এর অধীনে যায়। এর নাম, ঠিকানা ও ফোন প্রতিটি ইনভয়েস, রসিদ ও রিপোর্টে ছাপা হয়, তাই এগুলো ঠিক রাখুন। আরও → কোম্পানি খুলে আপনার কোম্পানির পাশে ⋮ চাপুন এবং "সম্পাদনা" বেছে নিন।',
     parts: [
       {
         shot: 'company-form',
@@ -527,10 +552,10 @@ const BN: GuideSection[] = [
       {
         shot: 'sales-editor', title: 'অর্ডারের তথ্য',
         steps: [
-          'কোম্পানি — নিজে থেকে পূরণ হয়।',
           'গ্রাহক — নাম, কোড বা মোবাইল নম্বরের কিছু অংশ লিখে তালিকা থেকে বেছে নিন।',
           'পেমেন্টের ধরন: নগদ, বাকি (পরে পরিশোধ) বা কিস্তি।',
-          'অর্ডারের তারিখ — শুরুতে আজকের তারিখ।',
+          'অর্ডারের তারিখ — শুরুতে আজকের তারিখ। যেকোনো তারিখ বেছে নিতে পারেন।',
+          'গ্রাহককে SMS পাঠান — চালু থাকলে অর্ডার চূড়ান্ত হলে এবং প্রতিটি পেমেন্টে গ্রাহক SMS পান।',
         ],
       },
       {
@@ -546,7 +571,7 @@ const BN: GuideSection[] = [
       },
     ],
     tips: [
-      'SMS পাঠান: অর্ডারে এটি চালু করলে অর্ডার চূড়ান্ত হলে এবং প্রতিটি পেমেন্টে গ্রাহক SMS পাবেন।',
+      '"খসড়া সংরক্ষণ" চাপার সময় কিছু বাদ থাকলে সেই ঘরটি লাল হয়ে যায় এবং অর্ডারের নিচের বার্তায় কী পূরণ করতে হবে তা লেখা থাকে, যেমন "গ্রাহক বেছে নিন।"',
       'স্টকের বেশি বিক্রি করা যায় না — লাইনে "পর্যাপ্ত স্টক নেই" দেখাবে।',
     ],
   },
@@ -557,9 +582,9 @@ const BN: GuideSection[] = [
       {
         shot: 'purchase-editor',
         steps: [
-          'কোম্পানি — নিজে থেকে পূরণ হয়।',
           'সরবরাহকারী — নামের কিছু অংশ লিখে তালিকা থেকে বেছে নিন।',
           'পেমেন্টের ধরন: নগদ, বাকি বা কিস্তি।',
+          'অর্ডারের তারিখ — শুরুতে আজকের তারিখ।',
           'বিক্রয় অর্ডারের মতোই পণ্য ও পরিমাণ যোগ করে "খসড়া সংরক্ষণ" চাপুন।',
         ],
       },
@@ -581,8 +606,8 @@ const BN: GuideSection[] = [
         steps: [
           'পেমেন্ট যোগ করুন — পাওয়া টাকা (বা সরবরাহকারীকে দেওয়া টাকা) লিখুন। বোতামে কত বাকি আছে দেখায়।',
           'এই অর্ডারের SMS সুইচ।',
-          'অর্ডারের তথ্য: গ্রাহক, কোম্পানি, পেমেন্টের ধরন, মোট, পরিশোধিত ও বাকি।',
-          '⋮ — ইনভয়েস প্রিন্ট, PDF ডাউনলোড বা শেয়ার (WhatsApp, ইমেইল)। "অর্ডার বাতিল করুন" চূড়ান্ত অর্ডার বাতিল করে স্টক ফেরত দেয় (আগে পেমেন্টগুলো সরান)।',
+          'অর্ডারের তথ্য: গ্রাহক, পেমেন্টের ধরন, মোট, পরিশোধিত ও বাকি।',
+          '⋮ — ইনভয়েস PDF হিসেবে খুলুন বা ডাউনলোড করুন এবং শেয়ার করুন (WhatsApp, ইমেইল)। "অর্ডার বাতিল করুন" চূড়ান্ত অর্ডার বাতিল করে স্টক ফেরত দেয় (আগে পেমেন্টগুলো সরান)।',
         ],
       },
       {
@@ -599,6 +624,7 @@ const BN: GuideSection[] = [
     tips: [
       'গ্রাহক কিস্তিতে দেন? প্রতিবার একটি করে পেমেন্ট যোগ করুন; বাকি কমতে থাকবে এবং সব পেমেন্ট ইতিহাসে দেখা যাবে।',
       'বাকির রিপোর্টে যেসব অর্ডারে এখনও টাকা বাকি, সবগুলো দেখা যায়।',
+      'POS (থার্মাল) প্রিন্টারে ছোট রসিদ প্রিন্ট করা হয় কম্পিউটার থেকে — ডেস্কটপ নির্দেশিকা দেখুন।',
     ],
   },
   {
@@ -755,25 +781,32 @@ const BN: GuideSection[] = [
       { q: 'ফোন ও কম্পিউটার দুটোতেই চালানো যাবে?', a: 'হ্যাঁ। অ্যান্ড্রয়েড অ্যাপ ইনস্টল করুন বা ওয়েবসাইট খুলুন, এবং একই ইমেইল ও পাসওয়ার্ড দিয়ে লগ ইন করুন।' },
       { q: 'বক্স ও পিস দুইভাবে কীভাবে বিক্রি করব?', a: 'পণ্যের একক "বক্স" দিন এবং এক বক্সে কত পিস তা লিখুন। প্রতিটি অর্ডার লাইনে বক্স বা পিস বেছে নিন।' },
       { q: 'আমার ব্যবসার তথ্য কি গোপন থাকে?', a: 'হ্যাঁ। প্রতিটি ব্যবসা শুধু নিজের তথ্য দেখে, এবং সংযোগ এনক্রিপ্টেড। আমার প্রোফাইল থেকে যেকোনো সময় অ্যাকাউন্ট মুছে ফেলতে পারেন।' },
+      { q: 'POS (রসিদ) প্রিন্টারে কীভাবে প্রিন্ট করব?', a: 'কম্পিউটারে: অর্ডারটি খুলুন, প্রিন্ট → POS রসিদ চাপুন, 80 mm বা 58 mm কাগজ বেছে নিয়ে "রসিদ প্রিন্ট করুন" চাপুন। প্রিন্ট উইন্ডোতে আপনার রসিদ প্রিন্টার বেছে নিন, Margins None ও Scale 100% দিন।' },
+      { q: 'আমার আর কতটি SMS বাকি আছে?', a: 'SMS লগ পাতায় আপনার SMS ব্যালেন্স এবং মেয়াদ শেষের তারিখ দেখা যায়। বড় বার্তায় 2 বা তার বেশি SMS লাগে।' },
+      { q: 'অন্য দিনের অর্ডার কি লেখা যায়?', a: 'হ্যাঁ। অর্ডার তৈরির সময় তারিখ বদলে দিন — আগের বা পরের দুই রকম তারিখই দেওয়া যায়। তবে পেমেন্টের তারিখ অর্ডারের তারিখের আগে হতে পারে না।' },
     ],
   },
 ];
 
-export const GUIDE: Record<GuideLang, { text: GuideText; sections: GuideSection[] }> = {
+export const GUIDE: Record<GuideLang, { text: GuideText; sections: GuideSection[]; desktop: Record<string, GuideDesktop> }> = {
   en: {
     text: {
       title: 'User guide',
-      subtitle: 'Step-by-step help with pictures. The numbers on each picture match the numbered steps beside it. Tap a picture to see it larger.',
+      subtitle: 'Step-by-step help with pictures. The numbers on each picture match the numbered steps. Tap or click a picture to see it larger.',
       contents: 'Contents', section: 'Section', enlarge: 'Enlarge picture',
+      mobile: 'Mobile', desktop: 'Desktop', device: 'Guide for',
     },
     sections: EN,
+    desktop: DESKTOP.en,
   },
   bn: {
     text: {
       title: 'ব্যবহার নির্দেশিকা',
-      subtitle: 'ছবিসহ ধাপে ধাপে সহায়তা। প্রতিটি ছবির নম্বর পাশের ধাপগুলোর নম্বরের সাথে মিলে যায়। ছবিতে চাপলে বড় করে দেখা যায়।',
+      subtitle: 'ছবিসহ ধাপে ধাপে সহায়তা। প্রতিটি ছবির নম্বর ধাপগুলোর নম্বরের সাথে মিলে যায়। ছবিতে চাপলে বা ক্লিক করলে বড় করে দেখা যায়।',
       contents: 'সূচিপত্র', section: 'অধ্যায়', enlarge: 'ছবি বড় করুন',
+      mobile: 'মোবাইল', desktop: 'ডেস্কটপ', device: 'নির্দেশিকা',
     },
     sections: BN,
+    desktop: DESKTOP.bn,
   },
 };
