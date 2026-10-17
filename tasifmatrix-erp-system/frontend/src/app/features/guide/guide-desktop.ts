@@ -62,7 +62,7 @@ export const DESKTOP: Record<GuideLang, Record<string, GuideDesktop>> = {
           steps: [
             'The menu on the left: every screen, grouped — sales and purchases, stock, customers and suppliers, reports, and settings. Click ☰ at the top to make it narrow.',
             'New sale and New purchase — start an order straight away.',
-            'Your business at a glance: today\'s sales, this month\'s sales and purchases, what customers owe you and what you owe suppliers. Click a tile to open the list behind it.',
+            'Your business at a glance: today\'s sales, this month\'s sales and purchases, what customers owe you, what you owe suppliers and the drafts waiting to be finalized. Click a tile to open the list behind it.',
             'বাংলা / English — switch the language of the whole app. Next to it: light or dark mode.',
             'Your name — your profile, password, language and Log out.',
           ],
@@ -124,53 +124,88 @@ export const DESKTOP: Record<GuideLang, Record<string, GuideDesktop>> = {
       tips: ['Click a row in the list to open that customer\'s orders. The pencil on the right edits the details.'],
     },
     sales: {
-      intro: 'Click New sale on the Dashboard, or Sales orders in the left menu and then New sales order. The order is saved as a DRAFT first; stock does not change until you finalize it.',
+      intro: 'A sale has three steps: 1) make the order and Save draft, 2) Finalize it — the stock goes out, 3) add the payments. A draft does not change your stock, so you can fix it as often as you like.',
       parts: [
         {
-          shot: 'sales-editor',
+          shot: 'sales-list', title: 'Step 1 — Sales orders (left menu)',
+          steps: [
+            'New sales order — start a new order. (New sale on the Dashboard does the same.)',
+            'Show All orders, or only Draft, Final or Void ones.',
+            'Search by order number or customer.',
+            'Show one customer\'s orders. Pick a date range next to it; Print / share at the top prints the list.',
+            'Each order with its status, total, paid and due. Click a row to open it.',
+          ],
+        },
+        {
+          shot: 'sales-new', title: 'Step 2 — fill in the order',
           steps: [
             'Customer — type part of the name, code or mobile number and pick from the list.',
             'Payment type: Cash, Due (pay later) or Installment.',
-            'Order date — today by default. You can pick any date.',
-            'Product — type part of the name and pick it. The box size and current stock appear under it.',
+            'Order date — today by default. You can pick an earlier or later date. Notes below it are printed on the invoice.',
+            'Send SMS to the customer — on: the customer gets an SMS when the order is finalized and for each payment.',
+            'Product — type part of the name or code and pick it. The box size and your stock appear under it.',
             'Type — sell by BOX, or by the piece, kg or litre.',
-            'Quantity — here 5 boxes. The total quantity fills in.',
-            'Unit price and line total fill in for you. Change the price to give a discount; the line total updates.',
-            'Add line — for the next product. The order total is shown on the right.',
-            'Save draft.',
+            'Quantity — here 5 boxes. The total pieces fill in.',
+            'Price per piece and per box fill in from the product. Change them to give a discount.',
+            'Line total — updates by itself. The order total is below it.',
+            'Add line — for the next product.',
+            'Save draft — the order is saved as a draft and opens. This button stays at the top while you scroll.',
           ],
         },
-      ],
-      tips: [
-        'The Send SMS switch above the products decides whether the customer gets an SMS for this order.',
-        'Something missing when you click Save draft? That box turns red, the cursor goes to it, and the message under the order says what to fill in.',
-        'Press Tab to move from box to box without the mouse.',
-      ],
-    },
-    purchase: {
-      intro: 'Click New purchase on the Dashboard, or Purchase orders in the left menu and then New purchase order. When you finalize it, the stock goes up.',
-      parts: [
         {
-          shot: 'purchase-editor',
+          shot: 'sales-missing', title: 'Something missing?',
           steps: [
-            'Supplier — type part of the name and pick from the list.',
-            'Payment type: Cash, Due or Installment. The order date is next to it.',
-            'Products, quantities and prices — exactly as in a sales order.',
-            'Save draft.',
+            'When you click Save draft with something missing, that box turns red and the cursor goes to it.',
+            'This message says what to fill in, for example "Choose a product on line 1." Fill it in and click Save draft again.',
           ],
         },
-      ],
-    },
-    finalize: {
-      parts: [
         {
-          shot: 'order-draft', title: 'A draft order',
+          shot: 'order-draft', title: 'Step 3 — finalize',
           steps: [
-            'Finalize — confirms the order. Stock goes out (sales) or comes in (purchase), and the order can no longer be edited.',
+            'Finalize — confirms the order when the goods are sold.',
             'Edit — change the draft as often as you like before finalizing.',
             '⋮ — more actions, such as Delete draft.',
           ],
         },
+        {
+          shot: 'finalize-confirm', title: 'Confirm',
+          steps: [
+            'What will happen: the stock goes out, the order can no longer be edited, and who gets an SMS.',
+            'Click Finalize. Now you can add payments and print the invoice (see "Payments and invoices").',
+          ],
+        },
+      ],
+      tips: [
+        'Press Tab to move from box to box without the mouse.',
+        'You cannot sell more than you have in stock — the line shows "Not enough stock" and the order cannot be finalized.',
+      ],
+    },
+    purchase: {
+      intro: 'A purchase order records goods you buy from a supplier. When you finalize it, the stock goes up. Click New purchase on the Dashboard, or Purchase orders in the left menu and then New purchase order.',
+      parts: [
+        {
+          shot: 'purchase-new', title: 'Fill in the order',
+          steps: [
+            'Supplier — type part of the name and pick from the list.',
+            'Payment type (Cash, Due or Installment) and the order date. Notes are optional, for example the supplier\'s invoice number.',
+            'Product, type and quantity — here 20 boxes.',
+            'The purchase price fills in from the product. Change it if the supplier charged a different price; the line total updates.',
+            'Save draft.',
+          ],
+        },
+        {
+          shot: 'purchase-draft', title: 'Finalize',
+          steps: [
+            'Finalize — when the goods have arrived. The stock goes up and the order can no longer be edited.',
+            'Edit — change the draft before finalizing.',
+          ],
+        },
+      ],
+      tips: ['Paid the supplier? Open the finalized purchase order and click Add payment, the same as for a sale.'],
+    },
+    finalize: {
+      intro: 'After an order is finalized, record each payment on it and print or share the invoice.',
+      parts: [
         {
           shot: 'order-final', title: 'A finalized order',
           steps: [
@@ -307,28 +342,51 @@ export const DESKTOP: Record<GuideLang, Record<string, GuideDesktop>> = {
         'Each message uses SMS from your balance — a long message uses 2 or more. With none left, messages are kept as Skipped; press Retry once you have SMS again.',
       ],
     },
+    'sms-buy': {
+      intro: 'SMS are bought in advance on the Billing page (left menu) and paid with bKash. You can buy them on their own at any time, or together with your package.',
+      parts: [
+        {
+          shot: 'sms-balance', title: 'Your SMS balance',
+          steps: [
+            'How many SMS you have left and when they expire.',
+            'Buy SMS.',
+            'Your price per SMS and how long a pack lasts. A long message uses 2 or more SMS.',
+            'SMS packs — every pack you bought or were given, with how many are used and left.',
+          ],
+        },
+        {
+          shot: 'buy-sms', title: 'Buy SMS only',
+          steps: [
+            'How many SMS — click a number…',
+            '…or type your own (at least the minimum shown below it).',
+            'The total: number × price per SMS.',
+            'Pay with bKash. After paying you come back to Billing and the SMS are added straight away.',
+          ],
+        },
+        {
+          shot: 'plan-sms', title: 'SMS together with your package',
+          steps: [
+            'The package you are paying for.',
+            'Add SMS to this payment — switch it on.',
+            'How many SMS.',
+            'The total: package + SMS.',
+            'Pay with bKash — one payment for both.',
+          ],
+        },
+      ],
+      tips: ['Bought SMS last for a few months from the day you buy them. Older SMS are used first, so nothing is wasted.'],
+    },
     billing: {
       intro: 'Click Billing in the left menu to see your package, your SMS balance and your payments. New businesses start with a free trial.',
       parts: [
         {
           shot: 'billing',
           steps: [
-            'SMS balance — how many SMS you have left and when they expire. Open "SMS packs" to see each purchase.',
-            'Buy SMS — SMS only, at any time, for example when they run out in the middle of your package.',
             'Packages for your business size — monthly, 3 months and longer. Paying early never loses days: the time is added after your current end date.',
-            'Pay with bKash. You can switch on "Add SMS to this payment" to buy SMS in the same payment.',
-          ],
-        },
-        {
-          shot: 'buy-sms', title: 'Buy SMS',
-          steps: [
-            'How many SMS: pick a number or type your own.',
-            'The price: number × price per SMS.',
-            'Pay with bKash. After paying you return to Billing and the SMS are added straight away.',
+            'Pay with bKash. After paying you return to Billing and your new end date is shown. Every payment is listed under Payment history.',
           ],
         },
       ],
-      tips: ['Bought SMS last for a few months from the day you buy them. Older SMS are used first.'],
     },
     portal: {
       parts: [
@@ -410,7 +468,7 @@ export const DESKTOP: Record<GuideLang, Record<string, GuideDesktop>> = {
           steps: [
             'বাঁ পাশের মেনু: সব পাতা, ভাগ করে সাজানো — বিক্রয় ও ক্রয়, স্টক, গ্রাহক ও সরবরাহকারী, রিপোর্ট এবং সেটিংস। উপরের ☰ ক্লিক করলে মেনু সরু হয়।',
             'নতুন বিক্রয় ও নতুন ক্রয় — সঙ্গে সঙ্গে অর্ডার শুরু করুন।',
-            'এক নজরে আপনার ব্যবসা: আজকের বিক্রয়, এই মাসের বিক্রয় ও ক্রয়, গ্রাহকদের কাছে পাওনা এবং সরবরাহকারীদের দেনা। কোনো টাইলে ক্লিক করলে তার তালিকা খোলে।',
+            'এক নজরে আপনার ব্যবসা: আজকের বিক্রয়, এই মাসের বিক্রয় ও ক্রয়, গ্রাহকদের কাছে পাওনা, সরবরাহকারীদের দেনা এবং চূড়ান্ত করার অপেক্ষায় থাকা খসড়া। কোনো টাইলে ক্লিক করলে তার তালিকা খোলে।',
             'বাংলা / English — পুরো অ্যাপের ভাষা বদলান। পাশেই লাইট বা ডার্ক মোড।',
             'আপনার নাম — প্রোফাইল, পাসওয়ার্ড, ভাষা ও লগ আউট।',
           ],
@@ -472,53 +530,88 @@ export const DESKTOP: Record<GuideLang, Record<string, GuideDesktop>> = {
       tips: ['তালিকার কোনো সারিতে ক্লিক করলে ওই গ্রাহকের অর্ডারগুলো খোলে। ডানের পেন্সিলে ক্লিক করে তথ্য বদলান।'],
     },
     sales: {
-      intro: 'ড্যাশবোর্ডে "নতুন বিক্রয়" ক্লিক করুন, অথবা বাঁ পাশের মেনুতে "বিক্রয় অর্ডার" ক্লিক করে "নতুন বিক্রয় অর্ডার"। অর্ডার প্রথমে খসড়া হিসেবে সংরক্ষিত হয়; চূড়ান্ত না করা পর্যন্ত স্টক বদলায় না।',
+      intro: 'বিক্রয়ের তিনটি ধাপ: ১) অর্ডার তৈরি করে "খসড়া সংরক্ষণ", ২) "চূড়ান্ত করুন" — স্টক বের হয়ে যায়, ৩) পেমেন্ট যোগ করা। খসড়া স্টক বদলায় না, তাই যতবার খুশি ঠিক করতে পারেন।',
       parts: [
         {
-          shot: 'sales-editor',
+          shot: 'sales-list', title: 'ধাপ ১ — বিক্রয় অর্ডার (বাঁ পাশের মেনু)',
+          steps: [
+            'নতুন বিক্রয় অর্ডার — নতুন অর্ডার শুরু করুন। (ড্যাশবোর্ডের "নতুন বিক্রয়"-ও একই কাজ করে।)',
+            'সব অর্ডার, অথবা শুধু খসড়া, চূড়ান্ত বা বাতিল অর্ডার দেখুন।',
+            'অর্ডার নম্বর বা গ্রাহক দিয়ে খুঁজুন।',
+            'একজন গ্রাহকের অর্ডার দেখুন। পাশে তারিখের সীমা দিন; উপরের "প্রিন্ট / শেয়ার" তালিকাটি প্রিন্ট করে।',
+            'প্রতিটি অর্ডারের অবস্থা, মোট, পরিশোধিত ও বাকি। সারিতে ক্লিক করলে অর্ডার খোলে।',
+          ],
+        },
+        {
+          shot: 'sales-new', title: 'ধাপ ২ — অর্ডার পূরণ করুন',
           steps: [
             'গ্রাহক — নাম, কোড বা মোবাইল নম্বরের কিছু অংশ লিখে তালিকা থেকে বেছে নিন।',
             'পেমেন্টের ধরন: নগদ, বাকি (পরে পরিশোধ) বা কিস্তি।',
-            'অর্ডারের তারিখ — শুরুতে আজকের তারিখ। যেকোনো তারিখ বেছে নিতে পারেন।',
-            'পণ্য — নামের কিছু অংশ লিখে বেছে নিন। নিচে বক্সের মাপ ও বর্তমান স্টক দেখায়।',
+            'অর্ডারের তারিখ — শুরুতে আজকের তারিখ। আগের বা পরের তারিখও দিতে পারেন। নিচের নোট ইনভয়েসে ছাপা হয়।',
+            'গ্রাহককে SMS পাঠান — চালু থাকলে অর্ডার চূড়ান্ত হলে এবং প্রতিটি পেমেন্টে গ্রাহক SMS পান।',
+            'পণ্য — নাম বা কোডের কিছু অংশ লিখে বেছে নিন। নিচে বক্সের মাপ ও আপনার স্টক দেখায়।',
             'ধরন — বক্সে, অথবা পিস, কেজি বা লিটারে বিক্রি।',
-            'পরিমাণ — এখানে 5 বক্স। মোট পরিমাণ নিজে থেকে বসে।',
-            'একক দাম ও লাইনের মোট নিজে থেকে বসে। ছাড় দিতে দাম বদলান; লাইনের মোটও বদলে যায়।',
-            'লাইন যোগ করুন — পরের পণ্যের জন্য। অর্ডারের মোট ডান দিকে দেখায়।',
-            'খসড়া সংরক্ষণ।',
+            'পরিমাণ — এখানে ৫ বক্স। মোট পিস নিজে থেকে বসে।',
+            'প্রতি পিস ও প্রতি বক্সের দাম পণ্য থেকে বসে। ছাড় দিতে বদলান।',
+            'লাইনের মোট — নিজেই বদলায়। নিচে অর্ডারের মোট।',
+            'লাইন যোগ করুন — পরের পণ্যের জন্য।',
+            'খসড়া সংরক্ষণ — অর্ডারটি খসড়া হিসেবে সংরক্ষণ হয়ে খুলে যায়। স্ক্রল করলেও এই বোতাম উপরে থাকে।',
           ],
         },
-      ],
-      tips: [
-        'পণ্যের উপরের "SMS পাঠান" সুইচ ঠিক করে এই অর্ডারের জন্য গ্রাহক SMS পাবেন কি না।',
-        '"খসড়া সংরক্ষণ" ক্লিক করার সময় কিছু বাদ থাকলে সেই ঘরটি লাল হয়, কার্সর সেখানে চলে যায় এবং অর্ডারের নিচের বার্তায় কী পূরণ করতে হবে তা লেখা থাকে।',
-        'মাউস ছাড়াই এক ঘর থেকে পরের ঘরে যেতে Tab চাপুন।',
-      ],
-    },
-    purchase: {
-      intro: 'ড্যাশবোর্ডে "নতুন ক্রয়" ক্লিক করুন, অথবা বাঁ পাশের মেনুতে "ক্রয় অর্ডার" ক্লিক করে "নতুন ক্রয় অর্ডার"। চূড়ান্ত করলে স্টক বাড়ে।',
-      parts: [
         {
-          shot: 'purchase-editor',
+          shot: 'sales-missing', title: 'কিছু বাদ পড়েছে?',
           steps: [
-            'সরবরাহকারী — নামের কিছু অংশ লিখে তালিকা থেকে বেছে নিন।',
-            'পেমেন্টের ধরন: নগদ, বাকি বা কিস্তি। পাশেই অর্ডারের তারিখ।',
-            'পণ্য, পরিমাণ ও দাম — বিক্রয় অর্ডারের মতোই।',
-            'খসড়া সংরক্ষণ।',
+            'কিছু বাদ রেখে "খসড়া সংরক্ষণ" ক্লিক করলে সেই ঘরটি লাল হয় এবং কার্সর সেখানে চলে যায়।',
+            'এই বার্তায় লেখা থাকে কী পূরণ করতে হবে, যেমন "১ নম্বর লাইনে একটি পণ্য বেছে নিন।" সেটি পূরণ করে আবার "খসড়া সংরক্ষণ" ক্লিক করুন।',
           ],
         },
-      ],
-    },
-    finalize: {
-      parts: [
         {
-          shot: 'order-draft', title: 'খসড়া অর্ডার',
+          shot: 'order-draft', title: 'ধাপ ৩ — চূড়ান্ত করুন',
           steps: [
-            'চূড়ান্ত করুন — অর্ডার নিশ্চিত করে। স্টক বের হয় (বিক্রয়) বা আসে (ক্রয়), এবং অর্ডারটি আর সম্পাদনা করা যায় না।',
+            'চূড়ান্ত করুন — মাল বিক্রি হলে অর্ডারটি নিশ্চিত করুন।',
             'সম্পাদনা — চূড়ান্ত করার আগে যতবার খুশি খসড়া বদলান।',
             '⋮ — আরও কাজ, যেমন খসড়া মুছুন।',
           ],
         },
+        {
+          shot: 'finalize-confirm', title: 'নিশ্চিত করুন',
+          steps: [
+            'কী হবে: স্টক বের হবে, অর্ডারটি আর সম্পাদনা করা যাবে না, এবং কে SMS পাবেন।',
+            '"চূড়ান্ত করুন" ক্লিক করুন। এখন পেমেন্ট যোগ করতে ও ইনভয়েস প্রিন্ট করতে পারবেন ("পেমেন্ট ও ইনভয়েস" দেখুন)।',
+          ],
+        },
+      ],
+      tips: [
+        'মাউস ছাড়াই এক ঘর থেকে পরের ঘরে যেতে Tab চাপুন।',
+        'স্টকের বেশি বিক্রি করা যায় না — লাইনে "পর্যাপ্ত স্টক নেই" দেখায় এবং অর্ডার চূড়ান্ত করা যায় না।',
+      ],
+    },
+    purchase: {
+      intro: 'ক্রয় অর্ডারে সরবরাহকারীর কাছ থেকে কেনা মাল লেখা হয়। চূড়ান্ত করলে স্টক বাড়ে। ড্যাশবোর্ডে "নতুন ক্রয়" ক্লিক করুন, অথবা বাঁ পাশের মেনুতে "ক্রয় অর্ডার" ক্লিক করে "নতুন ক্রয় অর্ডার"।',
+      parts: [
+        {
+          shot: 'purchase-new', title: 'অর্ডার পূরণ করুন',
+          steps: [
+            'সরবরাহকারী — নামের কিছু অংশ লিখে তালিকা থেকে বেছে নিন।',
+            'পেমেন্টের ধরন (নগদ, বাকি বা কিস্তি) ও অর্ডারের তারিখ। নোট ঐচ্ছিক, যেমন সরবরাহকারীর ইনভয়েস নম্বর।',
+            'পণ্য, ধরন ও পরিমাণ — এখানে ২০ বক্স।',
+            'ক্রয়মূল্য পণ্য থেকে বসে। সরবরাহকারী অন্য দাম নিলে বদলান; লাইনের মোট নিজেই বদলাবে।',
+            'খসড়া সংরক্ষণ।',
+          ],
+        },
+        {
+          shot: 'purchase-draft', title: 'চূড়ান্ত করুন',
+          steps: [
+            'চূড়ান্ত করুন — মাল হাতে পেলে। স্টক বাড়ে এবং অর্ডারটি আর সম্পাদনা করা যায় না।',
+            'সম্পাদনা — চূড়ান্ত করার আগে খসড়া বদলান।',
+          ],
+        },
+      ],
+      tips: ['সরবরাহকারীকে টাকা দিয়েছেন? চূড়ান্ত ক্রয় অর্ডারটি খুলে "পেমেন্ট যোগ করুন" ক্লিক করুন, বিক্রয়ের মতোই।'],
+    },
+    finalize: {
+      intro: 'অর্ডার চূড়ান্ত হওয়ার পর এতে প্রতিটি পেমেন্ট লিখুন এবং ইনভয়েস প্রিন্ট বা শেয়ার করুন।',
+      parts: [
         {
           shot: 'order-final', title: 'চূড়ান্ত অর্ডার',
           steps: [
@@ -655,28 +748,51 @@ export const DESKTOP: Record<GuideLang, Record<string, GuideDesktop>> = {
         'প্রতিটি বার্তা আপনার ব্যালেন্স থেকে SMS নেয় — বড় বার্তায় 2 বা তার বেশি লাগে। SMS না থাকলে বার্তা বাদ পড়া (Skipped) থাকে; আবার SMS পেলে "আবার চেষ্টা" চাপুন।',
       ],
     },
+    'sms-buy': {
+      intro: 'SMS আগে থেকে কিনতে হয় বিলিং পাতায় (বাঁ পাশের মেনু), টাকা দেওয়া যায় বিকাশে। যেকোনো সময় শুধু SMS কিনতে পারেন, অথবা প্যাকেজের সাথে একসাথে।',
+      parts: [
+        {
+          shot: 'sms-balance', title: 'আপনার SMS ব্যালেন্স',
+          steps: [
+            'কতটি SMS বাকি আছে এবং কবে মেয়াদ শেষ হবে।',
+            'SMS কিনুন।',
+            'প্রতি SMS-এর দাম এবং একটি প্যাক কতদিন চলে। বড় বার্তায় ২ বা তার বেশি SMS লাগে।',
+            'SMS প্যাক — আপনার কেনা বা পাওয়া প্রতিটি প্যাক, কতটি ব্যবহার হয়েছে ও কতটি বাকি।',
+          ],
+        },
+        {
+          shot: 'buy-sms', title: 'শুধু SMS কেনা',
+          steps: [
+            'কতটি SMS — একটি সংখ্যায় ক্লিক করুন…',
+            '…অথবা নিজে লিখুন (নিচে দেখানো সর্বনিম্ন সংখ্যার কম নয়)।',
+            'মোট: সংখ্যা × প্রতি SMS-এর দাম।',
+            'বিকাশে পরিশোধ করুন। পরিশোধের পর বিলিং পাতায় ফিরে আসবেন এবং SMS সঙ্গে সঙ্গে যোগ হয়ে যাবে।',
+          ],
+        },
+        {
+          shot: 'plan-sms', title: 'প্যাকেজের সাথে SMS',
+          steps: [
+            'যে প্যাকেজের টাকা দিচ্ছেন।',
+            '"এই পেমেন্টে SMS যোগ করুন" — চালু করুন।',
+            'কতটি SMS।',
+            'মোট: প্যাকেজ + SMS।',
+            'বিকাশে পরিশোধ করুন — দুটোর জন্য একটিই পেমেন্ট।',
+          ],
+        },
+      ],
+      tips: ['কেনা SMS কেনার দিন থেকে কয়েক মাস চলে। পুরোনো SMS আগে খরচ হয়, তাই কিছু নষ্ট হয় না।'],
+    },
     billing: {
       intro: 'বাঁ পাশের মেনুতে "বিলিং" ক্লিক করলে আপনার প্যাকেজ, SMS ব্যালেন্স ও পেমেন্টগুলো দেখা যায়। নতুন ব্যবসা ফ্রি ট্রায়াল দিয়ে শুরু করে।',
       parts: [
         {
           shot: 'billing',
           steps: [
-            'SMS ব্যালেন্স — কতটি SMS বাকি এবং কবে মেয়াদ শেষ। প্রতিটি কেনা দেখতে "SMS প্যাক" খুলুন।',
-            'SMS কিনুন — শুধু SMS, যেকোনো সময়, যেমন প্যাকেজের মাঝখানে SMS শেষ হয়ে গেলে।',
-            'আপনার ব্যবসার আকারের প্যাকেজ — মাসিক, 3 মাস ও আরও বেশি। আগে পরিশোধ করলে কোনো দিন নষ্ট হয় না: সময়টা বর্তমান মেয়াদের পরে যোগ হয়।',
-            'বিকাশে পরিশোধ করুন। একই পেমেন্টে SMS কিনতে "এই পেমেন্টে SMS যোগ করুন" চালু করতে পারেন।',
-          ],
-        },
-        {
-          shot: 'buy-sms', title: 'SMS কিনুন',
-          steps: [
-            'কতটি SMS: একটি সংখ্যা বেছে নিন বা নিজে লিখুন।',
-            'দাম: সংখ্যা × প্রতি SMS-এর দাম।',
-            'বিকাশে পরিশোধ করুন। পরিশোধের পর বিলিং পাতায় ফিরে আসবেন এবং SMS সঙ্গে সঙ্গে যোগ হয়ে যাবে।',
+            'আপনার ব্যবসার আকারের প্যাকেজ — মাসিক, ৩ মাস ও আরও বেশি। আগে পরিশোধ করলে কোনো দিন নষ্ট হয় না: সময়টা বর্তমান মেয়াদের পরে যোগ হয়।',
+            'বিকাশে পরিশোধ করুন। পরিশোধের পর বিলিং পাতায় ফিরে নতুন মেয়াদ দেখতে পাবেন। প্রতিটি পেমেন্ট "পেমেন্টের ইতিহাস"-এ থাকে।',
           ],
         },
       ],
-      tips: ['কেনা SMS কেনার দিন থেকে কয়েক মাস চলে। পুরোনো SMS আগে খরচ হয়।'],
     },
     portal: {
       parts: [

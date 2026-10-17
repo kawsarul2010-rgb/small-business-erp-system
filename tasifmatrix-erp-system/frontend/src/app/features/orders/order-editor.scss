@@ -43,7 +43,19 @@
 
 .warn-box { background: var(--erp-chip-warn-bg); color: var(--erp-chip-warn-fg); margin-bottom: 12px; ul { margin: 6px 0 0; } }
 .error-box { background: var(--erp-chip-danger-bg); color: var(--erp-chip-danger-fg); margin-bottom: 12px; ul { margin: 6px 0 0; } }
-.bottom-actions { display: flex; justify-content: flex-end; gap: 8px; }
+/*
+ * Desktop: Cancel / Save draft live only in the page header, which stays under the top bar while
+ * a long order scrolls, so they are always in reach. The shadow fades in once the page scrolls.
+ */
+.page-header.sticky-head {
+  position: sticky; top: 61px; z-index: 7;
+  margin: -12px -28px 8px; padding: 12px 28px;
+  background: var(--erp-bg);
+}
+@supports (animation-timeline: scroll()) {
+  .page-header.sticky-head { animation: head-lift linear both; animation-timeline: scroll(root); animation-range: 0 48px; }
+}
+@keyframes head-lift { to { box-shadow: 0 1px 0 var(--erp-border), 0 8px 14px -12px rgba(15, 23, 42, .35); } }
 
 @media (max-width: 1100px) {
   .header-grid, .header-grid.with-company { grid-template-columns: repeat(2, minmax(0, 1fr)); }
