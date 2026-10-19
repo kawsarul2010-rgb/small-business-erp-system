@@ -19,7 +19,7 @@ import { ApiService, dateToIso, isoToDate, problemOf } from '../../core/api.serv
 import { AuthService } from '../../core/auth.service';
 import { LayoutService } from '../../core/layout.service';
 import { PlatformService } from '../../core/platform.service';
-import { OrderDetail, OrderKind, PaymentMethod } from '../../core/models';
+import { OrderDetail, OrderKind, OrderLine, PaymentMethod } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
 import { LabelPipe, MoneyPipe, QtyPipe, formatMoney } from '../../shared/pipes';
@@ -54,7 +54,6 @@ export class OrderViewPage implements OnInit {
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
 
-  readonly lineColumns = ['no', 'product', 'type', 'boxes', 'pcs', 'perBox', 'perPcs', 'total'];
   readonly paymentColumns = ['date', 'method', 'note', 'by', 'amount', 'actions'];
 
   /** Write permissions per SRS 5.1. */
@@ -62,6 +61,12 @@ export class OrderViewPage implements OnInit {
   readonly canVoid = computed(() => this.auth.isAdmin());
   readonly isDraft = computed(() => this.order()?.postingStatus === 'DRAFT');
   readonly isFinal = computed(() => this.order()?.postingStatus === 'FINAL');
+  /** Lines of a draft can be removed here, without opening the editor. */
+  readonly canRemoveLines = computed(() => this.canWrite() && this.isDraft());
+  readonly lineColumns = computed(() => {
+    const cols = ['no', 'product', 'type', 'boxes', 'pcs', 'perBox', 'perPcs', 'total'];
+    return this.canRemoveLines() ? [...cols, 'remove'] : cols;
+  });
 
   ngOnInit(): void {
     this.load();
@@ -132,6 +137,20 @@ export class OrderViewPage implements OnInit {
         this.busy.set(false);
         this.reloadOnConflict(e);
       },
+    });
+  }
+
+  /** Removes one line from a draft order; the order total is worked out again on the server. */
+  removeLine(l: OrderLine): void {
+    const o = this.order()!;
+    this.notify.confirm({
+      title: 'Remove line',
+      message: t('Remove {product} from order #{no}?', { product: l.productName, no: o.orderNumber }),
+      confirmText: 'Remove',
+      danger: true,
+    }).subscribe((ok) => {
+      if (!ok) return;
+      this.run(this.api.delete<OrderDetail>(`${this.meta().api}/${o.uuid}/lines/${l.uuid}`, { revision: o.revision }), 'Line removed.');
     });
   }
 
