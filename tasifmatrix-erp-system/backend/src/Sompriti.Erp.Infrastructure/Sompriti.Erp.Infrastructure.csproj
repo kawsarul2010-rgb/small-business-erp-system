@@ -7,9 +7,14 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <!-- Bangla in PDFs: HarfBuzz shapes the text (the macOS and Windows natives come with HarfBuzzSharp). -->
+    <PackageReference Include="HarfBuzzSharp" Version="8.3.1.1" />
+    <PackageReference Include="HarfBuzzSharp.NativeAssets.Linux" Version="8.3.1.1" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Persistence\Migrations\*.sql" />
+    <!-- Noto Sans Bengali (SIL Open Font License, see Pdf/Fonts/OFL.txt) for Bangla in PDFs. -->
+    <EmbeddedResource Include="Pdf\Fonts\*.ttf" LogicalName="Sompriti.Erp.Infrastructure.Pdf.Fonts.%(Filename)%(Extension)" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Sompriti.Erp.Application\Sompriti.Erp.Application.csproj" />

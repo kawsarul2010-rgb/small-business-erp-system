@@ -4,8 +4,9 @@ using System.Text;
 namespace Sompriti.Erp.Infrastructure.Pdf;
 
 /// <summary>
-/// Tiny dependency-free PDF writer: A4 pages, Helvetica / Helvetica-Bold, text, lines, filled rectangles and a rotated watermark.
-/// Coordinates use a top-left origin in points (1/72 inch). Text is encoded as WinAnsi (Latin-1).
+/// Tiny PDF writer: A4 pages, Helvetica / Helvetica-Bold, text, lines, filled rectangles and a rotated watermark.
+/// Coordinates use a top-left origin in points (1/72 inch). Text is encoded as WinAnsi (Latin-1); Bangla parts
+/// of a text are drawn glyph by glyph with the embedded Noto Sans Bengali font (see <see cref="BanglaText"/>).
 /// </summary>
 public sealed class SimplePdf
 {
@@ -15,6 +16,8 @@ public sealed class SimplePdf
     public enum Align { Left, Right, Center }
 
     private readonly List<StringBuilder> _pages = new();
+    /// <summary>Bangla glyphs used, per font (0 regular, 1 bold): the PDF lists their widths.</summary>
+    private readonly SortedSet<ushort>[] _banglaGlyphs = [new(), new()];
     private StringBuilder Current => _pages[^1];
     public int PageCount => _pages.Count;
 
@@ -39,8 +42,34 @@ public sealed class SimplePdf
         var width = Measure(text, size, bold);
         var left = align switch { Align.Right => x - width, Align.Center => x - width / 2, _ => x };
         var baseline = PageHeight - top - size * 0.8f;
-        Current.Append(CultureInfo.InvariantCulture,
-            $"BT {F(gray)} g /{(bold ? "F2" : "F1")} {F(size)} Tf {F(left)} {F(baseline)} Td ({Escape(text)}) Tj ET\n");
+        foreach (var (part, bangla) in BanglaText.Split(text))
+        {
+            if (bangla && BanglaText.Font(bold) is { } font)
+            {
+                left = BanglaRun(font, part, left, baseline, size, bold, gray);
+                continue;
+            }
+            Current.Append(CultureInfo.InvariantCulture,
+                $"BT {F(gray)} g /{(bold ? "F2" : "F1")} {F(size)} Tf {F(left)} {F(baseline)} Td ({Escape(part)}) Tj ET\n");
+            left += MeasureLatin(part, size, bold);
+        }
+    }
+
+    /// <summary>Draws a shaped Bangla part glyph by glyph (marks need their own offsets); returns where it ends.</summary>
+    private float BanglaRun(BanglaText.FontFile font, string text, float x, float baseline, float size, bool bold, float gray)
+    {
+        var scale = size / font.UnitsPerEm;
+        var used = _banglaGlyphs[bold ? 1 : 0];
+        var sb = Current;
+        sb.Append(CultureInfo.InvariantCulture, $"BT {F(gray)} g /{(bold ? "F4" : "F3")} {F(size)} Tf");
+        foreach (var g in BanglaText.Shape(text, bold))
+        {
+            used.Add(g.Id);
+            sb.Append(CultureInfo.InvariantCulture, $" 1 0 0 1 {F(x + g.OffsetX * scale)} {F(baseline + g.OffsetY * scale)} Tm <{g.Id:X4}> Tj");
+            x += g.Advance * scale;
+        }
+        sb.Append(" ET\n");
+        return x;
     }
 
     public void Line(float x1, float top1, float x2, float top2, float width = 0.5f, float gray = 0)
@@ -81,7 +110,7 @@ public sealed class SimplePdf
         if (Measure(text, size, bold) <= maxWidth) return text;
         const string ellipsis = "...";
         var s = text;
-        while (s.Length > 0 && Measure(s + ellipsis, size, bold) > maxWidth) s = s[..^1];
+        while (s.Length > 0 && Measure(s + ellipsis, size, bold) > maxWidth) s = DropLast(s);
         return s + ellipsis;
     }
 
@@ -106,6 +135,22 @@ public sealed class SimplePdf
 
     public static float Measure(string text, float size, bool bold)
     {
+        if (!BanglaText.HasBangla(text)) return MeasureLatin(text, size, bold);
+        var width = 0f;
+        foreach (var (part, bangla) in BanglaText.Split(text))
+            width += bangla ? BanglaText.Width(part, size, bold) : MeasureLatin(part, size, bold);
+        return width;
+    }
+
+    /// <summary>Removes the last letter, keeping Bangla letters and their signs together.</summary>
+    private static string DropLast(string s)
+    {
+        var starts = StringInfo.ParseCombiningCharacters(s);
+        return s[..starts[^1]];
+    }
+
+    private static float MeasureLatin(string text, float size, bool bold)
+    {
         var widths = bold ? BoldWidths : RegularWidths;
         var units = 0;
         foreach (var ch in text)
@@ -118,11 +163,34 @@ public sealed class SimplePdf
 
     public byte[] Build()
     {
-        var objects = new List<string>();
-        // 1: catalog, 2: pages, 3: F1, 4: F2, then (page, content) pairs
+        // 1: catalog, 2: pages, 3: F1, 4: F2, then the Bangla fonts in use (F3 regular, F4 bold), then (page, content) pairs
         var pageObjectIds = new List<int>();
         var nextId = 5;
         var bodies = new Dictionary<int, byte[]>();
+
+        var fontResources = "/F1 3 0 R /F2 4 0 R";
+        for (var b = 0; b < 2; b++)
+        {
+            if (_banglaGlyphs[b].Count == 0 || BanglaText.Font(b == 1) is not { } font) continue;
+            var type0Id = nextId++;
+            var cidId = nextId++;
+            var descriptorId = nextId++;
+            var fileId = nextId++;
+            var widths = string.Join(" ", _banglaGlyphs[b].Select(g => $"{g} [{font.Width(g)}]"));
+            bodies[type0Id] = Latin1.GetBytes(
+                $"<< /Type /Font /Subtype /Type0 /BaseFont /{font.Name} /Encoding /Identity-H /DescendantFonts [{cidId} 0 R] >>");
+            bodies[cidId] = Latin1.GetBytes(
+                $"<< /Type /Font /Subtype /CIDFontType2 /BaseFont /{font.Name} " +
+                "/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> " +
+                $"/FontDescriptor {descriptorId} 0 R /CIDToGIDMap /Identity /DW 600 /W [{widths}] >>");
+            bodies[descriptorId] = Latin1.GetBytes(
+                $"<< /Type /FontDescriptor /FontName /{font.Name} /Flags 32 /FontBBox [{font.BBox}] /ItalicAngle 0 " +
+                $"/Ascent 917 /Descent -408 /CapHeight 622 /StemV 80 /FontFile2 {fileId} 0 R >>");
+            var compressed = font.Compressed;
+            bodies[fileId] = [.. Latin1.GetBytes($"<< /Length {compressed.Length} /Length1 {font.Data.Length} /Filter /FlateDecode >>\nstream\n"),
+                .. compressed, .. Latin1.GetBytes("\nendstream")];
+            fontResources += $" /F{3 + b} {type0Id} 0 R";
+        }
 
         foreach (var page in _pages)
         {
@@ -132,7 +200,7 @@ public sealed class SimplePdf
             var content = Latin1.GetBytes(page.ToString());
             bodies[pageId] = Latin1.GetBytes(
                 $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {F(PageWidth)} {F(PageHeight)}] " +
-                $"/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents {contentId} 0 R >>");
+                $"/Resources << /Font << {fontResources} >> >> /Contents {contentId} 0 R >>");
             var header = Latin1.GetBytes($"<< /Length {content.Length} >>\nstream\n");
             var footer = Latin1.GetBytes("\nendstream");
             bodies[contentId] = [.. header, .. content, .. footer];
