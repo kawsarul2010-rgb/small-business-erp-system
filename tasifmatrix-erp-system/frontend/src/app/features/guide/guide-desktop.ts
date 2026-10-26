@@ -99,7 +99,7 @@ export const DESKTOP: Record<GuideLang, Record<string, GuideDesktop>> = {
           shot: 'product-form',
           steps: [
             'Product name and a code you recognise, for example SOAP-01.',
-            'Unit: PCS (pieces), KG, LITRE or BOX. Stock is counted in this unit.',
+            'Unit: PCS (pieces), KG, LITRE, BOX, DOZEN, PACKET, TIN, JAR or DRUM. Stock is counted in this unit. Only KG and LITRE can have fractions such as 2.5.',
             'For BOX: what one box holds — for example 12 pieces. Then you can sell by the box or by the piece.',
             'Purchase price per unit (per piece, kg or litre).',
             'Sales price per unit. Orders fill in both prices for you; you can still change them on each order.',
@@ -121,7 +121,10 @@ export const DESKTOP: Record<GuideLang, Record<string, GuideDesktop>> = {
           ],
         },
       ],
-      tips: ['Click a row in the list to open that customer\'s orders. The pencil on the right edits the details.'],
+      tips: [
+        'Click a row in the list to open that customer\'s orders. The pencil on the right edits the details.',
+        'Old dues from before you started the app: fill in Previous due at the bottom of the New customer form, or click the clock icon next to an existing customer (Add previous due). No old orders are needed and stock does not change.',
+      ],
     },
     sales: {
       intro: 'A sale has three steps: 1) make the order and Save draft, 2) Finalize it — the stock goes out, 3) add the payments. A draft does not change your stock, so you can fix it as often as you like.',
@@ -505,7 +508,7 @@ export const DESKTOP: Record<GuideLang, Record<string, GuideDesktop>> = {
           shot: 'product-form',
           steps: [
             'পণ্যের নাম এবং চেনার মতো একটি কোড, যেমন SOAP-01।',
-            'একক: পিস, কেজি, লিটার বা বক্স। স্টক এই এককে গোনা হয়।',
+            'একক: পিস, কেজি, লিটার, বক্স, ডজন, প্যাকেট, টিন, জার বা ড্রাম। স্টক এই এককে গোনা হয়। শুধু কেজি ও লিটারে ২.৫-এর মতো ভগ্নাংশ দেওয়া যায়।',
             'বক্সের জন্য: এক বক্সে কী থাকে — যেমন 12 পিস। তাহলে বক্স বা পিস দুইভাবেই বিক্রি করা যায়।',
             'প্রতি এককের ক্রয়মূল্য (প্রতি পিস, কেজি বা লিটার)।',
             'প্রতি এককের বিক্রয়মূল্য। অর্ডারে দুটো দামই নিজে থেকে বসে; প্রতিটি অর্ডারে বদলানো যায়।',
@@ -527,7 +530,10 @@ export const DESKTOP: Record<GuideLang, Record<string, GuideDesktop>> = {
           ],
         },
       ],
-      tips: ['তালিকার কোনো সারিতে ক্লিক করলে ওই গ্রাহকের অর্ডারগুলো খোলে। ডানের পেন্সিলে ক্লিক করে তথ্য বদলান।'],
+      tips: [
+        'তালিকার কোনো সারিতে ক্লিক করলে ওই গ্রাহকের অর্ডারগুলো খোলে। ডানের পেন্সিলে ক্লিক করে তথ্য বদলান।',
+        'অ্যাপ শুরুর আগের পুরোনো বাকি: "নতুন গ্রাহক" ফর্মের নিচে "আগের বাকি" ঘরে লিখুন, অথবা আগে যোগ করা গ্রাহকের পাশের ঘড়ি আইকনে ("আগের বাকি যোগ করুন") ক্লিক করুন। পুরোনো অর্ডার লাগবে না, স্টকও বদলায় না।',
+      ],
     },
     sales: {
       intro: 'বিক্রয়ের তিনটি ধাপ: ১) অর্ডার তৈরি করে "খসড়া সংরক্ষণ", ২) "চূড়ান্ত করুন" — স্টক বের হয়ে যায়, ৩) পেমেন্ট যোগ করা। খসড়া স্টক বদলায় না, তাই যতবার খুশি ঠিক করতে পারেন।',

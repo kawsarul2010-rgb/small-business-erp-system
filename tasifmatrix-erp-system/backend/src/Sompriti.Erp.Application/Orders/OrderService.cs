@@ -66,6 +66,7 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         if (q.PartyUuid is { } pid) orders = orders.Where(o => o.PartyUuid == pid);
         if (q.CompanyUuid is { } cid) orders = orders.Where(o => o.CompanyUuid == cid);
         if (q.DueOnly) orders = orders.Where(o => o.PostingStatus == PostingStatus.Final && o.TotalAmount > o.TotalPaidAmount);
+        if (q.OpeningDue is { } od) orders = orders.Where(o => o.IsOpeningDue == od);
 
         var query = from o in orders
                     join c in Db.Companies.AsNoTracking() on o.CompanyUuid equals c.Uuid
@@ -92,7 +93,7 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         return await query.ToPagedAsync(q, x => new OrderListItemDto(x.o.Uuid, x.o.TransactionType, x.o.OrderNumber!, x.o.OrderDate,
             x.c.Uuid, x.c.CompanyName, x.p.Uuid, x.p.Name, x.p.Code!, x.o.PaymentType, x.o.PostingStatus,
             x.o.TotalAmount, x.o.TotalPaidAmount, x.o.TotalAmount - x.o.TotalPaidAmount,
-            x.o.CreatedDate, x.o.CreatedByUserName, x.o.Revision), ct);
+            x.o.CreatedDate, x.o.CreatedByUserName, x.o.Revision, x.o.IsOpeningDue), ct);
     }
 
     public async Task<OrderDetailDto> GetAsync(Guid id, CancellationToken ct)
@@ -129,7 +130,7 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
             o.PaymentType, o.PostingStatus, o.OrderDate, o.Notes, o.TotalAmount, o.TotalPaidAmount, o.DueAmount,
             o.FinalizedDate, o.FinalizedByUserName, o.VoidedDate, o.VoidedByUserName, o.VoidReason,
             o.Revision, o.CreatedDate, o.UpdatedDate, o.CreatedByUserName, o.UpdatedByUserName, lines, payments,
-            o.SendSms, smsBlocked);
+            o.SendSms, smsBlocked, o.IsOpeningDue);
     }
 
     /// <param name="Description">A one-line name for the document, used as an email subject.</param>
@@ -225,6 +226,100 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         order.Status = RecordStatus.Deleted;
         await Db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
+    }
+
+    // ================================================================== previous due
+
+    /// <summary>Largest previous due accepted - far above any real amount, well inside numeric(18,2).</summary>
+    private const decimal MaxOpeningDue = 1_000_000_000m;
+
+    /// <summary>
+    /// Records what a customer owed the business (or the business owed a supplier) before it
+    /// started using the app, without the old orders: a FINAL order with no line items and
+    /// IsOpeningDue set. It shows in the order list and the dues, is collected with Add payment,
+    /// never moves stock and sends no SMS of its own.
+    /// </summary>
+    public async Task<OrderDetailDto> CreateOpeningDueAsync(OpeningDueRequest r, CancellationToken ct)
+    {
+        var v = new Validator()
+            .Required("partyUuid", r.PartyUuid, PartyLabel)
+            .MaxLength("notes", r.Notes, "Notes", 1000);
+        v.When(r.Amount is not > 0, "amount", "Previous due must be greater than 0.");
+        v.When(r.Amount is > MaxOpeningDue, "amount", "Previous due is too large.");
+        v.ThrowIfInvalid();
+
+        if (!await Parties.AnyAsync(p => p.Uuid == r.PartyUuid && p.Status == RecordStatus.Active, ct))
+            throw DomainException.Validation("partyUuid", $"Selected {PartyLabel.ToLower()} is not available.");
+
+        var companies = Db.Companies.AsNoTracking().Where(c => c.Status == RecordStatus.Active);
+        var companyUuid = r.CompanyUuid is { } cid
+            ? (await companies.AnyAsync(c => c.Uuid == cid, ct) ? cid
+                : throw DomainException.Validation("companyUuid", "Selected company is not available."))
+            : await companies.OrderBy(c => c.CreatedDate).ThenBy(c => c.CompanyCode).Select(c => (Guid?)c.Uuid).FirstOrDefaultAsync(ct)
+              ?? throw DomainException.Rule(ErrorCodes.BusinessRule, "Add a company before recording a previous due.");
+
+        var now = clock.GetUtcNow();
+        var order = new TOrder
+        {
+            Uuid = Guid.NewGuid(),
+            IsOpeningDue = true,
+            CompanyUuid = companyUuid,
+            PartyUuid = r.PartyUuid!.Value,
+            PaymentType = PaymentType.Due,
+            PostingStatus = PostingStatus.Final,
+            OrderDate = r.DueDate ?? Today,
+            Notes = Validator.Clean(r.Notes),
+            TotalAmount = Money.Round(r.Amount!.Value),
+            FinalizedDate = now,
+            FinalizedByUserUuid = User.UserUuid,
+            FinalizedByUserName = User.UserName,
+            // Payments made against it later send their SMS as usual (when the business wants them).
+            SendSms = (await BusinessSettingsService.SmsAsync(Db, ct)).SmsOnNewOrders,
+        };
+
+        await using var tx = await Db.Database.BeginTransactionAsync(ct);
+        Orders.Add(order);
+        await Db.SaveChangesAsync(ct); // generates the number
+        await tx.CommitAsync(ct);
+        return await GetAsync(order.Uuid, ct);
+    }
+
+    /// <summary>
+    /// Corrects a previous due. The amount cannot drop below what has already been paid against
+    /// it, and the date cannot move after its first payment.
+    /// </summary>
+    public async Task<OrderDetailDto> UpdateOpeningDueAsync(Guid id, OpeningDueUpdateRequest r, CancellationToken ct)
+    {
+        var v = new Validator().MaxLength("notes", r.Notes, "Notes", 1000);
+        v.When(r.Amount is not > 0, "amount", "Previous due must be greater than 0.");
+        v.When(r.Amount is > MaxOpeningDue, "amount", "Previous due is too large.");
+        v.ThrowIfInvalid();
+
+        await using var tx = await Db.Database.BeginTransactionAsync(ct);
+        var order = await LockAsync(id, ct);
+        RevisionGuard.Check(Db, order, r.Revision);
+        if (!order.IsOpeningDue)
+            throw DomainException.Rule(ErrorCodes.BusinessRule, "This is not a previous due.");
+        if (order.PostingStatus != PostingStatus.Final)
+            throw DomainException.Rule(ErrorCodes.BusinessRule, "This previous due is void.");
+
+        var amount = Money.Round(r.Amount!.Value);
+        if (amount < order.TotalPaidAmount)
+            throw DomainException.Validation("amount",
+                $"Previous due cannot be less than what is already paid ({Money.Format(order.TotalPaidAmount)}).");
+
+        var date = r.DueDate ?? order.OrderDate;
+        var firstPayment = await Payments.Where(p => p.OrderUuid == id && p.Status == RecordStatus.Active)
+            .OrderBy(p => p.PaymentDate).Select(p => (DateOnly?)p.PaymentDate).FirstOrDefaultAsync(ct);
+        if (firstPayment is { } first && date > first)
+            throw DomainException.Validation("dueDate", "Date cannot be after the first payment.");
+
+        order.TotalAmount = amount;
+        order.OrderDate = date;
+        order.Notes = Validator.Clean(r.Notes);
+        await Db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return await GetAsync(id, ct);
     }
 
     private async Task ApplyHeaderAsync(TOrder order, OrderSaveRequest r, CancellationToken ct)
@@ -444,7 +539,7 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         // SMS 2 of 2: the payment - its amount plus the party's running account after it.
         await QueueSmsAsync(order,
             Type == TransactionType.Sales ? "SALES_ORDER_PAYMENT" : "PURCHASE_ORDER_PAYMENT", payment.Uuid,
-            (company, account) => SmsTemplates.Payment(Type, company, order.OrderNumber!, amount, account), ct);
+            (company, account) => SmsTemplates.Payment(Type, company, order.OrderNumber!, amount, account, order.IsOpeningDue), ct);
 
         await Db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);

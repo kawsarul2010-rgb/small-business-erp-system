@@ -10,7 +10,7 @@
         @if (!layout.isHandset()) {
           <div class="crumb"><a [routerLink]="meta().route">{{ (auth.isUser() ? 'Orders' : meta().title) | t }}</a></div>
         }
-        <h1 class="title">{{ (kind() === 'purchase' ? 'Purchase order #{no}' : 'Sales order #{no}') | t: { no: o.orderNumber } }} <app-status [value]="o.postingStatus" /></h1>
+        <h1 class="title">{{ docTitle() | t: { no: o.orderNumber } }} <app-status [value]="o.postingStatus" /></h1>
         <div class="subtitle">
           {{ 'Created {date} by {name}' | t: { date: (o.createdDate | date: 'dd MMM yyyy, h:mm a'), name: o.createdByUserName } }}
           @if (o.finalizedDate) { · {{ 'Finalized {date} by {name}' | t: { date: (o.finalizedDate | date: 'dd MMM yyyy'), name: o.finalizedByUserName } }} }
@@ -24,6 +24,9 @@
           @if (canWrite() && isDraft()) {
             <a mat-stroked-button [routerLink]="[meta().route, o.uuid, 'edit']"><mat-icon>edit</mat-icon>{{ 'Edit' | t }}</a>
             <button mat-flat-button (click)="finalize()" [disabled]="busy() || o.lines.length === 0"><mat-icon>task_alt</mat-icon>{{ 'Finalize' | t }}</button>
+          }
+          @if (canEditOpeningDue()) {
+            <button mat-stroked-button (click)="editOpeningDue()" [disabled]="busy()"><mat-icon>edit</mat-icon>{{ 'Edit' | t }}</button>
           }
           @if (canWrite() && isFinal()) {
             <button mat-flat-button (click)="addPayment()" [disabled]="busy() || o.dueAmount <= 0"><mat-icon>payments</mat-icon>{{ 'Add payment' | t }}</button>
@@ -42,6 +45,9 @@
             }
             @if (canWrite() && isDraft()) {
               <a mat-menu-item [routerLink]="[meta().route, o.uuid, 'edit']"><mat-icon>edit</mat-icon>{{ 'Edit order' | t }}</a>
+            }
+            @if (canEditOpeningDue()) {
+              <button mat-menu-item (click)="editOpeningDue()"><mat-icon>edit</mat-icon>{{ 'Edit previous due' | t }}</button>
             }
           }
           @if (canWrite() && canVoid() && o.postingStatus !== 'VOID') { <button mat-menu-item (click)="voidOrder()"><mat-icon>block</mat-icon>{{ 'Void order' | t }}</button> }
@@ -65,6 +71,18 @@
 
     @if (o.postingStatus === 'VOID') {
       <div class="card card-pad void-banner"><mat-icon>block</mat-icon><div><strong>{{ 'This order is void.' | t }}</strong> {{ 'Reason: {reason}' | t: { reason: o.voidReason } }}</div></div>
+    }
+
+    @if (o.isOpeningDue) {
+      <div class="card card-pad prev-due-banner">
+        <mat-icon>history</mat-icon>
+        <div>
+          <strong>{{ 'Previous due' | t }}.</strong>
+          {{ (kind() === 'sales'
+            ? 'Money this customer owed before you started using the app. It has no products and does not change stock. Collect it with Add payment.'
+            : 'Money you owed this supplier before you started using the app. It has no products and does not change stock. Record what you pay with Add payment.') | t }}
+        </div>
+      </div>
     }
 
     <!-- ---------------------------------------------------------- summary -->
@@ -92,8 +110,8 @@
         }
         @if (layout.isHandset()) {
           <div class="mini-kv">
-            <div><span class="k">{{ 'Order date' | t }}</span><span>{{ o.orderDate | date: 'dd MMM yyyy' }}</span></div>
-            <div><span class="k">{{ 'Payment type' | t }}</span><span>{{ o.paymentType | label }}</span></div>
+            <div><span class="k">{{ (o.isOpeningDue ? 'Due as of' : 'Order date') | t }}</span><span>{{ o.orderDate | date: 'dd MMM yyyy' }}</span></div>
+            <div><span class="k">{{ 'Payment type' | t }}</span><span>{{ o.isOpeningDue ? ('Previous due' | t) : (o.paymentType | label) }}</span></div>
           </div>
           @if (o.notes) { <div class="notes muted">{{ o.notes }}</div> }
         }
@@ -101,24 +119,25 @@
 
       @if (!layout.isHandset()) {
         <section class="card card-pad">
-          <h2 class="card-title">{{ 'Order' | t }}</h2>
+          <h2 class="card-title">{{ (o.isOpeningDue ? 'Previous due' : 'Order') | t }}</h2>
           <dl class="kv">
-            <dt>{{ 'Order date' | t }}</dt><dd>{{ o.orderDate | date: 'dd MMM yyyy' }}</dd>
-            <dt>{{ 'Payment type' | t }}</dt><dd>{{ o.paymentType | label }}</dd>
+            <dt>{{ (o.isOpeningDue ? 'Due as of' : 'Order date') | t }}</dt><dd>{{ o.orderDate | date: 'dd MMM yyyy' }}</dd>
+            <dt>{{ 'Payment type' | t }}</dt><dd>{{ o.isOpeningDue ? ('Previous due' | t) : (o.paymentType | label) }}</dd>
             @if (o.notes) { <dt>{{ 'Notes' | t }}</dt><dd class="notes">{{ o.notes }}</dd> }
           </dl>
         </section>
       }
 
       <section class="card card-pad totals">
-        <div><span class="muted">{{ 'Order total' | t }}</span><strong>{{ o.totalAmount | money }}</strong></div>
+        <div><span class="muted">{{ (o.isOpeningDue ? 'Previous due' : 'Order total') | t }}</span><strong>{{ o.totalAmount | money }}</strong></div>
         <div><span class="muted">{{ 'Paid' | t }}</span><strong class="positive">{{ o.totalPaidAmount | money }}</strong></div>
         <div class="due"><span class="muted">{{ 'Due' | t }}</span><strong [class.negative]="o.dueAmount > 0">{{ o.dueAmount | money }}</strong></div>
         @if (o.postingStatus === 'DRAFT') { <div class="muted small">{{ 'Payments can be added after the order is finalized.' | t }}</div> }
       </section>
     </div>
 
-    <!-- ---------------------------------------------------------- line items -->
+    <!-- ---------------------------------------------------------- line items (a previous due has none) -->
+    @if (!o.isOpeningDue) {
     <section class="card section">
       <h2 class="card-title pad">{{ 'Line items' | t }} <span class="count">{{ o.lines.length }}</span></h2>
 
@@ -154,7 +173,7 @@
           <table mat-table [dataSource]="o.lines">
             <ng-container matColumnDef="no"><th mat-header-cell *matHeaderCellDef>#</th><td mat-cell *matCellDef="let l">{{ l.lineNumber }}</td></ng-container>
             <ng-container matColumnDef="product"><th mat-header-cell *matHeaderCellDef>{{ 'Product' | t }}</th><td mat-cell *matCellDef="let l">{{ l.productName }} <span class="code">{{ l.productCode }}</span></td></ng-container>
-            <ng-container matColumnDef="type"><th mat-header-cell *matHeaderCellDef>{{ 'Type' | t }}</th><td mat-cell *matCellDef="let l">{{ l.quantityType | t }}</td></ng-container>
+            <ng-container matColumnDef="type"><th mat-header-cell *matHeaderCellDef>{{ 'Type' | t }}</th><td mat-cell *matCellDef="let l">{{ l.quantityType | unit }}</td></ng-container>
             <ng-container matColumnDef="boxes"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Boxes' | t }}</th><td mat-cell *matCellDef="let l" class="num">{{ l.boxQuantity | qty }}@if (l.unitPerBoxSnapshot) { <span class="muted"> ×{{ l.unitPerBoxSnapshot }}</span> }</td></ng-container>
             <ng-container matColumnDef="pcs"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Quantity' | t }}</th><td mat-cell *matCellDef="let l" class="num nowrap">{{ l.totalQuantity | qty: l.baseUom }}</td></ng-container>
             <ng-container matColumnDef="perBox"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Per box' | t }}</th><td mat-cell *matCellDef="let l" class="num nowrap">{{ l.perBoxPrice === null ? '-' : (l.perBoxPrice | money: false) }}</td></ng-container>
@@ -172,6 +191,7 @@
         @if (o.lines.length === 0) { <div class="empty">{{ 'No line items. Edit the draft to add products.' | t }}</div> }
       }
     </section>
+    }
 
     <!-- ---------------------------------------------------------- payments -->
     <section class="card section">

@@ -1,6 +1,7 @@
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MAT_DIALOG_DATA, MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -12,16 +13,19 @@ import { MatSortModule } from '@angular/material/sort';
 import { MatTableModule } from '@angular/material/table';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
-import { ApiService } from '../../core/api.service';
+import { Observable, catchError, map, of } from 'rxjs';
+import { ApiService, dateToIso, errorMessage } from '../../core/api.service';
 import { AuthService } from '../../core/auth.service';
 import { LayoutService } from '../../core/layout.service';
-import { Paged, Party } from '../../core/models';
+import { OrderDetail, Paged, Party } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, bdMobileValidator, controlError } from '../../shared/form-errors';
 import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { t } from '../../core/i18n/i18n';
+import { formatMoney } from '../../shared/pipes';
+import { OpeningDueDialog, OpeningDueDialogData } from '../orders/opening-due-dialog';
 
 type PartyKind = 'customer' | 'supplier';
 
@@ -67,6 +71,7 @@ type PartyKind = 'customer' | 'supplier';
                     <a mat-menu-item [routerLink]="ordersLink()" [queryParams]="{ partyUuid: p.uuid, partyLabel: p.name + ' (' + p.code + ')' }">
                       <mat-icon>receipt_long</mat-icon>{{ 'View orders' | t }}
                     </a>
+                    <button mat-menu-item (click)="addPreviousDue(p)"><mat-icon>history</mat-icon>{{ 'Add previous due' | t }}</button>
                     <button mat-menu-item (click)="edit(p)"><mat-icon>edit</mat-icon>{{ 'Edit' | t }}</button>
                     @if (auth.isAdmin()) { <button mat-menu-item (click)="remove(p)"><mat-icon>delete</mat-icon>{{ 'Delete' | t }}</button> }
                   </mat-menu>
@@ -89,6 +94,7 @@ type PartyKind = 'customer' | 'supplier';
                 <th mat-header-cell *matHeaderCellDef></th>
                 <td mat-cell *matCellDef="let p" class="num nowrap">
                   <a mat-icon-button [matTooltip]="'Orders' | t" [routerLink]="ordersLink()" [queryParams]="{ partyUuid: p.uuid, partyLabel: p.name + ' (' + p.code + ')' }"><mat-icon>receipt_long</mat-icon></a>
+                  <button mat-icon-button [matTooltip]="'Add previous due' | t" (click)="addPreviousDue(p)"><mat-icon>history</mat-icon></button>
                   <button mat-icon-button [matTooltip]="'Edit' | t" (click)="edit(p)"><mat-icon>edit</mat-icon></button>
                   @if (auth.isAdmin()) {
                     <button mat-icon-button [matTooltip]="'Delete' | t" (click)="remove(p)"><mat-icon>delete</mat-icon></button>
@@ -140,6 +146,12 @@ export class PartiesPage implements OnInit {
       .subscribe((saved) => saved && this.list.resetToFirstPage());
   }
 
+  /** Records what this customer or supplier owed before the business started using the app. */
+  addPreviousDue(p: Party): void {
+    const data: OpeningDueDialogData = { kind: this.kind() === 'customer' ? 'sales' : 'purchase', party: { uuid: p.uuid, name: p.name, code: p.code } };
+    this.dialog.open(OpeningDueDialog, this.layout.dialog(data, '520px'));
+  }
+
   remove(p: Party): void {
     this.notify.confirm({ title: this.kind() === 'customer' ? 'Delete customer' : 'Delete supplier', message: t('Delete {name} ({code})? Existing orders keep their history.', { name: p.name, code: p.code }), confirmText: 'Delete', danger: true })
       .subscribe((ok) => {
@@ -154,7 +166,7 @@ export class PartiesPage implements OnInit {
 
 @Component({
   selector: 'app-party-dialog',
-  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatSlideToggleModule],
+  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatIconModule, MatSlideToggleModule, MatDatepickerModule],
   template: `
     <h2 mat-dialog-title>{{ dialogTitle | t }} @if (data.party) { <span class="code">#{{ data.party.code }}</span> }</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
@@ -177,6 +189,33 @@ export class PartiesPage implements OnInit {
           </div>
           <mat-slide-toggle formControlName="smsEnabled" [attr.aria-label]="'SMS' | t" />
         </div>
+        @if (!p) {
+          <!-- A business moving to the app brings its old dues along without the old orders. -->
+          <div class="prev-due">
+            <div class="prev-due-head">
+              <mat-icon>history</mat-icon>
+              <div>
+                <div class="switch-title">{{ 'Previous due (optional)' | t }}</div>
+                <div class="switch-hint">{{ (data.kind === 'customer'
+                  ? 'Did this customer already owe you money before you started using the app? Enter it here.'
+                  : 'Did you already owe this supplier money before you started using the app? Enter it here.') | t }}</div>
+              </div>
+            </div>
+            <div class="form-grid">
+              <mat-form-field floatLabel="always">
+                <mat-label>{{ 'Previous due' | t }}</mat-label>
+                <span matTextPrefix>Tk&nbsp;</span>
+                <input matInput type="number" min="0" step="0.01" formControlName="previousDue" placeholder="0" />
+                <mat-error>{{ err('previousDue', 'Previous due') }}</mat-error>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>{{ 'Due as of' | t }}</mat-label>
+                <input matInput [matDatepicker]="pdp" formControlName="previousDueDate" />
+                <mat-datepicker-toggle matIconSuffix [for]="pdp" /><mat-datepicker #pdp />
+              </mat-form-field>
+            </div>
+          </div>
+        }
         @if (error()) { <p class="negative">{{ error() | t }}</p> }
       </mat-dialog-content>
       <mat-dialog-actions align="end">
@@ -184,6 +223,13 @@ export class PartiesPage implements OnInit {
         <button mat-flat-button type="submit" [disabled]="busy()">{{ 'Save' | t }}</button>
       </mat-dialog-actions>
     </form>
+  `,
+  styles: `
+    .prev-due { margin-top: 14px; padding: 12px 14px 0; border: 1px dashed var(--erp-border); border-radius: 12px; }
+    .prev-due-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+    .prev-due-head mat-icon { color: var(--erp-chip-warn-fg); flex: none; }
+    .prev-due-head .switch-title { display: block; font-weight: 600; }
+    .prev-due-head .switch-hint { display: block; font-size: 12.5px; color: var(--erp-muted); }
   `,
 })
 export class PartyDialog {
@@ -193,7 +239,7 @@ export class PartyDialog {
   private readonly notify = inject(NotifyService);
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
-  private readonly p = this.data.party;
+  readonly p = this.data.party;
   readonly dialogTitle = this.data.kind === 'customer'
     ? (this.p ? 'Edit customer' : 'New customer')
     : (this.p ? 'Edit supplier' : 'New supplier');
@@ -207,6 +253,9 @@ export class PartyDialog {
     state: [this.p?.state ?? ''],
     postalCode: [this.p?.postalCode ?? ''],
     smsEnabled: [this.p?.smsEnabled ?? true],
+    // New customer or supplier only: what they owed before the business used the app.
+    previousDue: [null as number | null, [Validators.min(0)]],
+    previousDueDate: [new Date() as Date | null],
   });
 
   err(name: string, label: string): string {
@@ -217,11 +266,36 @@ export class PartyDialog {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.busy.set(true);
     const path = this.data.kind === 'customer' ? '/customers' : '/suppliers';
-    const body = { ...this.form.getRawValue(), revision: this.p?.revision ?? null };
+    const { previousDue, previousDueDate, ...fields } = this.form.getRawValue();
+    const body = { ...fields, revision: this.p?.revision ?? null };
     const req = this.p ? this.api.put<Party>(`${path}/${this.p.uuid}`, body) : this.api.post<Party>(path, body);
     req.subscribe({
-      next: (saved) => { this.notify.success('Saved {name} ({code}).', { name: saved.name, code: saved.code }); this.ref.close(saved); },
+      next: (saved) => {
+        if (this.p || !previousDue || previousDue <= 0) {
+          this.notify.success('Saved {name} ({code}).', { name: saved.name, code: saved.code });
+          this.ref.close(saved);
+          return;
+        }
+        // The customer or supplier is saved; their previous due goes in as a second step.
+        this.savePreviousDue(saved, previousDue, previousDueDate).subscribe((ok) => {
+          if (ok) this.notify.success('Saved {name} ({code}) with a previous due of {amount}.', { name: saved.name, code: saved.code, amount: formatMoney(previousDue) });
+          this.ref.close(saved);
+        });
+      },
       error: (e) => { this.error.set(applyServerErrors(this.form, e)); this.busy.set(false); },
     });
+  }
+
+  /** True when saved. On failure the party stays saved and the user is told to add the due from the list. */
+  private savePreviousDue(party: Party, amount: number, date: Date | null): Observable<boolean> {
+    const api = this.data.kind === 'customer' ? '/sales-orders' : '/purchase-orders';
+    return this.api.post<OrderDetail>(`${api}/opening-due`, { partyUuid: party.uuid, amount, dueDate: dateToIso(date) }).pipe(
+      map(() => true),
+      catchError((e) => {
+        this.notify.error('{name} was saved, but the previous due was not ({reason}). Use "Add previous due" in the list to add it.',
+          { name: party.name, reason: errorMessage(e) });
+        return of(false);
+      }),
+    );
   }
 }

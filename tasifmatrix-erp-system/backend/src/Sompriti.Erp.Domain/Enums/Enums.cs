@@ -15,9 +15,14 @@ public enum Role { Admin, Manager, User, SuperAdmin }
 /// </summary>
 public enum TenantStatus { Active, Suspended, Closed }
 
-public enum Uom { Pcs, Box, Kg, Litre }
+/// <summary>
+/// Unit of measure. KG and LITRE are measured (fractions allowed); every other unit is counted
+/// in whole numbers. Stored as text: PCS, BOX, KG, LITRE, DOZEN, PACKET, TIN, JAR, DRUM.
+/// </summary>
+public enum Uom { Pcs, Box, Kg, Litre, Dozen, Packet, Tin, Jar, Drum }
 
-public enum QuantityType { Pcs, Box, Kg, Litre }
+/// <summary>How a line was entered: by the box, or in the product's base unit (any Uom except BOX).</summary>
+public enum QuantityType { Pcs, Box, Kg, Litre, Dozen, Packet, Tin, Jar, Drum }
 
 public enum PaymentType { Cash, Due, Installment }
 

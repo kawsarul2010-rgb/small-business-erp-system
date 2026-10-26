@@ -152,7 +152,7 @@ const EN: GuideSection[] = [
         shot: 'product-form',
         steps: [
           'Product name and a code you recognise, for example SOAP-01.',
-          'Unit: PCS (pieces), KG, LITRE or BOX. Stock is counted in this unit.',
+          'Unit: PCS (pieces), KG, LITRE, BOX, DOZEN, PACKET, TIN, JAR or DRUM. Stock is counted in this unit. Only KG and LITRE can have fractions such as 2.5.',
           'For BOX: what one box holds — for example 12 pieces per box. Then you can sell by the box or by the piece.',
           'Purchase price per unit (per piece, kg or litre).',
           'Sales price per unit. Orders fill in both prices for you; you can still change them on each order. Scroll down for the low stock alert (optional), then tap Save.',
@@ -175,7 +175,10 @@ const EN: GuideSection[] = [
         ],
       },
     ],
-    tips: ['Suppliers are added the same way under More → Suppliers (admins).'],
+    tips: [
+      'Suppliers are added the same way under More → Suppliers (admins).',
+      'Old dues from before you started the app: when you add a customer, fill in Previous due at the bottom of the form. For a customer you already added, tap ⋮ → Add previous due. It shows in the order list and the due report, does not change stock, and you collect it with Add payment.',
+    ],
   },
   {
     id: 'sales', icon: 'point_of_sale', title: 'Create a sales order', roles: STAFF,
@@ -499,6 +502,7 @@ const EN: GuideSection[] = [
       { q: 'How do I add my staff?', a: 'Share your business code. They choose Join a business when they create an account; then give them a role on the Users page.' },
       { q: 'Can I use it on my phone and on a computer?', a: 'Yes. Install the Android app or open tasifmatrix.com.bd, and log in with the same email and password.' },
       { q: 'How do I sell by box and by piece?', a: 'Set the product\'s unit to BOX and say how many pieces one box holds. On each order line choose BOX or pieces.' },
+      { q: 'Customers owed me money before I started the app. How do I enter it?', a: 'You do not need the old orders. Open More → Customers, tap ⋮ next to the customer → Add previous due, and enter the amount. A new customer\'s previous due can be entered right in the New customer form. Suppliers work the same way.' },
       { q: 'Can I enter an order for another day?', a: 'Yes. Change the order date when you make the order — earlier or later dates are both allowed. A payment cannot be dated before its order.' },
       { q: 'How do I print on a POS (receipt) printer?', a: 'On a computer: open the order, click Print → POS receipt, choose 80 mm or 58 mm paper and click Print receipt. In the print window choose your receipt printer, Margins None and Scale 100%.' },
       { q: 'Is my business data private?', a: 'Yes. Each business sees only its own data, and the connection is encrypted. You can delete your account at any time from My profile.' },
@@ -602,7 +606,7 @@ const BN: GuideSection[] = [
         shot: 'product-form',
         steps: [
           'পণ্যের নাম এবং চেনার মতো একটি কোড, যেমন SOAP-01।',
-          'একক: পিস, কেজি, লিটার বা বক্স। স্টক এই এককে গোনা হয়।',
+          'একক: পিস, কেজি, লিটার, বক্স, ডজন, প্যাকেট, টিন, জার বা ড্রাম। স্টক এই এককে গোনা হয়। শুধু কেজি ও লিটারে ২.৫-এর মতো ভগ্নাংশ দেওয়া যায়।',
           'বক্স হলে: এক বক্সে কী থাকে — যেমন প্রতি বক্সে ১২ পিস। তখন বক্স হিসেবে বা পিস হিসেবে দুইভাবেই বিক্রি করা যায়।',
           'প্রতি এককের ক্রয়মূল্য (প্রতি পিস, কেজি বা লিটার)।',
           'প্রতি এককের বিক্রয়মূল্য। অর্ডারে দুটো দাম নিজে থেকে বসে যায়; প্রতিটি অর্ডারে চাইলে বদলাতে পারেন। নিচে স্ক্রল করে কম স্টক সতর্কতা দিন (ঐচ্ছিক), তারপর "সংরক্ষণ" চাপুন।',
@@ -625,7 +629,10 @@ const BN: GuideSection[] = [
         ],
       },
     ],
-    tips: ['সরবরাহকারী একইভাবে আরও → সরবরাহকারী থেকে যোগ করুন (অ্যাডমিন)।'],
+    tips: [
+      'সরবরাহকারী একইভাবে আরও → সরবরাহকারী থেকে যোগ করুন (অ্যাডমিন)।',
+      'অ্যাপ শুরুর আগের পুরোনো বাকি: গ্রাহক যোগ করার সময় ফর্মের নিচে "আগের বাকি" ঘরে টাকার পরিমাণ লিখুন। আগে যোগ করা গ্রাহকের জন্য ⋮ → "আগের বাকি যোগ করুন" চাপুন। এটি অর্ডারের তালিকা ও বাকির রিপোর্টে দেখা যায়, স্টক বদলায় না, আর "পেমেন্ট যোগ করুন" দিয়ে আদায় করা হয়।',
+    ],
   },
   {
     id: 'sales', icon: 'point_of_sale', title: 'বিক্রয় অর্ডার তৈরি', roles: STAFF,
@@ -949,6 +956,7 @@ const BN: GuideSection[] = [
       { q: 'কর্মীদের কীভাবে যোগ করব?', a: 'আপনার ব্যবসার কোড দিন। অ্যাকাউন্ট খোলার সময় তারা "একটি ব্যবসায় যোগ দিন" বেছে নেবেন; তারপর ব্যবহারকারী পাতা থেকে তাদের ভূমিকা দিন।' },
       { q: 'ফোন ও কম্পিউটার দুটোতেই চালানো যাবে?', a: 'হ্যাঁ। অ্যান্ড্রয়েড অ্যাপ ইনস্টল করুন বা tasifmatrix.com.bd খুলুন, এবং একই ইমেইল ও পাসওয়ার্ড দিয়ে লগ ইন করুন।' },
       { q: 'বক্স ও পিস দুইভাবে কীভাবে বিক্রি করব?', a: 'পণ্যের একক "বক্স" দিন এবং এক বক্সে কত পিস তা লিখুন। প্রতিটি অর্ডার লাইনে বক্স বা পিস বেছে নিন।' },
+      { q: 'অ্যাপ শুরুর আগেই গ্রাহকদের কাছে টাকা বাকি ছিল। সেটা কীভাবে লিখব?', a: 'পুরোনো অর্ডার লাগবে না। আরও → গ্রাহক খুলে গ্রাহকের পাশের ⋮ → "আগের বাকি যোগ করুন" চাপুন এবং টাকার পরিমাণ লিখুন। নতুন গ্রাহকের আগের বাকি "নতুন গ্রাহক" ফর্মেই লেখা যায়। সরবরাহকারীর বেলায়ও একই নিয়ম।' },
       { q: 'অন্য দিনের অর্ডার কি লেখা যায়?', a: 'হ্যাঁ। অর্ডার তৈরির সময় তারিখ বদলে দিন — আগের বা পরের দুই রকম তারিখই দেওয়া যায়। তবে পেমেন্টের তারিখ অর্ডারের তারিখের আগে হতে পারে না।' },
       { q: 'POS (রসিদ) প্রিন্টারে কীভাবে প্রিন্ট করব?', a: 'কম্পিউটারে: অর্ডারটি খুলুন, প্রিন্ট → POS রসিদ চাপুন, 80 mm বা 58 mm কাগজ বেছে নিয়ে "রসিদ প্রিন্ট করুন" চাপুন। প্রিন্ট উইন্ডোতে আপনার রসিদ প্রিন্টার বেছে নিন, Margins None ও Scale 100% দিন।' },
       { q: 'আমার ব্যবসার তথ্য কি গোপন থাকে?', a: 'হ্যাঁ। প্রতিটি ব্যবসা শুধু নিজের তথ্য দেখে, এবং সংযোগ এনক্রিপ্টেড। আমার প্রোফাইল থেকে যেকোনো সময় অ্যাকাউন্ট মুছে ফেলতে পারেন।' },

@@ -1,4 +1,5 @@
-import { t } from '../core/i18n/i18n';
+import { Pipe, PipeTransform } from '@angular/core';
+import { currentLang, t } from '../core/i18n/i18n';
 import { QuantityType, Uom } from '../core/models';
 
 /**
@@ -12,8 +13,9 @@ import { QuantityType, Uom } from '../core/models';
  *   BOX + LITRE + 5   -> a 5 litre tin
  *
  * The BASE unit - what stock is counted in and prices are quoted in - is the secondary unit
- * for a BOX product, and the product's own unit otherwise. PCS and BOX are counted in whole
- * units; KG and LITRE are measured, so they carry up to three decimals.
+ * for a BOX product, and the product's own unit otherwise. KG and LITRE are measured, so they
+ * carry up to three decimals; every other unit (PCS, BOX, DOZEN, PACKET, TIN, JAR, DRUM) is
+ * counted in whole units.
  */
 
 /** A product's unit, as the order editor and product form need it. */
@@ -23,12 +25,12 @@ export interface UnitInfo {
   unitPerBox?: number | null;
 }
 
-export const UOM_OPTIONS: readonly Uom[] = ['PCS', 'BOX', 'KG', 'LITRE'];
+export const UOM_OPTIONS: readonly Uom[] = ['PCS', 'BOX', 'KG', 'LITRE', 'DOZEN', 'PACKET', 'TIN', 'JAR', 'DRUM'];
 
-/** What a box may contain - anything except another box. */
-export const SECONDARY_UOM_OPTIONS: readonly Uom[] = ['PCS', 'KG', 'LITRE'];
+/** What a box may contain - anything except another box (a carton of 12 jars, say). */
+export const SECONDARY_UOM_OPTIONS: readonly Uom[] = UOM_OPTIONS.filter((u) => u !== 'BOX');
 
-/** KG and LITRE can be half a unit; pieces and boxes cannot. */
+/** KG and LITRE can be half a unit; every counted unit (pieces, boxes, jars...) cannot. */
 export function allowsFractions(unit: Uom | QuantityType | null | undefined): boolean {
   return unit === 'KG' || unit === 'LITRE';
 }
@@ -80,8 +82,37 @@ function unitKey(unit: Uom | QuantityType | null | undefined): string {
       return 'kg';
     case 'LITRE':
       return 'litre';
+    case 'DOZEN':
+      return 'dozen';
+    case 'PACKET':
+      return 'packet';
+    case 'TIN':
+      return 'tin';
+    case 'JAR':
+      return 'jar';
+    case 'DRUM':
+      return 'drum';
     default:
       return 'pcs';
+  }
+}
+
+/**
+ * A unit's name for a picker or a table: the code in English ("KG", "TIN") and the Bangla word
+ * in Bangla. Looked up by its title-case key ("Tin"), because "TIN" alone is also the tax
+ * number field.
+ */
+export function unitName(unit: Uom | QuantityType | null | undefined): string {
+  if (!unit) return '';
+  if (currentLang() !== 'bn') return unit;
+  return t(unit.charAt(0) + unit.slice(1).toLowerCase());
+}
+
+/** {{ p.uom | unit }} - impure so it follows a language switch. */
+@Pipe({ name: 'unit', pure: false })
+export class UnitPipe implements PipeTransform {
+  transform(unit: Uom | QuantityType | null | undefined): string {
+    return unitName(unit);
   }
 }
 

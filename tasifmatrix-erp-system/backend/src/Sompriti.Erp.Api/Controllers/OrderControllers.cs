@@ -51,6 +51,18 @@ public sealed class PurchaseOrdersController(PurchaseOrderService service, PdfMa
     [HttpPut("{id:guid}"), Authorize(Roles = Roles.Admin)]
     public Task<OrderDetailDto> Update(Guid id, OrderSaveRequest r, CancellationToken ct) => service.UpdateAsync(id, r, ct);
 
+    /// <summary>Records a supplier's previous due ("আগের বাকি") without the old orders.</summary>
+    [HttpPost("opening-due"), Authorize(Roles = Roles.Admin)]
+    public async Task<ActionResult<OrderDetailDto>> CreateOpeningDue(OpeningDueRequest r, CancellationToken ct)
+    {
+        var dto = await service.CreateOpeningDueAsync(r, ct);
+        return CreatedAtAction(nameof(Get), new { id = dto.Uuid }, dto);
+    }
+
+    [HttpPut("{id:guid}/opening-due"), Authorize(Roles = Roles.Admin)]
+    public Task<OrderDetailDto> UpdateOpeningDue(Guid id, OpeningDueUpdateRequest r, CancellationToken ct) =>
+        service.UpdateOpeningDueAsync(id, r, ct);
+
     [HttpDelete("{id:guid}"), Authorize(Roles = Roles.Admin)]
     public async Task<IActionResult> Delete(Guid id, [FromQuery] Guid revision, CancellationToken ct)
     {
@@ -123,6 +135,19 @@ public sealed class SalesOrdersController(SalesOrderService service, PdfMailer m
 
     [HttpPut("{id:guid}"), Authorize(Roles = Roles.AdminOrManager)]
     public Task<OrderDetailDto> Update(Guid id, OrderSaveRequest r, CancellationToken ct) => service.UpdateAsync(id, r, ct);
+
+    /// <summary>Records a customer's previous due ("আগের বাকি") without the old orders.</summary>
+    [HttpPost("opening-due"), Authorize(Roles = Roles.AdminOrManager)]
+    public async Task<ActionResult<OrderDetailDto>> CreateOpeningDue(OpeningDueRequest r, CancellationToken ct)
+    {
+        var dto = await service.CreateOpeningDueAsync(r, ct);
+        return CreatedAtAction(nameof(Get), new { id = dto.Uuid }, dto);
+    }
+
+    /// <summary>Changing a recorded amount is like voiding: ADMIN only.</summary>
+    [HttpPut("{id:guid}/opening-due"), Authorize(Roles = Roles.Admin)]
+    public Task<OrderDetailDto> UpdateOpeningDue(Guid id, OpeningDueUpdateRequest r, CancellationToken ct) =>
+        service.UpdateOpeningDueAsync(id, r, ct);
 
     [HttpDelete("{id:guid}"), Authorize(Roles = Roles.AdminOrManager)]
     public async Task<IActionResult> Delete(Guid id, [FromQuery] Guid revision, CancellationToken ct)

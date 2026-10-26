@@ -32,7 +32,7 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
         // ---------------------------------------------------------------- header
         var y = Margin;
         pdf.Text(Margin, y, Fit(company.CompanyName, 300, 16, true), 16, bold: true);
-        pdf.Text(Right, y + 2, isSales ? "SALES INVOICE" : "PURCHASE ORDER", 14, bold: true, align: Align.Right);
+        pdf.Text(Right, y + 2, order.IsOpeningDue ? "PREVIOUS DUE" : isSales ? "SALES INVOICE" : "PURCHASE ORDER", 14, bold: true, align: Align.Right);
         y += 22;
 
         var companyLines = new List<string>();
@@ -48,7 +48,7 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
             ("No:", order.OrderNumber),
             ("Date:", order.OrderDate.ToString("dd MMM yyyy", Inv)),
             ("Status:", EnumText.ToText(order.PostingStatus)),
-            ("Payment Type:", EnumText.ToText(order.PaymentType)),
+            ("Payment Type:", order.IsOpeningDue ? "Previous due" : EnumText.ToText(order.PaymentType)),
         };
 
         var metaY = y;
@@ -123,7 +123,10 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
         }
         if (order.Lines.Count == 0)
         {
-            pdf.Text(Margin + 4, y + 4, "No line items.", 9, gray: 0.4f);
+            // A previous due carries an amount owed from before the business used the app, no products.
+            pdf.Text(Margin + 4, y + 4, order.IsOpeningDue
+                ? "Previous due, carried forward from before this account was opened."
+                : "No line items.", 9, gray: 0.4f);
             y += RowHeight;
         }
 
@@ -132,7 +135,7 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
         if (y + 60 > BottomLimit) { pdf.NewPage(); if (watermark is not null) pdf.Watermark(watermark); y = Margin; }
         foreach (var (label, value, strong) in new[]
                  {
-                     ("Order Total", order.TotalAmount, true),
+                     (order.IsOpeningDue ? "Previous Due" : "Order Total", order.TotalAmount, true),
                      ("Total Paid", order.TotalPaidAmount, false),
                      ("Due Amount", order.DueAmount, true),
                  })

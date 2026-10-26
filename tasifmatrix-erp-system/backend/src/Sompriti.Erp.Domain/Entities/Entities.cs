@@ -363,6 +363,12 @@ public abstract class OrderHeader : SoftDeletableEntity, ITenantOwned
     /// added. Also needs SMS on for the business and for the party.
     /// </summary>
     public bool SendSms { get; set; }
+    /// <summary>
+    /// Previous due ("আগের বাকি") recorded when the business started using the app: a FINAL order
+    /// with no line items that only carries an amount owed. It never moves stock and is left out
+    /// of sales/purchase totals and order counts, but counts towards dues.
+    /// </summary>
+    public bool IsOpeningDue { get; set; }
 
     public decimal DueAmount => TotalAmount - TotalPaidAmount;
 }

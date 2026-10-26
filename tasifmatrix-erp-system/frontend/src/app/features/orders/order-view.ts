@@ -27,12 +27,14 @@ import { openSharePdfDialog } from '../../shared/share-pdf-dialog';
 import { PosReceiptDialog } from '../../shared/pos-receipt';
 import { StatusChip } from '../../shared/status-chip';
 import { orderMeta } from './order-kind';
+import { UnitPipe } from '../../shared/units';
+import { OpeningDueDialog, OpeningDueDialogData } from './opening-due-dialog';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TParams, t } from '../../core/i18n/i18n';
 
 @Component({
   selector: 'app-order-view',
-  imports: [TranslatePipe, RouterLink, DatePipe, MatTableModule, MatButtonModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule, MatSlideToggleModule, StatusChip, MoneyPipe, QtyPipe, LabelPipe],
+  imports: [TranslatePipe, RouterLink, DatePipe, MatTableModule, MatButtonModule, MatIconModule, MatMenuModule, MatProgressBarModule, MatTooltipModule, MatSlideToggleModule, StatusChip, MoneyPipe, QtyPipe, LabelPipe, UnitPipe],
   templateUrl: './order-view.html',
   styleUrl: './order-view.scss',
 })
@@ -63,6 +65,14 @@ export class OrderViewPage implements OnInit {
   readonly isFinal = computed(() => this.order()?.postingStatus === 'FINAL');
   /** Lines of a draft can be removed here, without opening the editor. */
   readonly canRemoveLines = computed(() => this.canWrite() && this.isDraft());
+  /** A previous due ("আগের বাকি"): an amount owed from before the business used the app, no lines. */
+  readonly isOpeningDue = computed(() => !!this.order()?.isOpeningDue);
+  /** Correcting a recorded amount is like voiding: ADMIN only. */
+  readonly canEditOpeningDue = computed(() => this.isOpeningDue() && this.isFinal() && this.auth.isAdmin());
+  /** Heading, PDF name and share text: a previous due is not an invoice or a purchase order. */
+  readonly docTitle = computed(() => this.isOpeningDue()
+    ? 'Previous due #{no}'
+    : this.kind() === 'purchase' ? 'Purchase order #{no}' : 'Sales order #{no}');
   readonly lineColumns = computed(() => {
     const cols = ['no', 'product', 'type', 'boxes', 'pcs', 'perBox', 'perPcs', 'total'];
     return this.canRemoveLines() ? [...cols, 'remove'] : cols;
@@ -154,6 +164,13 @@ export class OrderViewPage implements OnInit {
     });
   }
 
+  editOpeningDue(): void {
+    const data: OpeningDueDialogData = { kind: this.kind(), order: this.order()! };
+    this.dialog.open(OpeningDueDialog, this.layout.dialog(data, '520px')).afterClosed().subscribe((updated?: OrderDetail) => {
+      if (updated) this.order.set(updated);
+    });
+  }
+
   addPayment(): void {
     const o = this.order()!;
     this.dialog.open(PaymentDialog, this.layout.dialog({ order: o, api: this.meta().api }, '520px')).afterClosed().subscribe((updated?: OrderDetail) => {
@@ -179,7 +196,7 @@ export class OrderViewPage implements OnInit {
   pdf(download: boolean): void {
     const o = this.order()!;
     this.busy.set(true);
-    const fileName = `${this.kind() === 'sales' ? 'sales-invoice' : 'purchase-order'}-${o.orderNumber}.pdf`;
+    const fileName = `${this.filePrefix()}-${o.orderNumber}.pdf`;
     this.api.blob(`${this.meta().api}/${o.uuid}/pdf`).subscribe({
       next: async (blob) => {
         try {
@@ -206,7 +223,7 @@ export class OrderViewPage implements OnInit {
    */
   share(): void {
     const o = this.order()!;
-    const title = `${this.kind() === 'sales' ? 'Sales invoice' : 'Purchase order'} #${o.orderNumber}`;
+    const title = `${this.isOpeningDue() ? 'Previous due' : this.kind() === 'sales' ? 'Sales invoice' : 'Purchase order'} #${o.orderNumber}`;
     this.busy.set(true);
     openSharePdfDialog(
       { api: this.api, dialog: this.dialog, layout: this.layout, notify: this.notify },
@@ -214,12 +231,16 @@ export class OrderViewPage implements OnInit {
       {},
       {
         title,
-        fileName: `${this.kind() === 'sales' ? 'sales-invoice' : 'purchase-order'}-${o.orderNumber}.pdf`,
+        fileName: `${this.filePrefix()}-${o.orderNumber}.pdf`,
         mobileNumber: o.party.mobileNumber,
         message: `${title} for ${o.party.name}. Total ${formatMoney(o.totalAmount)}, due ${formatMoney(o.dueAmount)}.`,
       },
       () => this.busy.set(false),
     );
+  }
+
+  private filePrefix(): string {
+    return this.isOpeningDue() ? 'previous-due' : this.kind() === 'sales' ? 'sales-invoice' : 'purchase-order';
   }
 
   private run(req: Observable<OrderDetail>, message: string, params?: TParams): void {
@@ -345,6 +366,8 @@ export class PaymentDialog {
       @if (data.order.postingStatus === 'FINAL') {
         @if (data.order.payments.length > 0) {
           <p class="negative">{{ 'This order has {n} payment(s). Remove all payments before voiding.' | t: { n: data.order.payments.length } }}</p>
+        } @else if (data.order.isOpeningDue) {
+          <p>{{ 'This previous due will be marked VOID and no longer counts as owed. Stock is not affected. This cannot be undone.' | t }}</p>
         } @else {
           <p>{{ (data.kind === 'sales'
             ? 'Voiding reverses the stock movement: stock will be added back. This cannot be undone.'

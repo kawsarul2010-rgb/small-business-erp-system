@@ -2,6 +2,8 @@
 .title { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .busy { margin: -8px 0 8px; }
 .void-banner { display: flex; gap: 12px; align-items: center; background: var(--erp-chip-danger-bg); color: var(--erp-chip-danger-fg); margin-bottom: 16px; }
+.prev-due-banner { display: flex; gap: 12px; align-items: flex-start; background: var(--erp-chip-warn-bg); color: var(--erp-chip-warn-fg); margin-bottom: 16px; line-height: 1.5; }
+.prev-due-banner mat-icon { flex: none; }
 
 .summary { display: grid; grid-template-columns: 1fr 1.2fr 0.9fr; gap: 16px; margin-bottom: 16px; }
 .party-name { font-size: 17px; font-weight: 600; margin-bottom: 4px; }

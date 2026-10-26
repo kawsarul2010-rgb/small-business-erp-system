@@ -67,6 +67,9 @@ export function receiptHtml(r: OrderReceipt, paper: PaperWidth): string {
   const o = r.order;
   const b = r.business;
   const sales = o.transactionType === 'SALES';
+  // A previous due is owed money from before the business used the app: no products, no invoice.
+  const prev = o.isOpeningDue;
+  const docTitle = prev ? t('Previous due') : sales ? t('Sales invoice') : t('Purchase order');
   const small = paper === 58;
   const money = (v: number) => formatMoney(v, false);
   const fontUrl = (w: number) => new URL(`fonts/noto-sans-bengali-${w}.woff2`, document.baseURI).href;
@@ -89,7 +92,7 @@ export function receiptHtml(r: OrderReceipt, paper: PaperWidth): string {
   const printed = nowText();
 
   return `<!doctype html><html lang="${currentLang()}"><head><meta charset="utf-8">
-<title>${esc(sales ? t('Sales invoice') : t('Purchase order'))} ${esc(o.orderNumber)}</title>
+<title>${esc(docTitle)} ${esc(o.orderNumber)}</title>
 <style>
 @font-face { font-family: 'Noto Sans Bengali'; font-weight: 400; src: url('${fontUrl(400)}') format('woff2'); unicode-range: U+0980-09FE, U+0964-0965, U+200C-200D, U+25CC; }
 @font-face { font-family: 'Noto Sans Bengali'; font-weight: 700; src: url('${fontUrl(700)}') format('woff2'); unicode-range: U+0980-09FE, U+0964-0965, U+200C-200D, U+25CC; }
@@ -127,27 +130,27 @@ hr.solid { border-top: 1.5px solid #000; }
 ${b.address ? `<div class="sub">${esc(b.address)}</div>` : ''}
 ${contact ? `<div class="sub">${contact}</div>` : ''}
 ${b.licenseNumber ? `<div class="sub">${esc(t('License'))}: ${esc(b.licenseNumber)}</div>` : ''}
-<div class="title">${esc(sales ? t('Sales invoice') : t('Purchase order'))}</div>
+<div class="title">${esc(docTitle)}</div>
 ${status ? `<div class="status">${esc(status)}</div>` : ''}
 <hr>
 <div class="meta">
-  <div class="row"><span>${esc(sales ? t('Invoice no.') : t('Order no.'))}</span><span class="v"><b>${esc(o.orderNumber)}</b></span></div>
+  <div class="row"><span>${esc(sales && !prev ? t('Invoice no.') : t('Order no.'))}</span><span class="v"><b>${esc(o.orderNumber)}</b></span></div>
   <div class="row"><span>${esc(t('Date'))}</span><span class="v">${dateText(o.orderDate)}</span></div>
   <div class="row"><span>${esc(sales ? t('Customer') : t('Supplier'))}</span><span class="v">${party}</span></div>
   ${o.party.mobileNumber ? `<div class="row"><span>${esc(t('Mobile'))}</span><span class="v">${esc(o.party.mobileNumber)}</span></div>` : ''}
-  <div class="row"><span>${esc(t('Payment'))}</span><span class="v">${esc(enumLabel(o.paymentType))}</span></div>
+  <div class="row"><span>${esc(t('Payment'))}</span><span class="v">${esc(prev ? t('Previous due') : enumLabel(o.paymentType))}</span></div>
 </div>
 <hr>
-${lines || `<div class="c">${esc(t('No line items.'))}</div>`}
+${lines || `<div class="c">${esc(prev ? t('Carried forward from before this account was opened.') : t('No line items.'))}</div>`}
 <hr class="solid">
 <div class="row grand"><span>${esc(t('Total'))}</span><span class="amt">Tk ${money(o.totalAmount)}</span></div>
 <div class="row tot"><span>${esc(t('Paid'))}</span><span class="amt">${money(o.totalPaidAmount)}</span></div>
 <div class="row tot due"><span>${esc(t('Due'))}</span><span class="amt">${money(o.dueAmount)}</span></div>
-<div class="count">${esc(t('{n} item(s)', { n: o.lines.length }))}</div>
+${prev ? '' : `<div class="count">${esc(t('{n} item(s)', { n: o.lines.length }))}</div>`}
 ${o.notes ? `<hr><div class="note">${esc(t('Note'))}: ${esc(o.notes)}</div>` : ''}
 <hr>
 <div class="foot">
-  ${sales ? `<div class="thanks">${esc(t('Thank you for your purchase!'))}</div>` : ''}
+  ${sales && !prev ? `<div class="thanks">${esc(t('Thank you for your purchase!'))}</div>` : ''}
   <div>${esc(t('Printed {date}', { date: printed }))}</div>
   <div class="by">${esc(t('Powered by {app}', { app: APP_INFO.name }))} · tasifmatrix.com.bd</div>
 </div>

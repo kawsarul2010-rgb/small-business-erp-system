@@ -5,8 +5,8 @@ export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'USER';
 /** CLOSED: the business's last admin deleted it; its records are gone and it cannot be reopened. */
 export type BusinessStatus = 'ACTIVE' | 'SUSPENDED' | 'CLOSED';
 export type RecordStatus = 'ACTIVE' | 'DELETED';
-export type Uom = 'PCS' | 'BOX' | 'KG' | 'LITRE';
-export type QuantityType = 'PCS' | 'BOX' | 'KG' | 'LITRE';
+export type Uom = 'PCS' | 'BOX' | 'KG' | 'LITRE' | 'DOZEN' | 'PACKET' | 'TIN' | 'JAR' | 'DRUM';
+export type QuantityType = Uom;
 export type PaymentType = 'CASH' | 'DUE' | 'INSTALLMENT';
 export type PostingStatus = 'DRAFT' | 'FINAL' | 'VOID';
 export type TransactionType = 'PURCHASE' | 'SALES';
@@ -199,6 +199,8 @@ export interface OrderListItem {
   createdDate: string;
   createdByUserName: string;
   revision: string;
+  /** Previous due ("আগের বাকি") recorded when the business started: an amount owed, no line items. */
+  isOpeningDue: boolean;
 }
 
 export interface OrderLine {
@@ -253,6 +255,8 @@ export interface OrderDetail extends Audited {
   sendSms: boolean;
   /** Set when no SMS goes out even with sendSms on (business or party switched SMS off). */
   smsBlockedReason: string | null;
+  /** Previous due ("আগের বাকি") recorded when the business started: an amount owed, no line items. */
+  isOpeningDue: boolean;
 }
 
 /** GET {orders}/{id}/receipt: the order and the business heading its POS receipt. */

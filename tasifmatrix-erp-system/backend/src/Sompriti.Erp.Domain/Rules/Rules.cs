@@ -18,8 +18,9 @@ public static class Money
 }
 
 /// <summary>
-/// Quantity rules. PCS and BOX are counted in whole units; KG and LITRE are measured and
-/// carry up to three decimal places, which covers grams and millilitres.
+/// Quantity rules. KG and LITRE are measured and carry up to three decimal places, which covers
+/// grams and millilitres. Every other unit (PCS, BOX, DOZEN, PACKET, TIN, JAR, DRUM) is counted
+/// in whole units.
 /// </summary>
 public static class Qty
 {
@@ -39,7 +40,7 @@ public static class Qty
 /// <summary>What each unit of measure means for pricing, stock and data entry.</summary>
 public static class Units
 {
-    /// <summary>KG and LITRE are measured, so fractions are meaningful. PCS and BOX are counted.</summary>
+    /// <summary>KG and LITRE are measured, so fractions are meaningful. Every other unit is counted.</summary>
     public static bool AllowsFractions(Uom uom) => uom is Uom.Kg or Uom.Litre;
 
     public static bool AllowsFractions(QuantityType type) => type is QuantityType.Kg or QuantityType.Litre;
@@ -62,7 +63,26 @@ public static class Units
         Uom.Box => QuantityType.Box,
         Uom.Kg => QuantityType.Kg,
         Uom.Litre => QuantityType.Litre,
+        Uom.Dozen => QuantityType.Dozen,
+        Uom.Packet => QuantityType.Packet,
+        Uom.Tin => QuantityType.Tin,
+        Uom.Jar => QuantityType.Jar,
+        Uom.Drum => QuantityType.Drum,
         _ => QuantityType.Pcs,
+    };
+
+    /// <summary>The line's quantity type as a unit (BOX stays BOX).</summary>
+    public static Uom AsUom(QuantityType type) => type switch
+    {
+        QuantityType.Box => Uom.Box,
+        QuantityType.Kg => Uom.Kg,
+        QuantityType.Litre => Uom.Litre,
+        QuantityType.Dozen => Uom.Dozen,
+        QuantityType.Packet => Uom.Packet,
+        QuantityType.Tin => Uom.Tin,
+        QuantityType.Jar => Uom.Jar,
+        QuantityType.Drum => Uom.Drum,
+        _ => Uom.Pcs,
     };
 
     /// <summary>
@@ -78,41 +98,40 @@ public static class Units
     public static bool IsValidFor(Product product, QuantityType type) =>
         Array.IndexOf(EntryTypesFor(product), type) >= 0;
 
-    public static string ShortLabel(QuantityType type) => type switch
-    {
-        QuantityType.Box => "box",
-        QuantityType.Kg => "kg",
-        QuantityType.Litre => "litre",
-        _ => "pcs",
-    };
+    public static string ShortLabel(QuantityType type) => ShortLabel(AsUom(type));
 
     public static string ShortLabel(Uom uom) => uom switch
     {
         Uom.Box => "box",
         Uom.Kg => "kg",
         Uom.Litre => "litre",
+        Uom.Dozen => "dozen",
+        Uom.Packet => "packet",
+        Uom.Tin => "tin",
+        Uom.Jar => "jar",
+        Uom.Drum => "drum",
         _ => "pcs",
     };
 
     /// <summary>
-    /// The unit as printed after a number on a document: "20 KG", "10 L", "12 PCS".
-    /// Uppercase and short, because it sits inside a narrow table column - "LITRE" does not fit.
+    /// The unit as printed after a number on a document: "20 KG", "10 L", "12 PCS", "3 DZN".
+    /// Uppercase and short, because it sits inside a narrow table column - "LITRE" and
+    /// "PACKET" do not fit.
     /// </summary>
     public static string PrintLabel(Uom uom) => uom switch
     {
         Uom.Box => "BOX",
         Uom.Kg => "KG",
         Uom.Litre => "L",
+        Uom.Dozen => "DZN",
+        Uom.Packet => "PKT",
+        Uom.Tin => "TIN",
+        Uom.Jar => "JAR",
+        Uom.Drum => "DRUM",
         _ => "PCS",
     };
 
-    public static string PrintLabel(QuantityType type) => type switch
-    {
-        QuantityType.Box => "BOX",
-        QuantityType.Kg => "KG",
-        QuantityType.Litre => "L",
-        _ => "PCS",
-    };
+    public static string PrintLabel(QuantityType type) => PrintLabel(AsUom(type));
 
     /// <summary>The unit stock is counted in, as a label: "pcs", "kg" or "litre".</summary>
     public static string StockLabel(Product product) => ShortLabel(BaseUnit(product));
@@ -412,11 +431,17 @@ public static class SmsTemplates
         return Compose(companyName, what, account);
     }
 
-    public static string Payment(TransactionType type, string companyName, string orderNumber, decimal amount, AccountTotals account)
+    /// <param name="openingDue">The payment is against a previous due, which has no invoice of its own.</param>
+    public static string Payment(TransactionType type, string companyName, string orderNumber, decimal amount, AccountTotals account,
+        bool openingDue = false)
     {
-        var what = type == TransactionType.Sales
-            ? $"Received Tk {Amount(amount)} for Invoice #{orderNumber}."
-            : $"Paid Tk {Amount(amount)} for Purchase #{orderNumber}.";
+        var what = (type, openingDue) switch
+        {
+            (TransactionType.Sales, true) => $"Received Tk {Amount(amount)} against previous due.",
+            (_, true) => $"Paid Tk {Amount(amount)} against previous due.",
+            (TransactionType.Sales, false) => $"Received Tk {Amount(amount)} for Invoice #{orderNumber}.",
+            _ => $"Paid Tk {Amount(amount)} for Purchase #{orderNumber}.",
+        };
         return Compose(companyName, what, account);
     }
 

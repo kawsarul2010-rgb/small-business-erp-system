@@ -20,7 +20,7 @@ import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
 import { MoneyPipe, QtyPipe } from '../../shared/pipes';
 import { SearchSelect } from '../../shared/search-select';
-import { allowsFractions, baseQuantityType, baseUnit, boxSizeLabel, entryTypesFor, quantityInputMode, quantityLabel, quantityStep, stockLabel } from '../../shared/units';
+import { UnitPipe, allowsFractions, baseQuantityType, baseUnit, boxSizeLabel, entryTypesFor, quantityInputMode, quantityLabel, quantityStep, stockLabel } from '../../shared/units';
 import { orderMeta } from './order-kind';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { t } from '../../core/i18n/i18n';
@@ -60,7 +60,7 @@ const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 
 @Component({
   selector: 'app-order-editor',
-  imports: [TranslatePipe, 
+  imports: [TranslatePipe, UnitPipe, 
     ReactiveFormsModule, RouterLink, MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatButtonModule,
     MatIconModule, MatTooltipModule, MatProgressBarModule, MatSlideToggleModule, SearchSelect, MoneyPipe, QtyPipe,
   ],

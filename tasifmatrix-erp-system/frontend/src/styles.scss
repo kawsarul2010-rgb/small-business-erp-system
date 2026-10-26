@@ -320,6 +320,9 @@ td.num, th.num { text-align: right !important; }
 .negative { color: var(--erp-negative); }
 .nowrap { white-space: nowrap; }
 .code { font-variant-numeric: tabular-nums; color: var(--erp-muted); }
+/* Marks a previous due ("আগের বাকি"): an amount owed from before the business used the app. */
+.prev-due-tag { display: inline-flex; align-items: center; padding: 0 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; line-height: 19px;
+  white-space: nowrap; vertical-align: middle; background: var(--erp-chip-warn-bg); color: var(--erp-chip-warn-fg); }
 
 /* ============================== forms ============================== */
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }

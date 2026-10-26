@@ -22,13 +22,13 @@ import { applyServerErrors, controlError } from '../../shared/form-errors';
 import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { MoneyPipe, QtyPipe } from '../../shared/pipes';
-import { SECONDARY_UOM_OPTIONS, UOM_OPTIONS, allowsFractions, baseUnit, baseUnitLabel, boxSizeLabel, shortLabel, stockLabel } from '../../shared/units';
+import { SECONDARY_UOM_OPTIONS, UOM_OPTIONS, UnitPipe, allowsFractions, baseUnit, baseUnitLabel, boxSizeLabel, shortLabel, stockLabel } from '../../shared/units';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { t } from '../../core/i18n/i18n';
 
 @Component({
   selector: 'app-products',
-  imports: [TranslatePipe, 
+  imports: [TranslatePipe, UnitPipe, 
     MatTableModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule,
     MatProgressBarModule, MatTooltipModule, MatCheckboxModule, MatMenuModule, ListFooter, MoneyPipe, QtyPipe,
   ],
@@ -64,7 +64,7 @@ import { t } from '../../core/i18n/i18n';
                 <div class="m-card-head">
                   <div>
                     <div class="m-title">{{ p.productName }}</div>
-                    <div class="m-sub">{{ p.productCode }} · {{ p.uom | t }}@if (boxSize(p); as b) { · {{ b }} }</div>
+                    <div class="m-sub">{{ p.productCode }} · {{ p.uom | unit }}@if (boxSize(p); as b) { · {{ b }} }</div>
                   </div>
                   <div class="m-right">
                     <span class="m-amount" [class.negative]="p.lowStockThreshold !== null && p.currentStock <= p.lowStockThreshold">
@@ -91,7 +91,7 @@ import { t } from '../../core/i18n/i18n';
             <table mat-table [dataSource]="list.items()" matSort (matSortChange)="list.onSort($event)">
               <ng-container matColumnDef="productCode"><th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'Code' | t }}</th><td mat-cell *matCellDef="let p" class="code">{{ p.productCode }}</td></ng-container>
               <ng-container matColumnDef="productName"><th mat-header-cell *matHeaderCellDef mat-sort-header>{{ 'Name' | t }}</th><td mat-cell *matCellDef="let p">{{ p.productName }}</td></ng-container>
-              <ng-container matColumnDef="uom"><th mat-header-cell *matHeaderCellDef>{{ 'UOM' | t }}</th><td mat-cell *matCellDef="let p" class="nowrap">{{ p.uom | t }}@if (boxSize(p); as b) { <span class="muted"> · {{ b }}</span> }</td></ng-container>
+              <ng-container matColumnDef="uom"><th mat-header-cell *matHeaderCellDef>{{ 'UOM' | t }}</th><td mat-cell *matCellDef="let p" class="nowrap">{{ p.uom | unit }}@if (boxSize(p); as b) { <span class="muted"> · {{ b }}</span> }</td></ng-container>
               <ng-container matColumnDef="productPurchasePrice"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">{{ 'Purchase / unit' | t }}</th><td mat-cell *matCellDef="let p" class="num nowrap">{{ p.productPurchasePrice | money }}</td></ng-container>
               <ng-container matColumnDef="productSalesPrice"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">{{ 'Sales / unit' | t }}</th><td mat-cell *matCellDef="let p" class="num nowrap">{{ p.productSalesPrice | money }}</td></ng-container>
               <ng-container matColumnDef="currentStock"><th mat-header-cell *matHeaderCellDef mat-sort-header class="num">{{ 'Stock' | t }}</th>
@@ -164,7 +164,7 @@ export class ProductsPage implements OnInit {
 
 @Component({
   selector: 'app-product-dialog',
-  imports: [TranslatePipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule],
+  imports: [TranslatePipe, UnitPipe, ReactiveFormsModule, MatDialogModule, MatFormFieldModule, MatInputModule, MatButtonModule, MatSelectModule],
   template: `
     <h2 mat-dialog-title>{{ (data ? 'Edit product' : 'New product') | t }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
@@ -175,7 +175,7 @@ export class ProductsPage implements OnInit {
           <mat-form-field subscriptSizing="dynamic">
             <mat-label>{{ 'UOM' | t }}</mat-label>
             <mat-select formControlName="uom">
-              @for (u of uomOptions; track u) { <mat-option [value]="u">{{ u | t }}</mat-option> }
+              @for (u of uomOptions; track u) { <mat-option [value]="u">{{ u | unit }}</mat-option> }
             </mat-select>
             <mat-hint>{{ (isBox() ? 'A box — say what it holds below' : (measured() ? 'Measured — quantities may be fractional' : 'Counted in whole units')) | t }}</mat-hint>
           </mat-form-field>
@@ -184,14 +184,14 @@ export class ProductsPage implements OnInit {
             <mat-form-field>
               <mat-label>{{ 'A box contains' | t }}</mat-label>
               <mat-select formControlName="secondaryUom">
-                @for (u of secondaryOptions; track u) { <mat-option [value]="u">{{ u | t }}</mat-option> }
+                @for (u of secondaryOptions; track u) { <mat-option [value]="u">{{ u | unit }}</mat-option> }
               </mat-select>
               <mat-hint>{{ 'Stock is counted in this unit' | t }}</mat-hint>
               <mat-error>{{ err('secondaryUom', 'Secondary UOM') }}</mat-error>
             </mat-form-field>
           }
 
-          @if (isBox() || form.value.uom === 'PCS') {
+          @if (isBox() || !measured()) {
             <mat-form-field subscriptSizing="dynamic">
               <mat-label>{{ '{unit} per box' | t: { unit: unitTitle() } }}</mat-label>
               <input matInput type="number" [attr.inputmode]="measured() ? 'decimal' : 'numeric'" min="0" [step]="measured() ? 0.001 : 1" formControlName="unitPerBox" />

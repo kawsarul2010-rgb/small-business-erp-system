@@ -104,7 +104,8 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
                        p.Name,
                        Code = p.Code!,
                        p.MobileNumber,
-                       Count = orders.Count(o => o.PartyUuid == p.Uuid),
+                       // A previous due is not an order: it counts towards the money, not the order count.
+                       Count = orders.Count(o => o.PartyUuid == p.Uuid && !o.IsOpeningDue),
                        Total = orders.Where(o => o.PartyUuid == p.Uuid).Sum(o => (decimal?)o.TotalAmount) ?? 0,
                        Paid = orders.Where(o => o.PartyUuid == p.Uuid).Sum(o => (decimal?)o.TotalPaidAmount) ?? 0,
                    };
@@ -125,7 +126,7 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
 
         var scoped = scope is { } sc ? orders.Where(o => o.PartyUuid == sc) : orders;
         var totalsRow = await scoped.GroupBy(_ => 1)
-            .Select(g => new ReportTotals(g.Count(), g.Sum(o => o.TotalAmount), g.Sum(o => o.TotalPaidAmount), g.Sum(o => o.TotalAmount - o.TotalPaidAmount)))
+            .Select(g => new ReportTotals(g.Count(o => !o.IsOpeningDue), g.Sum(o => o.TotalAmount), g.Sum(o => o.TotalPaidAmount), g.Sum(o => o.TotalAmount - o.TotalPaidAmount)))
             .FirstOrDefaultAsync(ct);
         return new PartyReport(page, totalsRow ?? new ReportTotals(0, 0, 0, 0));
     }
@@ -145,10 +146,10 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
             .Select(c => new
             {
                 c.Uuid, c.CompanyName, c.CompanyCode,
-                SalesCount = sales.Count(o => o.CompanyUuid == c.Uuid),
+                SalesCount = sales.Count(o => o.CompanyUuid == c.Uuid && !o.IsOpeningDue),
                 SalesTotal = sales.Where(o => o.CompanyUuid == c.Uuid).Sum(o => (decimal?)o.TotalAmount) ?? 0,
                 SalesPaid = sales.Where(o => o.CompanyUuid == c.Uuid).Sum(o => (decimal?)o.TotalPaidAmount) ?? 0,
-                PurchaseCount = purchases.Count(o => o.CompanyUuid == c.Uuid),
+                PurchaseCount = purchases.Count(o => o.CompanyUuid == c.Uuid && !o.IsOpeningDue),
                 PurchaseTotal = purchases.Where(o => o.CompanyUuid == c.Uuid).Sum(o => (decimal?)o.TotalAmount) ?? 0,
                 PurchasePaid = purchases.Where(o => o.CompanyUuid == c.Uuid).Sum(o => (decimal?)o.TotalPaidAmount) ?? 0,
             }).ToListAsync(ct);
@@ -326,7 +327,7 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
             o.OrderNumber,
             o.OrderDate.ToString("dd MMM yyyy", Invariant),
             Math.Max(0, today.DayNumber - o.OrderDate.DayNumber).ToString(Invariant),
-            o.PartyName,
+            PartyCell(o),
             showCompany ? o.CompanyName : null,
             Money.FormatPlain(o.TotalAmount),
             Money.FormatPlain(o.TotalPaidAmount),
@@ -424,9 +425,9 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
         {
             var final = o.PostingStatus == PostingStatus.Final;
             var cells = new List<string> { o.OrderNumber, o.OrderDate.ToString("dd MMM yyyy", Invariant) };
-            if (!perParty) cells.Add(o.PartyName);
+            if (!perParty) cells.Add(PartyCell(o));
             if (showCompany) cells.Add(o.CompanyName);
-            if (perParty) cells.Add(o.PaymentType.ToString());
+            if (perParty) cells.Add(o.IsOpeningDue ? "Previous due" : o.PaymentType.ToString());
             cells.Add(o.PostingStatus.ToString());
             cells.Add(Money.FormatPlain(o.TotalAmount));
             cells.Add(Money.FormatPlain(o.TotalPaidAmount));
@@ -435,7 +436,8 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
         }).ToList();
 
         var finals = orders.Where(o => o.PostingStatus == PostingStatus.Final).ToList();
-        var totals = new List<string> { "TOTAL", finals.Count == 1 ? "1 order" : $"{finals.Count} orders" };
+        var orderCount = finals.Count(o => !o.IsOpeningDue); // a previous due is money owed, not an order
+        var totals = new List<string> { "TOTAL", orderCount == 1 ? "1 order" : $"{orderCount} orders" };
         totals.AddRange(Enumerable.Repeat("", columns.Count - 5));
         totals.Add(Money.FormatPlain(finals.Sum(o => o.TotalAmount)));
         totals.Add(Money.FormatPlain(finals.Sum(o => o.TotalPaidAmount)));
@@ -494,6 +496,9 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
         ({ } f, { } t) => $"{Day(f)} to {Day(t)}",
     };
 
+    /// <summary>The party's name; a previous due says so, as it has no order behind it.</summary>
+    private static string PartyCell(OrderListItemDto o) => o.IsOpeningDue ? $"{o.PartyName} (previous due)" : o.PartyName;
+
     private static string Day(DateOnly d) => d.ToString("dd MMM yyyy", Invariant);
 
     private static string FileName(string prefix, DateOnly? from, DateOnly? to)
@@ -524,12 +529,12 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
             if (user.CustomerUuid is { } cid)
             {
                 buyer = await LinkedAsync<SalesOrder, Customer>(cid, empty, ct);
-                latestSales = (await salesOrders.ListAsync(new OrderListQuery { PageSize = 10 }, ct)).Items.ToList();
+                latestSales = (await salesOrders.ListAsync(new OrderListQuery { PageSize = 10, OpeningDue = false }, ct)).Items.ToList();
             }
             if (user.SupplierUuid is { } sid)
             {
                 supplier = await LinkedAsync<PurchaseOrder, Supplier>(sid, empty, ct);
-                latestPurchases = (await purchaseOrders.ListAsync(new OrderListQuery { PageSize = 10 }, ct)).Items.ToList();
+                latestPurchases = (await purchaseOrders.ListAsync(new OrderListQuery { PageSize = 10, OpeningDue = false }, ct)).Items.ToList();
             }
             return new DashboardDto(user.Role, null, null, null, null, null, null, null, [], latestSales, latestPurchases, buyer, supplier, []);
         }
@@ -537,9 +542,12 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
         var isAdmin = user.Role == Role.Admin;
         var finalSales = FinalOrders<SalesOrder>(empty);
         var finalPurchases = FinalOrders<PurchaseOrder>(empty);
+        // Previous dues are owed money, not sales or purchases made: they count in the dues only.
+        var realSales = finalSales.Where(o => !o.IsOpeningDue);
+        var realPurchases = finalPurchases.Where(o => !o.IsOpeningDue);
 
-        var todaySales = await finalSales.Where(o => o.OrderDate == today).SumAsync(o => (decimal?)o.TotalAmount, ct) ?? 0;
-        var monthSales = await finalSales.Where(o => o.OrderDate >= monthStart).SumAsync(o => (decimal?)o.TotalAmount, ct) ?? 0;
+        var todaySales = await realSales.Where(o => o.OrderDate == today).SumAsync(o => (decimal?)o.TotalAmount, ct) ?? 0;
+        var monthSales = await realSales.Where(o => o.OrderDate >= monthStart).SumAsync(o => (decimal?)o.TotalAmount, ct) ?? 0;
         var customerDue = await finalSales.SumAsync(o => (decimal?)(o.TotalAmount - o.TotalPaidAmount), ct) ?? 0;
 
         var draftSales = await db.SalesOrders.CountAsync(o => o.Status == RecordStatus.Active && o.PostingStatus == PostingStatus.Draft
@@ -550,14 +558,14 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
         var latestPurch = new List<OrderListItemDto>();
         if (isAdmin)
         {
-            monthPurchases = await finalPurchases.Where(o => o.OrderDate >= monthStart).SumAsync(o => (decimal?)o.TotalAmount, ct) ?? 0;
+            monthPurchases = await realPurchases.Where(o => o.OrderDate >= monthStart).SumAsync(o => (decimal?)o.TotalAmount, ct) ?? 0;
             supplierDue = await finalPurchases.SumAsync(o => (decimal?)(o.TotalAmount - o.TotalPaidAmount), ct) ?? 0;
             draftPurchases = await db.PurchaseOrders.CountAsync(o => o.Status == RecordStatus.Active && o.PostingStatus == PostingStatus.Draft
                                                                    && (companyUuid == null || o.CompanyUuid == companyUuid), ct);
-            latestPurch = (await purchaseOrders.ListAsync(new OrderListQuery { PageSize = 10, CompanyUuid = companyUuid }, ct)).Items.ToList();
+            latestPurch = (await purchaseOrders.ListAsync(new OrderListQuery { PageSize = 10, CompanyUuid = companyUuid, OpeningDue = false }, ct)).Items.ToList();
         }
 
-        var latestSalesList = (await salesOrders.ListAsync(new OrderListQuery { PageSize = 10, CompanyUuid = companyUuid }, ct)).Items.ToList();
+        var latestSalesList = (await salesOrders.ListAsync(new OrderListQuery { PageSize = 10, CompanyUuid = companyUuid, OpeningDue = false }, ct)).Items.ToList();
 
         var lowStock = await (from p in db.Products.AsNoTracking()
                               join s in db.StockBalances.AsNoTracking() on p.Uuid equals s.ProductUuid
@@ -567,7 +575,7 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
                              .Take(20).ToListAsync(ct);
 
         var from30 = today.AddDays(-29);
-        var daily = await finalSales.Where(o => o.OrderDate >= from30)
+        var daily = await realSales.Where(o => o.OrderDate >= from30)
             .GroupBy(o => o.OrderDate)
             .Select(g => new { Date = g.Key, Total = g.Sum(o => o.TotalAmount) })
             .ToListAsync(ct);
@@ -584,7 +592,7 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
         var name = await db.Set<TParty>().AsNoTracking().Where(p => p.Uuid == partyUuid).Select(p => p.Name).FirstOrDefaultAsync(ct);
         if (name is null) return null;
         var orders = FinalOrders<TOrder>(q).Where(o => o.PartyUuid == partyUuid);
-        var count = await orders.CountAsync(ct);
+        var count = await orders.CountAsync(o => !o.IsOpeningDue, ct);
         var total = await orders.SumAsync(o => (decimal?)o.TotalAmount, ct) ?? 0;
         var paid = await orders.SumAsync(o => (decimal?)o.TotalPaidAmount, ct) ?? 0;
         return new LinkedSummary(partyUuid, name, count, total, paid, total - paid);

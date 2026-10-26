@@ -270,6 +270,34 @@ public class MeasuredUnitTests
     }
 
     [Fact]
+    public void Every_unit_has_a_matching_quantity_type_and_short_labels()
+    {
+        foreach (var uom in Enum.GetValues<Uom>())
+        {
+            var type = Units.AsQuantityType(uom);
+            Assert.Equal(uom.ToString(), type.ToString()); // stored as the same text
+            Assert.Equal(uom, Units.AsUom(type));
+            Assert.Equal(Units.AllowsFractions(uom), Units.AllowsFractions(type));
+            Assert.InRange(Units.PrintLabel(uom).Length, 1, 4); // fits the PDF quantity column
+        }
+        Assert.Equal(Enum.GetValues<Uom>().Length, Enum.GetValues<QuantityType>().Length);
+    }
+
+    [Fact]
+    public void New_counted_units_take_whole_numbers_and_can_fill_a_box()
+    {
+        foreach (var uom in new[] { Uom.Dozen, Uom.Packet, Uom.Tin, Uom.Jar, Uom.Drum })
+            Assert.False(Units.AllowsFractions(uom));
+
+        var carton = new Product { Uuid = Guid.NewGuid(), ProductCode = "HONEY", Uom = Uom.Box, SecondaryUom = Uom.Jar, UnitPerBox = 12 };
+        Assert.Equal("Box,Jar", string.Join(",", Units.EntryTypesFor(carton)));
+        Calc(new LineInput(null, carton.Uuid, QuantityType.Box, 2, null, null, null, 3000m, null), carton, 250m, out var ok);
+        Assert.False(ok.HasErrors);
+        Calc(new LineInput(null, carton.Uuid, QuantityType.Jar, null, 1.5m, null, null, null, null), carton, 250m, out var half);
+        Assert.True(half.HasErrors);
+    }
+
+    [Fact]
     public void Quantities_print_without_trailing_zeros()
     {
         Assert.Equal("12", Qty.Format(12m));
@@ -389,6 +417,16 @@ public class SmsTemplateTests
         var text = SmsTemplates.Payment(TransactionType.Purchase, "Sompriti Enterprise", "200001", 10m, new AccountTotals(10m, 10m));
         Assert.Contains("Paid Tk 10 for Purchase #200001.", text);
         Assert.Contains("due Tk 0.", text);
+    }
+
+    [Fact]
+    public void Payment_against_previous_due_names_no_invoice()
+    {
+        var sales = SmsTemplates.Payment(TransactionType.Sales, "Sompriti Enterprise", "100031", 500m, new AccountTotals(2000m, 500m), openingDue: true);
+        Assert.Contains("Received Tk 500 against previous due.", sales);
+        Assert.DoesNotContain("#100031", sales);
+        var purchase = SmsTemplates.Payment(TransactionType.Purchase, "Sompriti Enterprise", "200009", 500m, new AccountTotals(500m, 500m), openingDue: true);
+        Assert.Contains("Paid Tk 500 against previous due.", purchase);
     }
 
     [Fact]

@@ -131,7 +131,7 @@
                     <mat-label>{{ 'Type' | t }}</mat-label>
                     <mat-select formControlName="quantityType" (selectionChange)="onQuantityTypeChange(i)">
                       @for (qt of entryTypes(i); track qt) {
-                        <mat-option [value]="qt" [disabled]="qt === 'BOX' && !canUseBox(i)">{{ qt | t }}</mat-option>
+                        <mat-option [value]="qt" [disabled]="qt === 'BOX' && !canUseBox(i)">{{ qt | unit }}</mat-option>
                       }
                     </mat-select>
                   </mat-form-field>
@@ -206,7 +206,7 @@
                   <mat-label>{{ 'Type' | t }}</mat-label>
                   <mat-select formControlName="quantityType" (selectionChange)="onQuantityTypeChange(i)">
                     @for (qt of entryTypes(i); track qt) {
-                      <mat-option [value]="qt" [disabled]="qt === 'BOX' && !canUseBox(i)">{{ qt | t }}</mat-option>
+                      <mat-option [value]="qt" [disabled]="qt === 'BOX' && !canUseBox(i)">{{ qt | unit }}</mat-option>
                     }
                   </mat-select>
                 </mat-form-field>

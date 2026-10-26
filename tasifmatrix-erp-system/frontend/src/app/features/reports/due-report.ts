@@ -65,7 +65,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
                 <div class="m-card-head">
                   <div>
                     <div class="m-title">{{ o.partyName }}</div>
-                    <div class="m-sub">#{{ o.orderNumber }} · {{ o.orderDate | date: 'dd MMM yyyy' }} · {{ (age(o.orderDate) === 1 ? '{n} day' : '{n} days') | t: { n: age(o.orderDate) } }}</div>
+                    <div class="m-sub">#{{ o.orderNumber }} · {{ o.orderDate | date: 'dd MMM yyyy' }} · {{ (age(o.orderDate) === 1 ? '{n} day' : '{n} days') | t: { n: age(o.orderDate) } }} @if (o.isOpeningDue) { <span class="prev-due-tag">{{ 'Previous due' | t }}</span> }</div>
                   </div>
                   <div class="m-right">
                     <span class="m-amount negative">{{ o.dueAmount | money }}</span>
@@ -83,7 +83,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
         <div class="table-wrap">
 
           <table mat-table [dataSource]="list.items()">
-            <ng-container matColumnDef="orderNumber"><th mat-header-cell *matHeaderCellDef>{{ 'Order' | t }}</th><td mat-cell *matCellDef="let o"><a [routerLink]="[meta().route, o.uuid]">#{{ o.orderNumber }}</a></td></ng-container>
+            <ng-container matColumnDef="orderNumber"><th mat-header-cell *matHeaderCellDef>{{ 'Order' | t }}</th><td mat-cell *matCellDef="let o" class="nowrap"><a [routerLink]="[meta().route, o.uuid]">#{{ o.orderNumber }}</a> @if (o.isOpeningDue) { <span class="prev-due-tag">{{ 'Previous due' | t }}</span> }</td></ng-container>
             <ng-container matColumnDef="orderDate"><th mat-header-cell *matHeaderCellDef>{{ 'Date' | t }}</th><td mat-cell *matCellDef="let o" class="nowrap">{{ o.orderDate | date: 'dd MMM yyyy' }}</td></ng-container>
             <ng-container matColumnDef="age"><th mat-header-cell *matHeaderCellDef class="num">{{ 'Days' | t }}</th><td mat-cell *matCellDef="let o" class="num">{{ age(o.orderDate) }}</td></ng-container>
             <ng-container matColumnDef="party"><th mat-header-cell *matHeaderCellDef>{{ meta().partyLabel | t }}</th><td mat-cell *matCellDef="let o">{{ o.partyName }} <span class="code">{{ o.partyCode }}</span></td></ng-container>

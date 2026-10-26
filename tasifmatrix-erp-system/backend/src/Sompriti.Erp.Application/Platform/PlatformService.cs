@@ -94,8 +94,8 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
         var monthStart = MonthStart();
         var statuses = await db.Tenants.AsNoTracking().Select(t => t.Status).ToListAsync(ct);
         var users = await db.Users.IgnoreQueryFilters().CountAsync(u => u.TenantUuid != null && u.Status == RecordStatus.Active, ct);
-        var sales = await db.SalesOrders.IgnoreQueryFilters().CountAsync(o => o.Status == RecordStatus.Active && o.OrderDate >= monthStart, ct);
-        var purchases = await db.PurchaseOrders.IgnoreQueryFilters().CountAsync(o => o.Status == RecordStatus.Active && o.OrderDate >= monthStart, ct);
+        var sales = await db.SalesOrders.IgnoreQueryFilters().CountAsync(o => o.Status == RecordStatus.Active && !o.IsOpeningDue && o.OrderDate >= monthStart, ct);
+        var purchases = await db.PurchaseOrders.IgnoreQueryFilters().CountAsync(o => o.Status == RecordStatus.Active && !o.IsOpeningDue && o.OrderDate >= monthStart, ct);
         var monthStartUtc = BusinessClock.StartOfDayUtc(monthStart);
         var sms = await db.SmsOutbox.IgnoreQueryFilters().AsNoTracking()
             .Where(x => x.Status == SmsStatus.Sent && x.SentDate >= monthStartUtc)
@@ -210,12 +210,12 @@ public sealed class PlatformService(IAppDbContext db, ICurrentUser currentUser, 
             .Select(g => new { Tenant = g.Key, Count = g.Count() })
             .ToListAsync(ct);
         var sales = await db.SalesOrders.IgnoreQueryFilters().AsNoTracking()
-            .Where(o => ids.Contains(o.TenantUuid) && o.Status == RecordStatus.Active)
+            .Where(o => ids.Contains(o.TenantUuid) && o.Status == RecordStatus.Active && !o.IsOpeningDue) // previous dues are not orders
             .GroupBy(o => o.TenantUuid)
             .Select(g => new { Tenant = g.Key, Count = g.Count(), ThisMonth = g.Count(o => o.OrderDate >= monthStart), Last = g.Max(o => (DateTimeOffset?)o.CreatedDate) })
             .ToListAsync(ct);
         var purchases = await db.PurchaseOrders.IgnoreQueryFilters().AsNoTracking()
-            .Where(o => ids.Contains(o.TenantUuid) && o.Status == RecordStatus.Active)
+            .Where(o => ids.Contains(o.TenantUuid) && o.Status == RecordStatus.Active && !o.IsOpeningDue) // previous dues are not orders
             .GroupBy(o => o.TenantUuid)
             .Select(g => new { Tenant = g.Key, Count = g.Count(), ThisMonth = g.Count(o => o.OrderDate >= monthStart), Last = g.Max(o => (DateTimeOffset?)o.CreatedDate) })
             .ToListAsync(ct);

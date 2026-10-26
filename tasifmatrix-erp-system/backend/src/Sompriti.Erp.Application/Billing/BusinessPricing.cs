@@ -52,10 +52,10 @@ public static class BusinessPricing
         var ids = tenants.Select(t => t.Uuid).ToList();
         var from = BusinessClock.Today(now).AddDays(-SizeRules.WindowDays);
         var sales = await db.SalesOrders.IgnoreQueryFilters().AsNoTracking()
-            .Where(o => ids.Contains(o.TenantUuid) && o.Status == RecordStatus.Active && o.PostingStatus != PostingStatus.Void && o.OrderDate >= from)
+            .Where(o => ids.Contains(o.TenantUuid) && o.Status == RecordStatus.Active && o.PostingStatus != PostingStatus.Void && !o.IsOpeningDue && o.OrderDate >= from)
             .GroupBy(o => o.TenantUuid).Select(g => new { Tenant = g.Key, Count = g.Count() }).ToListAsync(ct);
         var purchases = await db.PurchaseOrders.IgnoreQueryFilters().AsNoTracking()
-            .Where(o => ids.Contains(o.TenantUuid) && o.Status == RecordStatus.Active && o.PostingStatus != PostingStatus.Void && o.OrderDate >= from)
+            .Where(o => ids.Contains(o.TenantUuid) && o.Status == RecordStatus.Active && o.PostingStatus != PostingStatus.Void && !o.IsOpeningDue && o.OrderDate >= from)
             .GroupBy(o => o.TenantUuid).Select(g => new { Tenant = g.Key, Count = g.Count() }).ToListAsync(ct);
         var sizes = (await db.BusinessSizes.AsNoTracking().ToListAsync(ct))
             .Select(z => new SizeLimit(z.Uuid, z.SizeName, z.SortOrder, z.IsActive, z.MaxOrdersPerMonth)).ToList();
