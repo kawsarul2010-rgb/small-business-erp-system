@@ -233,11 +233,15 @@
                   <input matInput type="number" min="0" step="0.01" formControlName="perUnitPrice" (input)="recalcFromPerUnit(i)" />
                 </mat-form-field>
 
-                <mat-form-field class="cell" subscriptSizing="dynamic">
-                  <mat-label>{{ 'Per box' | t }}</mat-label>
-                  <input matInput type="number" min="0" step="0.01" formControlName="perBoxPrice" (input)="recalcFromPerBox(i)"
-                         [readonly]="line.controls.quantityType.value !== 'BOX'" />
-                </mat-form-field>
+                <!-- A box price only means something on a line entered by the box; the empty cell keeps the columns aligned. -->
+                @if (line.controls.quantityType.value === 'BOX') {
+                  <mat-form-field class="cell" subscriptSizing="dynamic">
+                    <mat-label>{{ 'Per box' | t }}</mat-label>
+                    <input matInput type="number" min="0" step="0.01" formControlName="perBoxPrice" (input)="recalcFromPerBox(i)" />
+                  </mat-form-field>
+                } @else {
+                  <span class="cell" aria-hidden="true"></span>
+                }
 
                 <mat-form-field class="cell" subscriptSizing="dynamic">
                   <mat-label>{{ 'Line total' | t }}</mat-label>

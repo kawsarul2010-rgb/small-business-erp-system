@@ -386,78 +386,74 @@ public class SmsTemplateTests
     private static readonly AccountTotals Account = new(148200m, 120000m);
 
     [Fact]
-    public void Finalized_sales_message_has_order_and_account_and_fits_one_segment()
+    public void Finalized_sales_message_is_one_fact_per_line_and_fits_one_segment()
     {
         var text = SmsTemplates.OrderFinalized(TransactionType.Sales, "Sompriti Enterprise", "100042", 12450m, Account);
-        // The courtesy line would make this two parts, so only the website is added.
-        Assert.Equal("Sompriti Enterprise: Invoice #100042 of Tk 12,450 confirmed. Your account: total Tk 148,200, paid Tk 120,000, due Tk 28,200.\nhttps://tasifmatrix.com.bd", text);
-        Assert.True(text.Length <= 160, $"length {text.Length}");
+        Assert.Equal("Sompriti Enterprise\nInvoice #100042: Tk 12,450\nTotal: Tk 148,200\nPaid: Tk 120,000\nDue: Tk 28,200\nhttps://tasifmatrix.com.bd", text);
+        Assert.Equal(1, SmsParts.Count(text));
     }
 
     [Fact]
     public void Finalized_purchase_message_uses_supplier_wording()
     {
         var text = SmsTemplates.OrderFinalized(TransactionType.Purchase, "Sompriti Enterprise", "200015", 9800m, new AccountTotals(9800m, 0m));
-        Assert.Contains("Purchase #200015 of Tk 9,800 recorded.", text);
-        Assert.Contains("due Tk 9,800", text);
+        Assert.Contains("\nPurchase #200015: Tk 9,800\n", text);
+        Assert.Contains("\nDue: Tk 9,800\n", text);
     }
 
     [Fact]
     public void Payment_message_has_amount_and_running_account()
     {
         var text = SmsTemplates.Payment(TransactionType.Sales, "Sompriti Enterprise", "100023", 1500m, new AccountTotals(4000.5m, 1500m));
-        Assert.Contains("Received Tk 1,500 for Invoice #100023.", text);
-        Assert.Contains("total Tk 4,000.5, paid Tk 1,500, due Tk 2,500.5", text);
-        Assert.True(text.Length <= 160, $"length {text.Length}");
+        Assert.Equal("Sompriti Enterprise\nPayment received: Tk 1,500\nTotal: Tk 4,000.5\nPaid: Tk 1,500\nDue: Tk 2,500.5\nhttps://tasifmatrix.com.bd", text);
+        Assert.Equal(1, SmsParts.Count(text));
     }
 
     [Fact]
     public void Purchase_payment_uses_supplier_wording()
     {
         var text = SmsTemplates.Payment(TransactionType.Purchase, "Sompriti Enterprise", "200001", 10m, new AccountTotals(10m, 10m));
-        Assert.Contains("Paid Tk 10 for Purchase #200001.", text);
-        Assert.Contains("due Tk 0.", text);
+        Assert.Contains("\nPayment made: Tk 10\n", text);
+        Assert.Contains("\nDue: Tk 0\n", text);
     }
 
     [Fact]
-    public void Payment_against_previous_due_names_no_invoice()
+    public void Payment_against_previous_due_says_so()
     {
         var sales = SmsTemplates.Payment(TransactionType.Sales, "Sompriti Enterprise", "100031", 500m, new AccountTotals(2000m, 500m), openingDue: true);
-        Assert.Contains("Received Tk 500 against previous due.", sales);
+        Assert.Contains("\nPayment received: Tk 500 (previous due)\n", sales);
         Assert.DoesNotContain("#100031", sales);
         var purchase = SmsTemplates.Payment(TransactionType.Purchase, "Sompriti Enterprise", "200009", 500m, new AccountTotals(500m, 500m), openingDue: true);
-        Assert.Contains("Paid Tk 500 against previous due.", purchase);
+        Assert.Contains("\nPayment made: Tk 500 (previous due)\n", purchase);
     }
 
     [Fact]
-    public void Long_names_and_big_amounts_never_add_a_part_for_the_courtesy_line()
+    public void Long_names_are_cut_to_30_characters_and_big_amounts_still_fit_one_segment()
     {
         var text = SmsTemplates.Payment(TransactionType.Sales, "A very long company name that goes on and on", "100001",
             1234567.89m, new AccountTotals(98765432.1m, 87654321.12m));
-        Assert.StartsWith("A very long company name that : ", text);
-        // Already two parts with the website; the courtesy line fits in them without a third.
-        Assert.Equal(2, SmsParts.Count(text));
-        Assert.EndsWith("\nhttps://tasifmatrix.com.bd", text);
-    }
-
-    [Fact]
-    public void Short_messages_keep_the_courtesy_line_and_end_with_the_website()
-    {
-        var text = SmsTemplates.Payment(TransactionType.Sales, "Tasif Matrix", "100002", 50m, new AccountTotals(200m, 150m));
-        Assert.Equal("Tasif Matrix: Received Tk 50 for Invoice #100002. Your account: total Tk 200, paid Tk 150, due Tk 50. Thank you.\nhttps://tasifmatrix.com.bd", text);
+        Assert.StartsWith("A very long company name that\n", text);
         Assert.Equal(1, SmsParts.Count(text));
     }
 
     [Theory]
     [InlineData("Sompriti Enterprise", 12450, 148200, 120000)]
     [InlineData("A company name thirty chars xx", 99999, 999999, 999999)]
-    public void Every_message_ends_with_the_website(string company, int amount, int total, int paid)
+    public void Every_message_starts_with_the_company_and_ends_with_the_website(string company, int amount, int total, int paid)
     {
         foreach (var type in new[] { TransactionType.Sales, TransactionType.Purchase })
         {
             var account = new AccountTotals(total, paid);
-            Assert.EndsWith("\n" + SmsTemplates.Website, SmsTemplates.OrderFinalized(type, company, "100042", amount, account));
-            Assert.EndsWith("\n" + SmsTemplates.Website, SmsTemplates.Payment(type, company, "100042", amount, account));
+            foreach (var text in new[]
+                     {
+                         SmsTemplates.OrderFinalized(type, company, "100042", amount, account),
+                         SmsTemplates.Payment(type, company, "100042", amount, account),
+                     })
+            {
+                Assert.StartsWith(company + "\n", text);
+                Assert.EndsWith("\n" + SmsTemplates.Website, text);
+                Assert.Equal(6, text.Split('\n').Length);
+            }
         }
     }
 }

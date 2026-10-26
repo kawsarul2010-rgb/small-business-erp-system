@@ -191,11 +191,12 @@ export class ProductsPage implements OnInit {
             </mat-form-field>
           }
 
-          @if (isBox() || !measured()) {
+          <!-- Only a BOX product has a box size: "12 dozen per box". Any other unit is sold in itself. -->
+          @if (isBox()) {
             <mat-form-field subscriptSizing="dynamic">
               <mat-label>{{ '{unit} per box' | t: { unit: unitTitle() } }}</mat-label>
               <input matInput type="number" [attr.inputmode]="measured() ? 'decimal' : 'numeric'" min="0" [step]="measured() ? 0.001 : 1" formControlName="unitPerBox" />
-              <mat-hint>{{ (isBox() ? 'Required for BOX' : 'Optional — enables BOX entry on orders') | t }}</mat-hint>
+              <mat-hint>{{ 'Required for BOX' | t }}</mat-hint>
               <mat-error>{{ err('unitPerBox', 'Units per box') }}</mat-error>
             </mat-form-field>
           }
@@ -266,9 +267,9 @@ export class ProductDialog {
       this.secondaryValue.set(secondary.value);
 
       const perBox = this.form.controls.unitPerBox;
-      // Only a box has a box size; a loose product measured by weight has none.
-      if (uom === 'KG' || uom === 'LITRE') perBox.setValue(null, { emitEvent: false });
-      perBox.setValidators(uom === 'BOX' ? [Validators.required, Validators.min(0.001)] : [Validators.min(0.001)]);
+      // Only a BOX product has a box size; a product in pieces, dozens, kilos... has none.
+      if (uom !== 'BOX' && perBox.value !== null) perBox.setValue(null, { emitEvent: false });
+      perBox.setValidators(uom === 'BOX' ? [Validators.required, Validators.min(0.001)] : []);
       perBox.updateValueAndValidity({ emitEvent: false });
     };
     sync();

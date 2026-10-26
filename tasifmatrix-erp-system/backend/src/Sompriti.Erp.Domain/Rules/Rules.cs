@@ -423,11 +423,23 @@ public sealed record AccountTotals(decimal Total, decimal Paid)
 /// </summary>
 public static class SmsTemplates
 {
+    // One fact per line, so the message reads at a glance on a phone:
+    //
+    //   Rahman Traders
+    //   Invoice #100023: Tk 3,000
+    //   Total: Tk 8,000
+    //   Paid: Tk 5,000
+    //   Due: Tk 3,000
+    //   https://tasifmatrix.com.bd
+    //
+    // The company comes first because a phone's notification preview shows only the first line.
+    // Total / Paid / Due are the party's whole running account, not just this order.
+
     public static string OrderFinalized(TransactionType type, string companyName, string orderNumber, decimal orderTotal, AccountTotals account)
     {
         var what = type == TransactionType.Sales
-            ? $"Invoice #{orderNumber} of Tk {Amount(orderTotal)} confirmed."
-            : $"Purchase #{orderNumber} of Tk {Amount(orderTotal)} recorded.";
+            ? $"Invoice #{orderNumber}: Tk {Amount(orderTotal)}"
+            : $"Purchase #{orderNumber}: Tk {Amount(orderTotal)}";
         return Compose(companyName, what, account);
     }
 
@@ -435,25 +447,22 @@ public static class SmsTemplates
     public static string Payment(TransactionType type, string companyName, string orderNumber, decimal amount, AccountTotals account,
         bool openingDue = false)
     {
-        var what = (type, openingDue) switch
-        {
-            (TransactionType.Sales, true) => $"Received Tk {Amount(amount)} against previous due.",
-            (_, true) => $"Paid Tk {Amount(amount)} against previous due.",
-            (TransactionType.Sales, false) => $"Received Tk {Amount(amount)} for Invoice #{orderNumber}.",
-            _ => $"Paid Tk {Amount(amount)} for Purchase #{orderNumber}.",
-        };
+        var what = (type == TransactionType.Sales ? "Payment received: Tk " : "Payment made: Tk ") + Amount(amount)
+                   + (openingDue ? " (previous due)" : "");
         return Compose(companyName, what, account);
     }
 
     private static string Compose(string companyName, string what, AccountTotals account)
     {
-        var company = companyName.Length > 30 ? companyName[..30] : companyName;
-        var text = $"{company}: {what} Your account: total Tk {Amount(account.Total)}, paid Tk {Amount(account.Paid)}, due Tk {Amount(account.Due)}.";
-        // Every message ends with the product's website, on its own line. The courtesy line goes in
-        // only when it does not make the message cost an extra SMS part.
-        var withLink = text + "\n" + Website;
-        var polite = text + " Thank you.\n" + Website;
-        return SmsParts.Count(polite) <= SmsParts.Count(withLink) ? polite : withLink;
+        var company = companyName.Trim();
+        if (company.Length > 30) company = company[..30].TrimEnd();
+        return string.Join("\n",
+            company,
+            what,
+            $"Total: Tk {Amount(account.Total)}",
+            $"Paid: Tk {Amount(account.Paid)}",
+            $"Due: Tk {Amount(account.Due)}",
+            Website);
     }
 
     /// <summary>The product's website, closing every SMS so each one also introduces the app.</summary>
