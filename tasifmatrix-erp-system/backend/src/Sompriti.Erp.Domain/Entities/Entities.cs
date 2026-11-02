@@ -163,6 +163,9 @@ public class BillingSettings
     public int SmsMinPurchase { get; set; } = 100;
     /// <summary>SMS given to a new business (and, when prepaid SMS is switched on, to businesses that never had any). 0: none.</summary>
     public int SmsFreeOnSignup { get; set; } = 20;
+
+    /// <summary>Show the package prices on the sign-up page. Off: only the free trial is mentioned there.</summary>
+    public bool ShowPricesOnSignup { get; set; } = true;
 }
 
 /// <summary>One payment attempt for a business's subscription (bKash, or recorded by hand).</summary>

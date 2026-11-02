@@ -630,6 +630,8 @@ export interface SignupOptions {
   trialDays: number;
   sizes: SizeOption[] | null;
   plans: PlanOffer[] | null;
+  /** False: the super admin hides package prices on the sign-up page. */
+  showPrices?: boolean;
 }
 
 // ---- super admin
@@ -654,6 +656,8 @@ export interface BillingSettings {
   smsValidityMonths: number;
   smsMinPurchase: number;
   smsFreeOnSignup: number;
+  /** Package prices are shown on the sign-up page. */
+  showPricesOnSignup: boolean;
 }
 
 export interface SizeAdmin {

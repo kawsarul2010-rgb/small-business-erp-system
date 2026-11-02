@@ -13,6 +13,8 @@ public sealed record OrderListQuery : PageQuery
     public bool DueOnly { get; init; }
     /// <summary>true: previous dues only; false: leave them out; null: both.</summary>
     public bool? OpeningDue { get; init; }
+    /// <summary>Printed order list only: print each order's line items under it.</summary>
+    public bool WithLines { get; init; }
 }
 
 public sealed record OrderListItemDto(

@@ -119,7 +119,11 @@ public interface IOrderPdfRenderer
 /// <summary>One column of a printed report. A width of 0 shares out the leftover space.</summary>
 public sealed record ReportColumn(string Title, float Width = 0, bool RightAligned = false);
 
-public sealed record ReportRow(IReadOnlyList<string> Cells);
+/// <param name="Details">
+/// Optional rows printed under this one, smaller and indented - an order's line items, say.
+/// Their columns are ReportDocument.DetailColumns.
+/// </param>
+public sealed record ReportRow(IReadOnlyList<string> Cells, IReadOnlyList<IReadOnlyList<string>>? Details = null);
 
 /// <summary>
 /// A report ready to print: what it is, which filters produced it, and the table itself.
@@ -132,7 +136,9 @@ public sealed record ReportDocument(
     IReadOnlyList<ReportColumn> Columns,
     IReadOnlyList<ReportRow> Rows,
     IReadOnlyList<string> Totals,
-    string FileName);
+    string FileName,
+    /// <summary>Columns of the rows' Details; null when no row has any.</summary>
+    IReadOnlyList<ReportColumn>? DetailColumns = null);
 
 public interface IReportPdfRenderer
 {

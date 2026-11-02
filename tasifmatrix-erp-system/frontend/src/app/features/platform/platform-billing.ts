@@ -92,6 +92,14 @@ import { StatusChip } from '../../shared/status-chip';
                   <mat-error>{{ err(settingsForm, 'supportEmail', 'Support email') }}</mat-error>
                 </mat-form-field>
               </div>
+              <div class="switch-row" [class.off]="!settingsForm.controls.showPricesOnSignup.value">
+                <mat-icon>{{ settingsForm.controls.showPricesOnSignup.value ? 'sell' : 'visibility_off' }}</mat-icon>
+                <div class="switch-text">
+                  <span class="switch-title">{{ 'Show package prices on the sign-up page' | t }}</span>
+                  <span class="switch-hint">{{ (settingsForm.controls.showPricesOnSignup.value ? 'On: a new business sees the prices of each package when it registers.' : 'Off: the sign-up page mentions only the free trial. Prices are still on the Billing page after sign-up.') | t }}</span>
+                </div>
+                <mat-slide-toggle formControlName="showPricesOnSignup" [attr.aria-label]="'Show package prices on the sign-up page' | t" />
+              </div>
               <div class="timeline">
                 <span class="step"><b>{{ 'Trial' | t }}</b> {{ '{n} days' | t: { n: settingsForm.controls.trialDays.value } }}</span>
                 <mat-icon>arrow_forward</mat-icon>
@@ -442,6 +450,7 @@ export class PlatformBillingPage implements OnInit {
     reminderDays: [7, [Validators.required, Validators.min(0), Validators.max(60)]],
     supportPhone: [''],
     supportEmail: ['', Validators.email],
+    showPricesOnSignup: [true],
   });
 
   readonly smsForm = this.fb.nonNullable.group({
@@ -497,6 +506,7 @@ export class PlatformBillingPage implements OnInit {
     this.settingsForm.reset({
       billingEnabled: s.billingEnabled, trialDays: s.trialDays, graceDays: s.graceDays, reminderDays: s.reminderDays,
       supportPhone: s.supportPhone ?? '', supportEmail: s.supportEmail ?? '',
+      showPricesOnSignup: s.showPricesOnSignup ?? true,
     });
     this.smsForm.reset({
       smsCreditRequired: s.smsCreditRequired, smsUnitPrice: s.smsUnitPrice, smsValidityMonths: s.smsValidityMonths,

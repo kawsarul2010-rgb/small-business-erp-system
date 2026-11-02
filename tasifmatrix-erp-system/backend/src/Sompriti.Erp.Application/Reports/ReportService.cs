@@ -421,6 +421,12 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
             new ReportColumn("Due", money, RightAligned: true),
         });
 
+        // With line items: each order's products under it, as on the order itself.
+        var lines = q.WithLines
+            ? sales ? await LinesByOrderAsync<SalesOrderLineItem>(orders, ct) : await LinesByOrderAsync<PurchaseOrderLineItem>(orders, ct)
+            : null;
+        if (lines is not null) filters.Add(("Line items", "Shown under each order"));
+
         var rows = orders.Select(o =>
         {
             var final = o.PostingStatus == PostingStatus.Final;
@@ -432,7 +438,7 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
             cells.Add(Money.FormatPlain(o.TotalAmount));
             cells.Add(Money.FormatPlain(o.TotalPaidAmount));
             cells.Add(final ? Money.FormatPlain(o.DueAmount) : "-");
-            return new ReportRow(cells);
+            return new ReportRow(cells, lines?.GetValueOrDefault(o.Uuid));
         }).ToList();
 
         var finals = orders.Where(o => o.PostingStatus == PostingStatus.Final).ToList();
@@ -446,6 +452,7 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
         var prefix = perParty
             ? $"{(sales ? "customer" : "supplier")}-{partyCode ?? "orders"}-orders"
             : sales ? "sales-orders" : "purchase-orders";
+        if (lines is not null) prefix += "-with-items";
         return new ReportDocument(
             Title: perParty ? $"{partyWord} orders" : sales ? "Sales orders" : "Purchase orders",
             BusinessName: await business.NameAsync(ct),
@@ -453,7 +460,65 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
             Columns: columns,
             Rows: rows,
             Totals: totals,
-            FileName: FileName(prefix, q.FromDate, q.ToDate));
+            FileName: FileName(prefix, q.FromDate, q.ToDate),
+            DetailColumns: lines is null ? null : LineColumns);
+    }
+
+    /// <summary>The line items' columns in a printed order list with line items.</summary>
+    private static readonly ReportColumn[] LineColumns =
+    [
+        new("#", 18),
+        new("Product"),
+        new("Quantity", 130, RightAligned: true),
+        new("Rate", 92, RightAligned: true),
+        new("Amount", 72, RightAligned: true),
+    ];
+
+    /// <summary>
+    /// The line items of the listed orders, as printable cells keyed by order. Only orders already
+    /// in the list are asked for, so a user still sees only what the list let them see.
+    /// </summary>
+    private async Task<Dictionary<Guid, IReadOnlyList<IReadOnlyList<string>>>> LinesByOrderAsync<TLine>(
+        IReadOnlyList<OrderListItemDto> orders, CancellationToken ct) where TLine : OrderLine
+    {
+        var result = new Dictionary<Guid, IReadOnlyList<IReadOnlyList<string>>>();
+        // A previous due has no lines; asking in chunks keeps each query's id list small.
+        var ids = orders.Where(o => !o.IsOpeningDue).Select(o => o.Uuid).ToList();
+        foreach (var chunk in ids.Chunk(500))
+        {
+            var rows = await (from l in db.Set<TLine>().AsNoTracking()
+                              join p in db.Products.AsNoTracking() on l.ProductUuid equals p.Uuid
+                              where chunk.Contains(l.OrderUuid) && l.Status == RecordStatus.Active
+                              orderby l.OrderUuid, l.LineNumber
+                              select new
+                              {
+                                  l.OrderUuid, l.LineNumber, p.ProductName, p.ProductCode, l.QuantityType, l.BoxQuantity,
+                                  l.TotalQuantity, l.PerUnitPrice, l.PerBoxPrice, l.TotalPrice, p.Uom, p.SecondaryUom,
+                              }).ToListAsync(ct);
+            foreach (var g in rows.GroupBy(r => r.OrderUuid))
+            {
+                result[g.Key] = g.Select(r =>
+                {
+                    var unit = Units.PrintLabel(Units.BaseUnit(r.Uom, r.SecondaryUom));
+                    var total = $"{Qty.Format(r.TotalQuantity)} {unit}";
+                    var byBox = r.QuantityType == QuantityType.Box && r.BoxQuantity is not null;
+                    // By the box: "5 BOX = 40 PKT" at the box price; otherwise "40 PKT" at the unit price.
+                    var quantity = byBox ? $"{r.BoxQuantity!.Value.ToString("#,##0", Invariant)} BOX = {total}" : total;
+                    var rate = byBox && r.PerBoxPrice is { } pb
+                        ? $"{Money.FormatPlain(pb)} / BOX"
+                        : $"{Money.FormatPlain(r.PerUnitPrice)} / {unit}";
+                    return (IReadOnlyList<string>)new[]
+                    {
+                        r.LineNumber.ToString(Invariant),
+                        $"{r.ProductName} ({r.ProductCode})",
+                        quantity,
+                        rate,
+                        Money.FormatPlain(r.TotalPrice),
+                    };
+                }).ToList();
+            }
+        }
+        return result;
     }
 
     // ------------------------------------------------------------------ printable report helpers

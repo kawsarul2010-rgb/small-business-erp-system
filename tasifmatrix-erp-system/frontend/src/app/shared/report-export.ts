@@ -3,6 +3,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { ApiService, QueryValue } from '../core/api.service';
 import { LayoutService } from '../core/layout.service';
@@ -21,7 +22,7 @@ import { t } from '../core/i18n/i18n';
  */
 @Component({
   selector: 'app-report-export',
-  imports: [TranslatePipe, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule],
+  imports: [TranslatePipe, MatButtonModule, MatIconModule, MatMenuModule, MatTooltipModule, MatDividerModule],
   template: `
     @if (layout.isHandset()) {
       <button mat-icon-button [matMenuTriggerFor]="menu" [disabled]="busy()" [attr.aria-label]="'Export report' | t">
@@ -34,6 +35,15 @@ import { t } from '../core/i18n/i18n';
       </button>
     }
     <mat-menu #menu="matMenu" xPosition="before">
+      @if (lineItemsOption()) {
+        <!-- A switch, not an action: the menu stays open so the user then picks open, download or share. -->
+        <button mat-menu-item class="lines-toggle" role="menuitemcheckbox" [attr.aria-checked]="withLines()"
+                (click)="$event.stopPropagation(); toggleLines()">
+          <mat-icon>{{ withLines() ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+          {{ 'Include line items' | t }}
+        </button>
+        <mat-divider />
+      }
       <button mat-menu-item (click)="run(false)">
         <mat-icon>open_in_new</mat-icon>
         {{ (platform.isNative ? 'Open or share' : 'Open in a new tab') | t }}
@@ -59,6 +69,8 @@ export class ReportExport {
   readonly filters = input<Record<string, QueryValue>>({});
   /** What to call the document when sharing it, e.g. "Customer report". */
   readonly label = input('');
+  /** Order lists: offer "Include line items", which prints each order's products under it. */
+  readonly lineItemsOption = input(false);
 
   readonly layout = inject(LayoutService);
   readonly platform = inject(PlatformService);
@@ -66,10 +78,22 @@ export class ReportExport {
   private readonly notify = inject(NotifyService);
   private readonly dialog = inject(MatDialog);
   readonly busy = signal(false);
+  /** Remembered on this device, so someone who always wants the items does not tick it every time. */
+  readonly withLines = signal(readWithLines());
+
+  toggleLines(): void {
+    this.withLines.update((v) => !v);
+    try { localStorage.setItem(WITH_LINES_KEY, this.withLines() ? '1' : '0'); } catch { /* private mode */ }
+  }
+
+  /** The screen's filters, plus the line items switch where it is offered. */
+  private query(): Record<string, QueryValue> {
+    return this.lineItemsOption() && this.withLines() ? { ...this.filters(), withLines: true } : this.filters();
+  }
 
   run(download: boolean): void {
     this.busy.set(true);
-    this.api.blob(this.path(), { ...this.filters(), download }).subscribe({
+    this.api.blob(this.path(), { ...this.query(), download }).subscribe({
       next: async (blob) => {
         try {
           await this.platform.openPdf(blob, this.fileName(), download);
@@ -91,7 +115,7 @@ export class ReportExport {
     openSharePdfDialog(
       { api: this.api, dialog: this.dialog, layout: this.layout, notify: this.notify },
       this.path(),
-      this.filters(),
+      this.query(),
       { title, fileName: this.fileName(), message: t('{title} is attached.', { title }) },
       () => this.busy.set(false),
     );
@@ -100,6 +124,12 @@ export class ReportExport {
   /** A fallback name; the server sends the authoritative one in Content-Disposition. */
   private fileName(): string {
     const slug = this.path().replace(/^\//, '').replace(/\/pdf$/, '').replace(/\//g, '-');
-    return `${slug}.pdf`;
+    return `${slug}${this.lineItemsOption() && this.withLines() ? '-with-items' : ''}.pdf`;
   }
+}
+
+const WITH_LINES_KEY = 'tasifmatrix.printWithLines';
+
+function readWithLines(): boolean {
+  try { return localStorage.getItem(WITH_LINES_KEY) === '1'; } catch { return false; }
 }

@@ -104,12 +104,12 @@ type Mode = 'business' | 'join';
                     <strong>{{ (options()!.trialDays === 1 ? 'Free for the first day.' : 'Free for the first {n} days.') | t: { n: options()!.trialDays } }}</strong>
                     @if (!inApp) { {{ 'No payment needed to start.' | t }} }
                   }
-                  @if (!inApp && priceLines().length > 0) {
+                  @if (!inApp && showPrices() && priceLines().length > 0) {
                     <div class="price-list">
                       <span class="then">{{ (options()!.trialDays > 0 ? 'Then choose a package:' : 'Packages:') | t }}</span>
                       @for (line of priceLines(); track line) { <span class="price-chip">{{ line }}</span> }
                     </div>
-                  } @else if (!inApp && sizes().length > 0 && !selectedSize()) {
+                  } @else if (!inApp && showPrices() && sizes().length > 0 && !selectedSize()) {
                     <div class="then">{{ 'Choose your business size to see the prices.' | t }}</div>
                   }
                 </div>
@@ -272,6 +272,9 @@ export class RegisterPage {
   readonly sizes = computed(() => this.options()?.sizes ?? []);
   private readonly sizeValue = toSignal(this.businessForm.controls.businessSizeUuid.valueChanges, { initialValue: null });
   readonly selectedSize = computed(() => this.sizeValue());
+  /** The super admin can hide the prices on this page (Platform → Billing). */
+  readonly showPrices = computed(() => this.options()?.showPrices !== false);
+
   /** "Monthly - 1 month: Tk 100" for each package offered to the chosen size. */
   readonly priceLines = computed(() => {
     const size = this.selectedSize();

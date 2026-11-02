@@ -28,7 +28,9 @@ public sealed record RegisterBusinessRequest(string? BusinessName, string? Busin
 public sealed record SignupOptionsDto(bool BusinessSignup, bool BillingEnabled = false, int TrialDays = 0,
     IReadOnlyList<SizeOptionDto>? Sizes = null, IReadOnlyList<PlanOfferDto>? Plans = null,
     /// <summary>The support contact set by the super admin (shown on the privacy and account deletion pages).</summary>
-    string? SupportEmail = null, string? SupportPhone = null);
+    string? SupportEmail = null, string? SupportPhone = null,
+    /// <summary>False: the super admin hides package prices on the sign-up page (Plans is then empty).</summary>
+    bool ShowPrices = true);
 public sealed record LoginRequest(string? Email, string? Password);
 public sealed record RefreshRequest(string? RefreshToken);
 public sealed record ForgotPasswordRequest(string? Email);
@@ -107,7 +109,8 @@ public sealed class AuthService(
         var sizes = await db.BusinessSizes.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.SortOrder).ThenBy(x => x.SizeName)
             .Select(x => new SizeOptionDto(x.Uuid, x.SizeName, x.Description)).ToListAsync(ct);
         var plans = new List<PlanOfferDto>();
-        if (s.BillingEnabled)
+        // Hidden prices are left out of the answer altogether, not just hidden on the page.
+        if (s.BillingEnabled && s.ShowPricesOnSignup)
         {
             var activePlans = await db.SubscriptionPlans.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.SortOrder).ThenBy(x => x.DurationMonths).ToListAsync(ct);
             var sizeIds = sizes.Select(x => x.Uuid).ToList();
@@ -117,7 +120,7 @@ public sealed class AuthService(
                 .Where(p => p.Prices.Count > 0).ToList();
         }
         return new SignupOptionsDto(appOptions.Value.AllowBusinessSignup, s.BillingEnabled, s.BillingEnabled ? s.TrialDays : 0, sizes, plans,
-            s.SupportEmail, s.SupportPhone);
+            s.SupportEmail, s.SupportPhone, s.ShowPricesOnSignup);
     }
 
     /// <summary>

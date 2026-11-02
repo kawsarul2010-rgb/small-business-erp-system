@@ -13,13 +13,15 @@ namespace Sompriti.Erp.Application.Billing;
 public sealed record BillingSettingsDto(bool BillingEnabled, int TrialDays, int GraceDays, int ReminderDays, string? SupportPhone,
     string? SupportEmail, bool BkashEnabled, bool BkashSandbox, string? BkashAppKey, bool HasBkashAppSecret, string? BkashUsername,
     bool HasBkashPassword, bool BkashReady, DateTimeOffset UpdatedDate, string UpdatedByUserName,
-    bool SmsCreditRequired, decimal SmsUnitPrice, int SmsValidityMonths, int SmsMinPurchase, int SmsFreeOnSignup);
+    bool SmsCreditRequired, decimal SmsUnitPrice, int SmsValidityMonths, int SmsMinPurchase, int SmsFreeOnSignup,
+    bool ShowPricesOnSignup = true);
 
 /// <summary>Secrets: null or empty keeps the saved value; ClearBkashSecrets removes both.</summary>
 public sealed record BillingSettingsRequest(bool? BillingEnabled, int? TrialDays, int? GraceDays, int? ReminderDays, string? SupportPhone,
     string? SupportEmail, bool? BkashEnabled, bool? BkashSandbox, string? BkashAppKey, string? BkashAppSecret, string? BkashUsername,
     string? BkashPassword, bool ClearBkashSecrets = false,
-    bool? SmsCreditRequired = null, decimal? SmsUnitPrice = null, int? SmsValidityMonths = null, int? SmsMinPurchase = null, int? SmsFreeOnSignup = null);
+    bool? SmsCreditRequired = null, decimal? SmsUnitPrice = null, int? SmsValidityMonths = null, int? SmsMinPurchase = null, int? SmsFreeOnSignup = null,
+    bool? ShowPricesOnSignup = null);
 
 /// <summary>BusinessesStarted: businesses whose free trial began because billing was just switched on.</summary>
 /// <summary>BusinessesGivenSms: businesses that got their free SMS because prepaid SMS was just switched on.</summary>
@@ -216,12 +218,14 @@ public sealed class PlatformBillingService(IAppDbContext db, ICurrentUser curren
         if (r.SmsValidityMonths is { } vm) s.SmsValidityMonths = vm;
         if (r.SmsMinPurchase is { } mp) s.SmsMinPurchase = mp;
         if (r.SmsFreeOnSignup is { } fs) s.SmsFreeOnSignup = fs;
+        if (r.ShowPricesOnSignup is { } sp) s.ShowPricesOnSignup = sp;
     }
 
     private BillingSettingsDto ToDto(BillingSettings s) => new(s.BillingEnabled, s.TrialDays, s.GraceDays, s.ReminderDays, s.SupportPhone,
         s.SupportEmail, s.BkashEnabled, s.BkashSandbox, s.BkashAppKey, protector.Unprotect(s.BkashAppSecret) is not null, s.BkashUsername,
         protector.Unprotect(s.BkashPassword) is not null, BillingMapping.Bkash(s, protector) is not null,
-        s.UpdatedDate, s.UpdatedByUserName, s.SmsCreditRequired, s.SmsUnitPrice, s.SmsValidityMonths, s.SmsMinPurchase, s.SmsFreeOnSignup);
+        s.UpdatedDate, s.UpdatedByUserName, s.SmsCreditRequired, s.SmsUnitPrice, s.SmsValidityMonths, s.SmsMinPurchase, s.SmsFreeOnSignup,
+        s.ShowPricesOnSignup);
 
     // ------------------------------------------------------------------ sizes
 

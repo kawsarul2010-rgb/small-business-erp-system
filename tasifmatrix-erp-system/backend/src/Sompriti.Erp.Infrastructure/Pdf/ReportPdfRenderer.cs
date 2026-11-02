@@ -18,6 +18,10 @@ public sealed class ReportPdfRenderer(ICurrentUser currentUser, TimeProvider clo
     private const float ContentWidth = PageWidth - Margin * 2;
     private const float BottomLimit = PageHeight - 70;
     private const float RowHeight = 17;
+    // Detail rows (an order's line items): smaller, indented under their row.
+    private const float DetailIndent = 22;
+    private const float DetailRowHeight = 13;
+    private const float DetailFont = 7.5f;
 
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
@@ -53,17 +57,41 @@ public sealed class ReportPdfRenderer(ICurrentUser currentUser, TimeProvider clo
         }
         else
         {
+            var detailColumns = doc.DetailColumns is { Count: > 0 } dc ? Layout(dc, ContentWidth - DetailIndent) : null;
+            var grouped = detailColumns is not null;
             y = TableHeader(pdf, columns, y);
             foreach (var row in doc.Rows)
             {
-                if (y + RowHeight > BottomLimit)
+                var details = grouped ? row.Details ?? [] : [];
+                // A row with details starts a new page unless its first line fits under it too.
+                var need = RowHeight + (details.Count > 0 ? DetailRowHeight * 2 : 0);
+                if (y + need > BottomLimit)
                 {
                     pdf.NewPage();
                     y = TableHeader(pdf, columns, Margin);
                 }
-                Row(pdf, columns, row.Cells, y, bold: false);
+                // With line items the order rows read as group headings: shaded and bold.
+                if (grouped) pdf.FillRect(Margin, y, ContentWidth, RowHeight, 0.965f);
+                Row(pdf, columns, row.Cells, y, bold: grouped);
                 y += RowHeight;
-                pdf.Line(Margin, y, Right, y, 0.3f, 0.85f);
+
+                if (details.Count > 0)
+                {
+                    y = DetailHeader(pdf, detailColumns!, y);
+                    foreach (var line in details)
+                    {
+                        if (y + DetailRowHeight > BottomLimit)
+                        {
+                            pdf.NewPage();
+                            y = TableHeader(pdf, columns, Margin);
+                            y = DetailHeader(pdf, detailColumns!, y);
+                        }
+                        DetailRow(pdf, detailColumns!, line, y, bold: false);
+                        y += DetailRowHeight;
+                    }
+                    y += 4;
+                }
+                pdf.Line(Margin, y, Right, y, grouped ? 0.6f : 0.3f, grouped ? 0.6f : 0.85f);
             }
         }
 
@@ -97,11 +125,11 @@ public sealed class ReportPdfRenderer(ICurrentUser currentUser, TimeProvider clo
     }
 
     /// <summary>Gives every flexible column an equal share of what the fixed ones leave.</summary>
-    private static List<ReportColumn> Layout(IReadOnlyList<ReportColumn> columns)
+    private static List<ReportColumn> Layout(IReadOnlyList<ReportColumn> columns, float width = ContentWidth)
     {
         var fixedWidth = columns.Where(c => c.Width > 0).Sum(c => c.Width);
         var flexible = columns.Count(c => c.Width <= 0);
-        var share = flexible > 0 ? (ContentWidth - fixedWidth) / flexible : 0;
+        var share = flexible > 0 ? (width - fixedWidth) / flexible : 0;
         return columns.Select(c => c.Width > 0 ? c : c with { Width = share }).ToList();
     }
 
@@ -110,6 +138,29 @@ public sealed class ReportPdfRenderer(ICurrentUser currentUser, TimeProvider clo
         pdf.FillRect(Margin, y, ContentWidth, RowHeight + 1, 0.92f);
         Row(pdf, columns, columns.Select(c => c.Title).ToArray(), y, bold: true);
         return y + RowHeight + 1;
+    }
+
+    /// <summary>The line items' column titles, small and grey, under the row they belong to.</summary>
+    private static float DetailHeader(SimplePdf pdf, List<ReportColumn> columns, float y)
+    {
+        DetailRow(pdf, columns, columns.Select(c => c.Title).ToArray(), y, bold: true, gray: 0.45f);
+        y += DetailRowHeight;
+        pdf.Line(Margin + DetailIndent, y - 1, Right, y - 1, 0.3f, 0.8f);
+        return y;
+    }
+
+    private static void DetailRow(SimplePdf pdf, List<ReportColumn> columns, IReadOnlyList<string> cells, float y, bool bold, float gray = 0.15f)
+    {
+        var x = Margin + DetailIndent;
+        for (var i = 0; i < columns.Count; i++)
+        {
+            var col = columns[i];
+            var cell = i < cells.Count ? cells[i] : "";
+            var align = col.RightAligned ? Align.Right : Align.Left;
+            var tx = col.RightAligned ? x + col.Width - 4 : x + 4;
+            pdf.Text(tx, y + 3, Fit(cell, col.Width - 8, DetailFont, bold), DetailFont, bold, align, gray);
+            x += col.Width;
+        }
     }
 
     private static void Row(SimplePdf pdf, List<ReportColumn> columns, IReadOnlyList<string> cells, float y, bool bold)
