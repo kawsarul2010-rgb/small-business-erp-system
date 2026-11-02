@@ -95,8 +95,9 @@ type Mode = 'business' | 'join';
                 <mat-error>{{ errB('businessSizeUuid', 'Business size') }}</mat-error>
               </mat-form-field>
             }
-            <!-- In the Android app only the free trial is mentioned: prices and paying stay on the website (Google Play rules). -->
-            @if (options()?.billingEnabled && (!inApp || options()!.trialDays > 0)) {
+            <!-- In the Android app only the free trial is mentioned: prices and paying stay on the website (Google Play rules).
+                 With prices hidden by the super admin, this whole box is left out. -->
+            @if (options()?.billingEnabled && showPrices() && (!inApp || options()!.trialDays > 0)) {
               <div class="pricing">
                 <mat-icon>sell</mat-icon>
                 <div>
@@ -104,12 +105,12 @@ type Mode = 'business' | 'join';
                     <strong>{{ (options()!.trialDays === 1 ? 'Free for the first day.' : 'Free for the first {n} days.') | t: { n: options()!.trialDays } }}</strong>
                     @if (!inApp) { {{ 'No payment needed to start.' | t }} }
                   }
-                  @if (!inApp && showPrices() && priceLines().length > 0) {
+                  @if (!inApp && priceLines().length > 0) {
                     <div class="price-list">
                       <span class="then">{{ (options()!.trialDays > 0 ? 'Then choose a package:' : 'Packages:') | t }}</span>
                       @for (line of priceLines(); track line) { <span class="price-chip">{{ line }}</span> }
                     </div>
-                  } @else if (!inApp && showPrices() && sizes().length > 0 && !selectedSize()) {
+                  } @else if (!inApp && sizes().length > 0 && !selectedSize()) {
                     <div class="then">{{ 'Choose your business size to see the prices.' | t }}</div>
                   }
                 </div>

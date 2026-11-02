@@ -96,7 +96,7 @@ import { StatusChip } from '../../shared/status-chip';
                 <mat-icon>{{ settingsForm.controls.showPricesOnSignup.value ? 'sell' : 'visibility_off' }}</mat-icon>
                 <div class="switch-text">
                   <span class="switch-title">{{ 'Show package prices on the sign-up page' | t }}</span>
-                  <span class="switch-hint">{{ (settingsForm.controls.showPricesOnSignup.value ? 'On: a new business sees the prices of each package when it registers.' : 'Off: the sign-up page mentions only the free trial. Prices are still on the Billing page after sign-up.') | t }}</span>
+                  <span class="switch-hint">{{ (settingsForm.controls.showPricesOnSignup.value ? 'On: a new business sees the prices of each package when it registers.' : 'Off: the sign-up page shows nothing about prices or the free trial. Prices are still on the Billing page after sign-up.') | t }}</span>
                 </div>
                 <mat-slide-toggle formControlName="showPricesOnSignup" [attr.aria-label]="'Show package prices on the sign-up page' | t" />
               </div>

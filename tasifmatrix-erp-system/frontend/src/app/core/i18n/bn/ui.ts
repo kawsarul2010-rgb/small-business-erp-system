@@ -569,7 +569,7 @@ export const BN_UI: Record<string, string> = {
   "OK": "ঠিক আছে",
   "Off: businesses send SMS without a balance. Use the usage on each business page to bill them.": "বন্ধ: ব্যবসাগুলো ব্যালেন্স ছাড়াই SMS পাঠায়। বিল করতে প্রতিটি ব্যবসার পাতার ব্যবহার দেখুন।",
   "Off: every business uses the app for free and nobody is reminded or paused.": "বন্ধ: সব ব্যবসা বিনামূল্যে অ্যাপ ব্যবহার করবে, কাউকে মনে করানো বা বন্ধ করা হবে না।",
-  "Off: the sign-up page mentions only the free trial. Prices are still on the Billing page after sign-up.": "বন্ধ: নিবন্ধন পাতায় শুধু ফ্রি ট্রায়ালের কথা থাকবে। নিবন্ধনের পর বিলিং পাতায় দাম দেখা যাবে।",
+  "Off: the sign-up page shows nothing about prices or the free trial. Prices are still on the Billing page after sign-up.": "বন্ধ: নিবন্ধন পাতায় দাম বা ফ্রি ট্রায়াল নিয়ে কিছুই দেখাবে না। নিবন্ধনের পর বিলিং পাতায় দাম দেখা যাবে।",
   "Off: this business sends no SMS at all. Orders, customers and suppliers keep their own SMS choice for when you turn it back on.": "বন্ধ: এই ব্যবসা থেকে কোনো SMS যাবে না। আবার চালু করলে অর্ডার, গ্রাহক ও সরবরাহকারীর নিজস্ব SMS পছন্দ আগের মতোই থাকবে।",
   "Offered at sign-up": "নিবন্ধনের সময় দেখানো হবে",
   "Offered to businesses": "ব্যবসাগুলোকে দেওয়া হবে",
