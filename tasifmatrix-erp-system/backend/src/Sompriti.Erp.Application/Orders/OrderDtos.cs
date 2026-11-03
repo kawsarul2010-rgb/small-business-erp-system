@@ -54,8 +54,8 @@ public sealed record OrderDetailDto(
     bool IsOpeningDue = false,
     /// <summary>
     /// What the customer or supplier still owes from before this order: the dues of their other FINAL
-    /// orders placed before it, plus every previous due ("আগের বাকি"). Printed under the order's
-    /// totals. Null for a previous due itself and for a void order.
+    /// orders placed before it, plus every other previous due ("আগের বাকি"). Printed under the
+    /// order's totals, followed by the total due. Null for a void order.
     /// </summary>
     decimal? PreviousDue = null);
 

@@ -127,7 +127,7 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         // Earlier orders of the same party: dated before this one, or the same day but made first.
         // A previous due always counts, whatever its date. Their dues are as they stand now.
         decimal? previousDue = null;
-        if (!o.IsOpeningDue && o.PostingStatus != PostingStatus.Void)
+        if (o.PostingStatus != PostingStatus.Void)
         {
             previousDue = Money.Round(await Orders.AsNoTracking()
                 .Where(x => x.PartyUuid == o.PartyUuid && x.Uuid != o.Uuid && x.Status == RecordStatus.Active

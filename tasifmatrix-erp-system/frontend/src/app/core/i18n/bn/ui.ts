@@ -613,6 +613,7 @@ export const BN_UI: Record<string, string> = {
   "Orders for {name}": "{name}-এর অর্ডার",
   "Orders this month": "এই মাসের অর্ডার",
   "Other": "অন্যান্য",
+  "Other due": "অন্যান্য বাকি",
   "Other length": "অন্য মেয়াদ",
   "Other options": "অন্যান্য বিকল্প",
   "Outgrown": "আকার ছাড়িয়েছে",

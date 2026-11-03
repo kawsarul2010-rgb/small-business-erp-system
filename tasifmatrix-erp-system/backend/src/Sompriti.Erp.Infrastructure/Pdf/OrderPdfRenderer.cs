@@ -140,9 +140,12 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
             ("Due Amount", order.DueAmount, true),
         };
         // Then what the customer or supplier still owed from their earlier orders, and everything owed in all.
+        // On a previous due's own page its first line is already called "Previous Due", so dues
+        // from other entries are "Other Due" there - and left out when there are none.
         if (order.PreviousDue is { } previous)
         {
-            totalLines.Add(("Previous Due", previous, true));
+            if (!order.IsOpeningDue || previous != 0)
+                totalLines.Add((order.IsOpeningDue ? "Other Due" : "Previous Due", previous, true));
             totalLines.Add(("Total Due", order.DueAmount + previous, true));
         }
         for (var i = 0; i < totalLines.Count; i++)
@@ -151,7 +154,7 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
             if (i >= 3)
             {
                 // Previous Due is set apart from this order's own figures by a rule; Total Due by a heavier one.
-                var last = i == totalLines.Count - 1 && i > 3;
+                var last = i == totalLines.Count - 1;
                 pdf.Line(Right - 210, y - 3, Right, y - 3, last ? 1f : 0.5f, last ? 0.2f : 0.6f);
                 y += 3;
             }
