@@ -113,7 +113,8 @@ public interface ISmsSender
 
 public interface IOrderPdfRenderer
 {
-    byte[] Render(Orders.OrderDetailDto order, MasterData.CompanyDto company);
+    /// <param name="bangla">Print the totals block in Bangla (the app's language is Bangla).</param>
+    byte[] Render(Orders.OrderDetailDto order, MasterData.CompanyDto company, bool bangla = false);
 }
 
 /// <summary>One column of a printed report. A width of 0 shares out the leftover space.</summary>

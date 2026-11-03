@@ -22,8 +22,10 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
 
     private sealed record Column(string Title, float Width, Align Align);
 
-    public byte[] Render(OrderDetailDto order, CompanyDto company)
+    public byte[] Render(OrderDetailDto order, CompanyDto company, bool bangla = false)
     {
+        // The totals block follows the app's language; the rest of the document stays in English.
+        string L(string en, string bn) => bangla ? bn : en;
         var pdf = new SimplePdf();
         var isSales = order.TransactionType == TransactionType.Sales;
         var watermark = order.PostingStatus switch { PostingStatus.Draft => "DRAFT", PostingStatus.Void => "VOID", _ => null };
@@ -136,9 +138,9 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
         // Rule: 0 none, 1 thin rule above the line, 2 heavy rule above it.
         var totalLines = new List<(string Label, decimal Value, bool Strong, int Rule)>
         {
-            (order.IsOpeningDue ? "Previous Due" : "Order Total", order.TotalAmount, true, 0),
-            ("Total Paid", order.TotalPaidAmount, false, 0),
-            ("Due Amount", order.DueAmount, true, 0),
+            (order.IsOpeningDue ? L("Previous Due", "আগের বাকি") : L("Order Total", "অর্ডারের মোট"), order.TotalAmount, true, 0),
+            (L("Total Paid", "মোট পরিশোধ"), order.TotalPaidAmount, false, 0),
+            (L("Due Amount", "বাকি"), order.DueAmount, true, 0),
         };
         // Then the customer's or supplier's whole account: what they still owed apart from this order,
         // everything ever ordered and paid (all dates, FINAL only), and what they owe in all.
@@ -147,13 +149,13 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
         if (order.PreviousDue is { } previous)
         {
             if (!order.IsOpeningDue || previous != 0)
-                totalLines.Add((order.IsOpeningDue ? "Other Due" : "Previous Due", previous, true, 1));
+                totalLines.Add((order.IsOpeningDue ? L("Other Due", "অন্যান্য বাকি") : L("Previous Due", "আগের বাকি"), previous, true, 1));
             if (order.AccountTotal is { } allTotal && order.AccountPaid is { } allPaid)
             {
-                totalLines.Add(("All Orders Total", allTotal, false, 1));
-                totalLines.Add(("All Paid", allPaid, false, 0));
+                totalLines.Add((L("All Orders Total", "সব অর্ডারের মোট"), allTotal, false, 1));
+                totalLines.Add((L("All Paid", "সব মিলিয়ে পরিশোধ"), allPaid, false, 0));
             }
-            totalLines.Add(("Total Due", order.DueAmount + previous, true, 2));
+            totalLines.Add((L("Total Due", "মোট বাকি"), order.DueAmount + previous, true, 2));
         }
         foreach (var (label, value, strong, rule) in totalLines)
         {
@@ -172,8 +174,10 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
             // The total due is the account as it stands when printed, so the page says when that was.
             var today = clock.GetUtcNow().ToOffset(BusinessClock.Offset).ToString("dd MMM yyyy", Inv);
             var note = order.PostingStatus == PostingStatus.Draft
-                ? "Total due includes this draft order."
-                : $"{(isSales ? "Customer" : "Supplier")} balance on {today}";
+                ? L("Total due includes this draft order.", "মোট বাকিতে এই খসড়া অর্ডারটিও ধরা আছে।")
+                : bangla
+                    ? $"{today} তারিখে {(isSales ? "গ্রাহকের" : "সরবরাহকারীর")} মোট হিসাব"
+                    : $"{(isSales ? "Customer" : "Supplier")} balance on {today}";
             pdf.Text(Right, y - 1, note, 8, gray: 0.4f, align: Align.Right);
             y += 12;
         }

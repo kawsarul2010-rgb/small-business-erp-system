@@ -22,9 +22,9 @@ public sealed class PurchaseOrdersController(PurchaseOrderService service, PdfMa
     public Task<OrderDetailDto> Get(Guid id, CancellationToken ct) => service.GetAsync(id, ct);
 
     [HttpGet("{id:guid}/pdf"), Authorize(Roles = "ADMIN,USER")]
-    public async Task<IActionResult> Pdf(Guid id, [FromQuery] bool download, CancellationToken ct)
+    public async Task<IActionResult> Pdf(Guid id, [FromQuery] bool download, [FromQuery] string? lang, CancellationToken ct)
     {
-        var (bytes, name, _) = await service.PdfAsync(id, ct);
+        var (bytes, name, _) = await service.PdfAsync(id, lang == "bn", ct);
         return this.PdfFile(bytes, name, download);
     }
 
@@ -34,9 +34,9 @@ public sealed class PurchaseOrdersController(PurchaseOrderService service, PdfMa
 
     /// <summary>Emails the same PDF as an attachment. A browser cannot attach a file itself.</summary>
     [HttpPost("{id:guid}/pdf/email"), Authorize(Roles = "ADMIN,USER")]
-    public async Task<IActionResult> EmailPdf(Guid id, EmailPdfRequest r, CancellationToken ct)
+    public async Task<IActionResult> EmailPdf(Guid id, EmailPdfRequest r, [FromQuery] string? lang, CancellationToken ct)
     {
-        var (bytes, name, description) = await service.PdfAsync(id, ct);
+        var (bytes, name, description) = await service.PdfAsync(id, lang == "bn", ct);
         await mailer.SendAsync(r, description, name, bytes, ct);
         return NoContent();
     }
@@ -107,9 +107,9 @@ public sealed class SalesOrdersController(SalesOrderService service, PdfMailer m
     public Task<OrderDetailDto> Get(Guid id, CancellationToken ct) => service.GetAsync(id, ct);
 
     [HttpGet("{id:guid}/pdf"), Authorize(Roles = "ADMIN,MANAGER,USER")]
-    public async Task<IActionResult> Pdf(Guid id, [FromQuery] bool download, CancellationToken ct)
+    public async Task<IActionResult> Pdf(Guid id, [FromQuery] bool download, [FromQuery] string? lang, CancellationToken ct)
     {
-        var (bytes, name, _) = await service.PdfAsync(id, ct);
+        var (bytes, name, _) = await service.PdfAsync(id, lang == "bn", ct);
         return this.PdfFile(bytes, name, download);
     }
 
@@ -119,9 +119,9 @@ public sealed class SalesOrdersController(SalesOrderService service, PdfMailer m
 
     /// <summary>Emails the same PDF as an attachment. A browser cannot attach a file itself.</summary>
     [HttpPost("{id:guid}/pdf/email"), Authorize(Roles = "ADMIN,MANAGER,USER")]
-    public async Task<IActionResult> EmailPdf(Guid id, EmailPdfRequest r, CancellationToken ct)
+    public async Task<IActionResult> EmailPdf(Guid id, EmailPdfRequest r, [FromQuery] string? lang, CancellationToken ct)
     {
-        var (bytes, name, description) = await service.PdfAsync(id, ct);
+        var (bytes, name, description) = await service.PdfAsync(id, lang == "bn", ct);
         await mailer.SendAsync(r, description, name, bytes, ct);
         return NoContent();
     }

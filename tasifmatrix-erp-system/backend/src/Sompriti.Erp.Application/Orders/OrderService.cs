@@ -156,11 +156,11 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
     }
 
     /// <param name="Description">A one-line name for the document, used as an email subject.</param>
-    public async Task<(byte[] Content, string FileName, string Description)> PdfAsync(Guid id, CancellationToken ct)
+    public async Task<(byte[] Content, string FileName, string Description)> PdfAsync(Guid id, bool bangla, CancellationToken ct)
     {
         var detail = await GetAsync(id, ct);
         var company = await Db.Companies.AsNoTracking().FirstAsync(c => c.Uuid == detail.Company.Uuid, ct);
-        var bytes = pdf.Render(detail, CompanyService.ToDto(company));
+        var bytes = pdf.Render(detail, CompanyService.ToDto(company), bangla);
         var sales = Type == TransactionType.Sales;
         var prefix = sales ? "sales-invoice" : "purchase-order";
         return (bytes, $"{prefix}-{detail.OrderNumber}.pdf",

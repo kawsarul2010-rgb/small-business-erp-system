@@ -30,7 +30,7 @@ import { orderMeta } from './order-kind';
 import { UnitPipe } from '../../shared/units';
 import { OpeningDueDialog, OpeningDueDialogData } from './opening-due-dialog';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { TParams, t } from '../../core/i18n/i18n';
+import { TParams, currentLang, t } from '../../core/i18n/i18n';
 
 @Component({
   selector: 'app-order-view',
@@ -197,7 +197,7 @@ export class OrderViewPage implements OnInit {
     const o = this.order()!;
     this.busy.set(true);
     const fileName = `${this.filePrefix()}-${o.orderNumber}.pdf`;
-    this.api.blob(`${this.meta().api}/${o.uuid}/pdf`).subscribe({
+    this.api.blob(`${this.meta().api}/${o.uuid}/pdf`, { lang: currentLang() }).subscribe({
       next: async (blob) => {
         try {
           await this.platform.openPdf(blob, fileName, download);
@@ -228,7 +228,7 @@ export class OrderViewPage implements OnInit {
     openSharePdfDialog(
       { api: this.api, dialog: this.dialog, layout: this.layout, notify: this.notify },
       `${this.meta().api}/${o.uuid}/pdf`,
-      {},
+      { lang: currentLang() },
       {
         title,
         fileName: `${this.filePrefix()}-${o.orderNumber}.pdf`,
