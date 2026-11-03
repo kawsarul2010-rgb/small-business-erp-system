@@ -147,8 +147,6 @@ ${lines || `<div class="c">${esc(prev ? t('Carried forward from before this acco
 <div class="row tot"><span>${esc(t('Paid'))}</span><span class="amt">${money(o.totalPaidAmount)}</span></div>
 <div class="row tot due"><span>${esc(t('Due'))}</span><span class="amt">${money(o.dueAmount)}</span></div>
 ${o.previousDue != null ? `${!prev || o.previousDue !== 0 ? `<hr><div class="row tot due"><span>${esc(t(prev ? 'Other due' : 'Previous due'))}</span><span class="amt">${money(o.previousDue)}</span></div>` : ''}
-${o.accountTotal != null && o.accountPaid != null ? `<hr><div class="row tot"><span>${esc(t('All orders total'))}</span><span class="amt">${money(o.accountTotal)}</span></div>
-<div class="row tot"><span>${esc(t('All paid'))}</span><span class="amt">${money(o.accountPaid)}</span></div>` : ''}
 <hr class="solid"><div class="row grand"><span>${esc(t('Total due'))}</span><span class="amt">Tk ${money(o.dueAmount + o.previousDue)}</span></div>
 <div class="count">${esc(o.postingStatus === 'DRAFT' ? t('Total due includes this draft order.') : t(sales ? 'Customer balance on {date}' : 'Supplier balance on {date}', { date: printed }))}</div>` : ''}
 ${prev ? '' : `<div class="count">${esc(t('{n} item(s)', { n: o.lines.length }))}</div>`}

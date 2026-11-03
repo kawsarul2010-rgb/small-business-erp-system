@@ -142,19 +142,14 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
             (L("Total Paid", "মোট পরিশোধ"), order.TotalPaidAmount, false, 0),
             (L("Due Amount", "বাকি"), order.DueAmount, true, 0),
         };
-        // Then the customer's or supplier's whole account: what they still owed apart from this order,
-        // everything ever ordered and paid (all dates, FINAL only), and what they owe in all.
+        // Then the customer's or supplier's account: what they still owed apart from this order
+        // (all their other FINAL orders, all dates), and what they owe in all.
         // On a previous due's own page its first line is already called "Previous Due", so dues
         // from other entries are "Other Due" there - and left out when there are none.
         if (order.PreviousDue is { } previous)
         {
             if (!order.IsOpeningDue || previous != 0)
                 totalLines.Add((order.IsOpeningDue ? L("Other Due", "অন্যান্য বাকি") : L("Previous Due", "আগের বাকি"), previous, true, 1));
-            if (order.AccountTotal is { } allTotal && order.AccountPaid is { } allPaid)
-            {
-                totalLines.Add((L("All Orders Total", "সব অর্ডারের মোট"), allTotal, false, 1));
-                totalLines.Add((L("All Paid", "সব মিলিয়ে পরিশোধ"), allPaid, false, 0));
-            }
             totalLines.Add((L("Total Due", "মোট বাকি"), order.DueAmount + previous, true, 2));
         }
         foreach (var (label, value, strong, rule) in totalLines)
