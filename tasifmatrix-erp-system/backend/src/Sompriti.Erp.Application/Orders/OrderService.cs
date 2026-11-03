@@ -124,16 +124,26 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         if (smsBlocked is null && o.SendSms && o.PostingStatus != PostingStatus.Void && User.Role != Role.User)
             smsBlocked = await credits.ShortageReasonAsync(Db, o.TenantUuid, ct);
 
-        // Earlier orders of the same party: dated before this one, or the same day but made first.
-        // A previous due always counts, whatever its date. Their dues are as they stand now.
-        decimal? previousDue = null;
+        // Everything else the party owes right now: the dues of all their other FINAL orders and
+        // previous dues, whatever their dates. With this order's own due it makes the party's whole
+        // balance - the same figure on every order of theirs printed on the same day, and the same
+        // "due" as in their SMS and the customer/supplier report (which also count FINAL orders).
+        decimal? previousDue = null, accountTotal = null, accountPaid = null;
         if (o.PostingStatus != PostingStatus.Void)
         {
-            previousDue = Money.Round(await Orders.AsNoTracking()
+            var others = await Orders.AsNoTracking()
                 .Where(x => x.PartyUuid == o.PartyUuid && x.Uuid != o.Uuid && x.Status == RecordStatus.Active
-                            && x.PostingStatus == PostingStatus.Final
-                            && (x.IsOpeningDue || x.OrderDate < o.OrderDate || (x.OrderDate == o.OrderDate && x.CreatedDate < o.CreatedDate)))
-                .SumAsync(x => (decimal?)(x.TotalAmount - x.TotalPaidAmount), ct) ?? 0);
+                            && x.PostingStatus == PostingStatus.Final)
+                .GroupBy(_ => 1)
+                .Select(g => new { Total = g.Sum(x => x.TotalAmount), Paid = g.Sum(x => x.TotalPaidAmount) })
+                .FirstOrDefaultAsync(ct);
+            var otherTotal = others?.Total ?? 0;
+            var otherPaid = others?.Paid ?? 0;
+            previousDue = Money.Round(otherTotal - otherPaid);
+            // All orders together, this one included: all ordered, all paid. Their difference is
+            // exactly this order's due plus the previous due, i.e. the total due.
+            accountTotal = Money.Round(otherTotal + o.TotalAmount);
+            accountPaid = Money.Round(otherPaid + o.TotalPaidAmount);
         }
 
         return new OrderDetailDto(o.Uuid, o.TransactionType, o.OrderNumber!,
@@ -142,7 +152,7 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
             o.PaymentType, o.PostingStatus, o.OrderDate, o.Notes, o.TotalAmount, o.TotalPaidAmount, o.DueAmount,
             o.FinalizedDate, o.FinalizedByUserName, o.VoidedDate, o.VoidedByUserName, o.VoidReason,
             o.Revision, o.CreatedDate, o.UpdatedDate, o.CreatedByUserName, o.UpdatedByUserName, lines, payments,
-            o.SendSms, smsBlocked, o.IsOpeningDue, previousDue);
+            o.SendSms, smsBlocked, o.IsOpeningDue, previousDue, accountTotal, accountPaid);
     }
 
     /// <param name="Description">A one-line name for the document, used as an email subject.</param>

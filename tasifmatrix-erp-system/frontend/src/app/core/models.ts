@@ -259,6 +259,9 @@ export interface OrderDetail extends Audited {
   isOpeningDue: boolean;
   /** The party's dues from before this order (earlier orders and previous dues). Null for a previous due or a void order. */
   previousDue?: number | null;
+  /** All the party's FINAL orders together (this one included) and all they paid; total due = accountTotal - accountPaid. */
+  accountTotal?: number | null;
+  accountPaid?: number | null;
 }
 
 /** GET {orders}/{id}/receipt: the order and the business heading its POS receipt. */

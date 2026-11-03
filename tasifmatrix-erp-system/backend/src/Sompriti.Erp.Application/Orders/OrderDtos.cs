@@ -53,11 +53,16 @@ public sealed record OrderDetailDto(
     /// <summary>Previous due recorded when the business started using the app (no line items).</summary>
     bool IsOpeningDue = false,
     /// <summary>
-    /// What the customer or supplier still owes from before this order: the dues of their other FINAL
-    /// orders placed before it, plus every other previous due ("আগের বাকি"). Printed under the
-    /// order's totals, followed by the total due. Null for a void order.
+    /// What the customer or supplier owes apart from this order, as of now: the dues of all their
+    /// other FINAL orders and previous dues ("আগের বাকি"), whatever their dates. This order's due
+    /// plus this is the party's whole balance, so it is the same on each of their orders. Printed
+    /// under the order's totals, followed by the total due. Null for a void order.
     /// </summary>
-    decimal? PreviousDue = null);
+    decimal? PreviousDue = null,
+    /// <summary>All of the party's FINAL orders and previous dues together, this order included (null when PreviousDue is).</summary>
+    decimal? AccountTotal = null,
+    /// <summary>Everything the party has paid on those (null when PreviousDue is). AccountTotal - AccountPaid = total due.</summary>
+    decimal? AccountPaid = null);
 
 public sealed record OrderLineRequest(
     Guid? Uuid, Guid? ProductUuid, QuantityType? QuantityType, int? BoxQuantity, decimal? UnitQuantity,

@@ -132,36 +132,50 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
 
         // ---------------------------------------------------------------- totals
         y += 8;
-        if (y + 80 > BottomLimit) { pdf.NewPage(); if (watermark is not null) pdf.Watermark(watermark); y = Margin; }
-        var totalLines = new List<(string Label, decimal Value, bool Strong)>
+        if (y + 130 > BottomLimit) { pdf.NewPage(); if (watermark is not null) pdf.Watermark(watermark); y = Margin; }
+        // Rule: 0 none, 1 thin rule above the line, 2 heavy rule above it.
+        var totalLines = new List<(string Label, decimal Value, bool Strong, int Rule)>
         {
-            (order.IsOpeningDue ? "Previous Due" : "Order Total", order.TotalAmount, true),
-            ("Total Paid", order.TotalPaidAmount, false),
-            ("Due Amount", order.DueAmount, true),
+            (order.IsOpeningDue ? "Previous Due" : "Order Total", order.TotalAmount, true, 0),
+            ("Total Paid", order.TotalPaidAmount, false, 0),
+            ("Due Amount", order.DueAmount, true, 0),
         };
-        // Then what the customer or supplier still owed from their earlier orders, and everything owed in all.
+        // Then the customer's or supplier's whole account: what they still owed apart from this order,
+        // everything ever ordered and paid (all dates, FINAL only), and what they owe in all.
         // On a previous due's own page its first line is already called "Previous Due", so dues
         // from other entries are "Other Due" there - and left out when there are none.
         if (order.PreviousDue is { } previous)
         {
             if (!order.IsOpeningDue || previous != 0)
-                totalLines.Add((order.IsOpeningDue ? "Other Due" : "Previous Due", previous, true));
-            totalLines.Add(("Total Due", order.DueAmount + previous, true));
-        }
-        for (var i = 0; i < totalLines.Count; i++)
-        {
-            var (label, value, strong) = totalLines[i];
-            if (i >= 3)
+                totalLines.Add((order.IsOpeningDue ? "Other Due" : "Previous Due", previous, true, 1));
+            if (order.AccountTotal is { } allTotal && order.AccountPaid is { } allPaid)
             {
-                // Previous Due is set apart from this order's own figures by a rule; Total Due by a heavier one.
-                var last = i == totalLines.Count - 1;
-                pdf.Line(Right - 210, y - 3, Right, y - 3, last ? 1f : 0.5f, last ? 0.2f : 0.6f);
+                totalLines.Add(("All Orders Total", allTotal, false, 1));
+                totalLines.Add(("All Paid", allPaid, false, 0));
+            }
+            totalLines.Add(("Total Due", order.DueAmount + previous, true, 2));
+        }
+        foreach (var (label, value, strong, rule) in totalLines)
+        {
+            if (rule > 0)
+            {
+                pdf.Line(Right - 210, y - 3, Right, y - 3, rule == 2 ? 1f : 0.5f, rule == 2 ? 0.2f : 0.6f);
                 y += 3;
             }
             // Labels sit far enough left for amounts in the crores ("Tk 12,46,549.00" and up).
             pdf.Text(Right - 210, y, label, 10, bold: strong, gray: strong ? 0 : 0.3f);
             pdf.Text(Right, y, Money.Format(value), 10, bold: strong, align: Align.Right);
             y += 15;
+        }
+        if (order.PreviousDue is not null)
+        {
+            // The total due is the account as it stands when printed, so the page says when that was.
+            var today = clock.GetUtcNow().ToOffset(BusinessClock.Offset).ToString("dd MMM yyyy", Inv);
+            var note = order.PostingStatus == PostingStatus.Draft
+                ? "Total due includes this draft order."
+                : $"{(isSales ? "Customer" : "Supplier")} balance on {today}";
+            pdf.Text(Right, y - 1, note, 8, gray: 0.4f, align: Align.Right);
+            y += 12;
         }
         y += 10;
 
