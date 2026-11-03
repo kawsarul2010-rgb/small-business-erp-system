@@ -257,6 +257,8 @@ export interface OrderDetail extends Audited {
   smsBlockedReason: string | null;
   /** Previous due ("আগের বাকি") recorded when the business started: an amount owed, no line items. */
   isOpeningDue: boolean;
+  /** The party's dues from before this order (earlier orders and previous dues). Null for a previous due or a void order. */
+  previousDue?: number | null;
 }
 
 /** GET {orders}/{id}/receipt: the order and the business heading its POS receipt. */

@@ -132,15 +132,31 @@ public sealed class OrderPdfRenderer(ICurrentUser currentUser, TimeProvider cloc
 
         // ---------------------------------------------------------------- totals
         y += 8;
-        if (y + 60 > BottomLimit) { pdf.NewPage(); if (watermark is not null) pdf.Watermark(watermark); y = Margin; }
-        foreach (var (label, value, strong) in new[]
-                 {
-                     (order.IsOpeningDue ? "Previous Due" : "Order Total", order.TotalAmount, true),
-                     ("Total Paid", order.TotalPaidAmount, false),
-                     ("Due Amount", order.DueAmount, true),
-                 })
+        if (y + 80 > BottomLimit) { pdf.NewPage(); if (watermark is not null) pdf.Watermark(watermark); y = Margin; }
+        var totalLines = new List<(string Label, decimal Value, bool Strong)>
         {
-            pdf.Text(Right - 120, y, label, 10, bold: strong, gray: strong ? 0 : 0.3f);
+            (order.IsOpeningDue ? "Previous Due" : "Order Total", order.TotalAmount, true),
+            ("Total Paid", order.TotalPaidAmount, false),
+            ("Due Amount", order.DueAmount, true),
+        };
+        // Then what the customer or supplier still owed from their earlier orders, and everything owed in all.
+        if (order.PreviousDue is { } previous)
+        {
+            totalLines.Add(("Previous Due", previous, true));
+            totalLines.Add(("Total Due", order.DueAmount + previous, true));
+        }
+        for (var i = 0; i < totalLines.Count; i++)
+        {
+            var (label, value, strong) = totalLines[i];
+            if (i >= 3)
+            {
+                // Previous Due is set apart from this order's own figures by a rule; Total Due by a heavier one.
+                var last = i == totalLines.Count - 1 && i > 3;
+                pdf.Line(Right - 210, y - 3, Right, y - 3, last ? 1f : 0.5f, last ? 0.2f : 0.6f);
+                y += 3;
+            }
+            // Labels sit far enough left for amounts in the crores ("Tk 12,46,549.00" and up).
+            pdf.Text(Right - 210, y, label, 10, bold: strong, gray: strong ? 0 : 0.3f);
             pdf.Text(Right, y, Money.Format(value), 10, bold: strong, align: Align.Right);
             y += 15;
         }

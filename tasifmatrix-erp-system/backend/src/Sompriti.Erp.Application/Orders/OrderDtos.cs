@@ -51,7 +51,13 @@ public sealed record OrderDetailDto(
     /// <summary>The order asks for SMS. SmsBlockedReason, when set, says why none is sent anyway.</summary>
     bool SendSms, string? SmsBlockedReason,
     /// <summary>Previous due recorded when the business started using the app (no line items).</summary>
-    bool IsOpeningDue = false);
+    bool IsOpeningDue = false,
+    /// <summary>
+    /// What the customer or supplier still owes from before this order: the dues of their other FINAL
+    /// orders placed before it, plus every previous due ("আগের বাকি"). Printed under the order's
+    /// totals. Null for a previous due itself and for a void order.
+    /// </summary>
+    decimal? PreviousDue = null);
 
 public sealed record OrderLineRequest(
     Guid? Uuid, Guid? ProductUuid, QuantityType? QuantityType, int? BoxQuantity, decimal? UnitQuantity,

@@ -960,6 +960,7 @@ export const BN_UI: Record<string, string> = {
   "Today's sales": "আজকের বিক্রয়",
   "Too many attempts. Please wait a minute and try again.": "অনেকবার চেষ্টা করা হয়েছে। এক মিনিট পর আবার চেষ্টা করুন।",
   "Total": "মোট",
+  "Total due": "মোট বাকি",
   "Total {amount}": "মোট {amount}",
   "Total {unit}": "মোট {unit}",
   "Totals include finalized orders only. Due = order total − payments.": "মোট হিসাবে শুধু চূড়ান্ত অর্ডার ধরা হয়। বাকি = অর্ডারের মোট − পেমেন্ট।",

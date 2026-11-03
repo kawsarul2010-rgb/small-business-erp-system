@@ -146,6 +146,8 @@ ${lines || `<div class="c">${esc(prev ? t('Carried forward from before this acco
 <div class="row grand"><span>${esc(t('Total'))}</span><span class="amt">Tk ${money(o.totalAmount)}</span></div>
 <div class="row tot"><span>${esc(t('Paid'))}</span><span class="amt">${money(o.totalPaidAmount)}</span></div>
 <div class="row tot due"><span>${esc(t('Due'))}</span><span class="amt">${money(o.dueAmount)}</span></div>
+${o.previousDue != null ? `<hr><div class="row tot due"><span>${esc(t('Previous due'))}</span><span class="amt">${money(o.previousDue)}</span></div>
+<hr class="solid"><div class="row grand"><span>${esc(t('Total due'))}</span><span class="amt">Tk ${money(o.dueAmount + o.previousDue)}</span></div>` : ''}
 ${prev ? '' : `<div class="count">${esc(t('{n} item(s)', { n: o.lines.length }))}</div>`}
 ${o.notes ? `<hr><div class="note">${esc(t('Note'))}: ${esc(o.notes)}</div>` : ''}
 <hr>

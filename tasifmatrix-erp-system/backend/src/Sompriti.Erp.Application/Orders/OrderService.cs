@@ -124,13 +124,25 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         if (smsBlocked is null && o.SendSms && o.PostingStatus != PostingStatus.Void && User.Role != Role.User)
             smsBlocked = await credits.ShortageReasonAsync(Db, o.TenantUuid, ct);
 
+        // Earlier orders of the same party: dated before this one, or the same day but made first.
+        // A previous due always counts, whatever its date. Their dues are as they stand now.
+        decimal? previousDue = null;
+        if (!o.IsOpeningDue && o.PostingStatus != PostingStatus.Void)
+        {
+            previousDue = Money.Round(await Orders.AsNoTracking()
+                .Where(x => x.PartyUuid == o.PartyUuid && x.Uuid != o.Uuid && x.Status == RecordStatus.Active
+                            && x.PostingStatus == PostingStatus.Final
+                            && (x.IsOpeningDue || x.OrderDate < o.OrderDate || (x.OrderDate == o.OrderDate && x.CreatedDate < o.CreatedDate)))
+                .SumAsync(x => (decimal?)(x.TotalAmount - x.TotalPaidAmount), ct) ?? 0);
+        }
+
         return new OrderDetailDto(o.Uuid, o.TransactionType, o.OrderNumber!,
             new OrderCompanyDto(company.Uuid, company.CompanyName, company.CompanyCode),
             new OrderPartyDto(party.Uuid, party.Name, party.Code ?? "", BdMobile.ToDisplay(party.MobileNumber), party.Address, party.City),
             o.PaymentType, o.PostingStatus, o.OrderDate, o.Notes, o.TotalAmount, o.TotalPaidAmount, o.DueAmount,
             o.FinalizedDate, o.FinalizedByUserName, o.VoidedDate, o.VoidedByUserName, o.VoidReason,
             o.Revision, o.CreatedDate, o.UpdatedDate, o.CreatedByUserName, o.UpdatedByUserName, lines, payments,
-            o.SendSms, smsBlocked, o.IsOpeningDue);
+            o.SendSms, smsBlocked, o.IsOpeningDue, previousDue);
     }
 
     /// <param name="Description">A one-line name for the document, used as an email subject.</param>
