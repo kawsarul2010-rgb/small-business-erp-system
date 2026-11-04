@@ -457,10 +457,10 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         order.FinalizedByUserName = User.UserName;
         await Db.SaveChangesAsync(ct);
 
-        // SMS 1 of 2: the order is confirmed - its amount plus the party's running account.
+        // SMS 1 of 2: the order is confirmed - its total, paid and due, and the party's total due.
         await QueueSmsAsync(order,
             Type == TransactionType.Sales ? "SALES_ORDER" : "PURCHASE_ORDER", order.Uuid,
-            (company, account) => SmsTemplates.OrderFinalized(Type, company, order.OrderNumber!, order.TotalAmount, account), ct);
+            (company, account) => SmsTemplates.Order(Type, company, order.OrderNumber!, order.TotalAmount, order.TotalPaidAmount, account, order.IsOpeningDue), ct);
 
         await Db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
@@ -558,10 +558,10 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         order.TotalPaidAmount = Money.Round(order.TotalPaidAmount + amount);
         await Db.SaveChangesAsync(ct);
 
-        // SMS 2 of 2: the payment - its amount plus the party's running account after it.
+        // SMS 2 of 2: after the payment - this order paid and due so far, and the party's total due.
         await QueueSmsAsync(order,
             Type == TransactionType.Sales ? "SALES_ORDER_PAYMENT" : "PURCHASE_ORDER_PAYMENT", payment.Uuid,
-            (company, account) => SmsTemplates.Payment(Type, company, order.OrderNumber!, amount, account, order.IsOpeningDue), ct);
+            (company, account) => SmsTemplates.Order(Type, company, order.OrderNumber!, order.TotalAmount, order.TotalPaidAmount, account, order.IsOpeningDue), ct);
 
         await Db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);

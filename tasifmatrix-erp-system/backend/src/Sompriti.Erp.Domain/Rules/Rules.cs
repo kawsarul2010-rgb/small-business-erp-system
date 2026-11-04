@@ -423,52 +423,42 @@ public sealed record AccountTotals(decimal Total, decimal Paid)
 /// </summary>
 public static class SmsTemplates
 {
-    // One fact per line, so the message reads at a glance on a phone:
+    // One fact per line, the same figures as the printed invoice's totals:
     //
     //   Rahman Traders
-    //   Invoice #100023: Tk 3,000
-    //   Total: Tk 8,000
-    //   Paid: Tk 5,000
-    //   Due: Tk 3,000
+    //   Invoice #100019 Total: Tk 74,590.00   <- this order
+    //   Paid: Tk 0.00                          <- paid on this order so far
+    //   Due: Tk 74,590.00                      <- this order's due
+    //   Total Due: Tk 919,139.00               <- everything the party owes (all FINAL orders)
     //   https://tasifmatrix.com.bd
     //
     // The company comes first because a phone's notification preview shows only the first line.
-    // Total / Paid / Due are the party's whole running account, not just this order.
+    // The same message goes out when an order is finalized and after each payment on it.
 
-    public static string OrderFinalized(TransactionType type, string companyName, string orderNumber, decimal orderTotal, AccountTotals account)
-    {
-        var what = type == TransactionType.Sales
-            ? $"Invoice #{orderNumber}: Tk {Amount(orderTotal)}"
-            : $"Purchase #{orderNumber}: Tk {Amount(orderTotal)}";
-        return Compose(companyName, what, account);
-    }
-
-    /// <param name="openingDue">The payment is against a previous due, which has no invoice of its own.</param>
-    public static string Payment(TransactionType type, string companyName, string orderNumber, decimal amount, AccountTotals account,
-        bool openingDue = false)
-    {
-        var what = (type == TransactionType.Sales ? "Payment received: Tk " : "Payment made: Tk ") + Amount(amount)
-                   + (openingDue ? " (previous due)" : "");
-        return Compose(companyName, what, account);
-    }
-
-    private static string Compose(string companyName, string what, AccountTotals account)
+    /// <param name="orderPaid">Paid on this order so far, the new payment included.</param>
+    /// <param name="account">The party's whole account (every FINAL order), this order included.</param>
+    /// <param name="openingDue">The order is a previous due ("আগের বাকি"), which has no invoice.</param>
+    public static string Order(TransactionType type, string companyName, string orderNumber, decimal orderTotal, decimal orderPaid,
+        AccountTotals account, bool openingDue = false)
     {
         var company = companyName.Trim();
         if (company.Length > 30) company = company[..30].TrimEnd();
+        var first = openingDue
+            ? $"Previous Due: Tk {Amount(orderTotal)}"
+            : $"{(type == TransactionType.Sales ? "Invoice" : "Purchase")} #{orderNumber} Total: Tk {Amount(orderTotal)}";
         return string.Join("\n",
             company,
-            what,
-            $"Total: Tk {Amount(account.Total)}",
-            $"Paid: Tk {Amount(account.Paid)}",
-            $"Due: Tk {Amount(account.Due)}",
+            first,
+            $"Paid: Tk {Amount(orderPaid)}",
+            $"Due: Tk {Amount(orderTotal - orderPaid)}",
+            $"Total Due: Tk {Amount(account.Due)}",
             Website);
     }
 
     /// <summary>The product's website, closing every SMS so each one also introduces the app.</summary>
     public const string Website = "https://tasifmatrix.com.bd";
 
-    private static string Amount(decimal value) => value.ToString("#,##0.##", CultureInfo.InvariantCulture);
+    private static string Amount(decimal value) => value.ToString("#,##0.00", CultureInfo.InvariantCulture);
 }
 
 

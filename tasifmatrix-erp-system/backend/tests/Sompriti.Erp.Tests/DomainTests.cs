@@ -383,77 +383,58 @@ public class MeasuredUnitTests
 
 public class SmsTemplateTests
 {
-    private static readonly AccountTotals Account = new(148200m, 120000m);
+    // Md. Ringku's account in the example: 14,19,139 ordered, 5,00,000 paid -> 9,19,139 due.
+    private static readonly AccountTotals Account = new(1419139m, 500000m);
 
     [Fact]
-    public void Finalized_sales_message_is_one_fact_per_line_and_fits_one_segment()
+    public void Finalized_sales_message_has_this_order_and_the_total_due_one_per_line()
     {
-        var text = SmsTemplates.OrderFinalized(TransactionType.Sales, "Sompriti Enterprise", "100042", 12450m, Account);
-        Assert.Equal("Sompriti Enterprise\nInvoice #100042: Tk 12,450\nTotal: Tk 148,200\nPaid: Tk 120,000\nDue: Tk 28,200\nhttps://tasifmatrix.com.bd", text);
+        var text = SmsTemplates.Order(TransactionType.Sales, "Sompriti Enterprise", "100019", 74590m, 0m, Account);
+        Assert.Equal("Sompriti Enterprise\nInvoice #100019 Total: Tk 74,590.00\nPaid: Tk 0.00\nDue: Tk 74,590.00\nTotal Due: Tk 919,139.00\nhttps://tasifmatrix.com.bd", text);
         Assert.Equal(1, SmsParts.Count(text));
     }
 
     [Fact]
-    public void Finalized_purchase_message_uses_supplier_wording()
+    public void Purchase_message_uses_purchase_wording()
     {
-        var text = SmsTemplates.OrderFinalized(TransactionType.Purchase, "Sompriti Enterprise", "200015", 9800m, new AccountTotals(9800m, 0m));
-        Assert.Contains("\nPurchase #200015: Tk 9,800\n", text);
-        Assert.Contains("\nDue: Tk 9,800\n", text);
+        var text = SmsTemplates.Order(TransactionType.Purchase, "Sompriti Enterprise", "200015", 9800m, 0m, new AccountTotals(9800m, 0m));
+        Assert.Contains("\nPurchase #200015 Total: Tk 9,800.00\n", text);
+        Assert.Contains("\nTotal Due: Tk 9,800.00\n", text);
     }
 
     [Fact]
-    public void Payment_message_has_amount_and_running_account()
+    public void After_a_payment_the_order_shows_what_is_paid_and_still_due_on_it()
     {
-        var text = SmsTemplates.Payment(TransactionType.Sales, "Sompriti Enterprise", "100023", 1500m, new AccountTotals(4000.5m, 1500m));
-        Assert.Equal("Sompriti Enterprise\nPayment received: Tk 1,500\nTotal: Tk 4,000.5\nPaid: Tk 1,500\nDue: Tk 2,500.5\nhttps://tasifmatrix.com.bd", text);
-        Assert.Equal(1, SmsParts.Count(text));
+        var text = SmsTemplates.Order(TransactionType.Sales, "Sompriti Enterprise", "100023", 4000.5m, 1500m, new AccountTotals(4000.5m, 1500m));
+        Assert.Contains("\nPaid: Tk 1,500.00\nDue: Tk 2,500.50\nTotal Due: Tk 2,500.50\n", text);
     }
 
     [Fact]
-    public void Purchase_payment_uses_supplier_wording()
+    public void A_previous_due_has_no_invoice_number()
     {
-        var text = SmsTemplates.Payment(TransactionType.Purchase, "Sompriti Enterprise", "200001", 10m, new AccountTotals(10m, 10m));
-        Assert.Contains("\nPayment made: Tk 10\n", text);
-        Assert.Contains("\nDue: Tk 0\n", text);
+        var text = SmsTemplates.Order(TransactionType.Sales, "Sompriti Enterprise", "100020", 1246549m, 500000m, Account, openingDue: true);
+        Assert.Contains("\nPrevious Due: Tk 1,246,549.00\nPaid: Tk 500,000.00\nDue: Tk 746,549.00\nTotal Due: Tk 919,139.00\n", text);
+        Assert.DoesNotContain("#100020", text);
     }
 
     [Fact]
-    public void Payment_against_previous_due_says_so()
+    public void Long_company_names_are_cut_to_30_characters()
     {
-        var sales = SmsTemplates.Payment(TransactionType.Sales, "Sompriti Enterprise", "100031", 500m, new AccountTotals(2000m, 500m), openingDue: true);
-        Assert.Contains("\nPayment received: Tk 500 (previous due)\n", sales);
-        Assert.DoesNotContain("#100031", sales);
-        var purchase = SmsTemplates.Payment(TransactionType.Purchase, "Sompriti Enterprise", "200009", 500m, new AccountTotals(500m, 500m), openingDue: true);
-        Assert.Contains("\nPayment made: Tk 500 (previous due)\n", purchase);
-    }
-
-    [Fact]
-    public void Long_names_are_cut_to_30_characters_and_big_amounts_still_fit_one_segment()
-    {
-        var text = SmsTemplates.Payment(TransactionType.Sales, "A very long company name that goes on and on", "100001",
-            1234567.89m, new AccountTotals(98765432.1m, 87654321.12m));
+        var text = SmsTemplates.Order(TransactionType.Sales, "A very long company name that goes on and on", "100001", 50m, 0m, new AccountTotals(50m, 0m));
         Assert.StartsWith("A very long company name that\n", text);
-        Assert.Equal(1, SmsParts.Count(text));
     }
 
     [Theory]
     [InlineData("Sompriti Enterprise", 12450, 148200, 120000)]
     [InlineData("A company name thirty chars xx", 99999, 999999, 999999)]
-    public void Every_message_starts_with_the_company_and_ends_with_the_website(string company, int amount, int total, int paid)
+    public void Every_message_is_six_lines_from_company_to_website(string company, int amount, int total, int paid)
     {
         foreach (var type in new[] { TransactionType.Sales, TransactionType.Purchase })
         {
-            var account = new AccountTotals(total, paid);
-            foreach (var text in new[]
-                     {
-                         SmsTemplates.OrderFinalized(type, company, "100042", amount, account),
-                         SmsTemplates.Payment(type, company, "100042", amount, account),
-                     })
-            {
-                Assert.StartsWith(company + "\n", text);
-                Assert.EndsWith("\n" + SmsTemplates.Website, text);
-                Assert.Equal(6, text.Split('\n').Length);
-            }
+            var text = SmsTemplates.Order(type, company, "100042", amount, 0, new AccountTotals(total, paid));
+            Assert.StartsWith(company + "\n", text);
+            Assert.EndsWith("\n" + SmsTemplates.Website, text);
+            Assert.Equal(6, text.Split('\n').Length);
         }
     }
 }
@@ -489,7 +470,7 @@ public class SmsPartsTests
     [Fact]
     public void Order_messages_are_one_part()
     {
-        var text = SmsTemplates.OrderFinalized(TransactionType.Sales, "Sompriti Enterprise", "100042", 12450m, new AccountTotals(148200m, 120000m));
+        var text = SmsTemplates.Order(TransactionType.Sales, "Sompriti Enterprise", "100042", 12450m, 0m, new AccountTotals(148200m, 120000m));
         Assert.Equal(1, SmsParts.Count(text));
     }
 }
