@@ -68,6 +68,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
     public DbSet<AppRelease> AppReleases => Set<AppRelease>();
     public DbSet<BusinessPlanPrice> BusinessPlanPrices => Set<BusinessPlanPrice>();
     public DbSet<SmsCredit> SmsCredits => Set<SmsCredit>();
+    public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
+    public DbSet<Expense> Expenses => Set<Expense>();
 
     public void SetOriginalRevision(AuditedEntity entity, Guid revision) =>
         Entry(entity).Property(nameof(AuditedEntity.Revision)).OriginalValue = revision;
@@ -212,6 +214,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
         Order<SalesOrder>(b, "sales_order", "sales_order_number", "customer_uuid");
         Line<SalesOrderLineItem>(b, "sales_order_line_item", "sales_order_uuid");
         Payment<SalesOrderPayment>(b, "sales_order_payment", "sales_order_uuid");
+
+        b.Entity<ExpenseCategory>(e => { e.ToTable("expense_category"); Audited(e); });
+        b.Entity<Expense>(e =>
+        {
+            e.ToTable("expense"); Audited(e);
+            e.Property(x => x.ExpenseNumber).ValueGeneratedOnAdd(); // numbered per business by trigger
+            e.Ignore(x => x.IsVoid);
+        });
 
         b.Entity<RefreshToken>(e => { e.ToTable("refresh_token"); e.HasKey(x => x.Uuid); });
         b.Entity<PasswordResetToken>(e => { e.ToTable("password_reset_token"); e.HasKey(x => x.Uuid); });

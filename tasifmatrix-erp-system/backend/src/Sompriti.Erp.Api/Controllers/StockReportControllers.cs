@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Sompriti.Erp.Api.Infrastructure;
 using Sompriti.Erp.Application.Common;
+using Sompriti.Erp.Application.Expenses;
 using Sompriti.Erp.Application.Orders;
 using Sompriti.Erp.Application.Reports;
 using Sompriti.Erp.Application.Sms;
@@ -68,6 +69,27 @@ public sealed class ReportsController(ReportService service, IReportPdfRenderer 
     [HttpGet("due/purchase/pdf"), Authorize(Roles = "ADMIN,USER")]
     public Task<IActionResult> PurchaseDuePdf([FromQuery] ReportQuery q, [FromQuery] bool download, CancellationToken ct) =>
         Pdf(service.DueReportDocumentAsync(Domain.Enums.TransactionType.Purchase, q, ct), download);
+
+    // Profit and loss for a period: admin only, as it shows what things cost.
+    [HttpGet("profit-loss"), Authorize(Roles = Roles.Admin)]
+    public Task<ProfitLossDto> ProfitLoss([FromQuery] ReportQuery q, CancellationToken ct) => service.ProfitLossAsync(q, ct);
+
+    [HttpGet("profit-loss/pdf"), Authorize(Roles = Roles.Admin)]
+    public Task<IActionResult> ProfitLossPdf([FromQuery] ReportQuery q, [FromQuery] bool download, CancellationToken ct) =>
+        Pdf(service.ProfitLossDocumentAsync(q, ct), download);
+
+    [HttpPost("profit-loss/pdf/email"), Authorize(Roles = Roles.Admin)]
+    public Task<IActionResult> EmailProfitLossPdf([FromQuery] ReportQuery q, EmailPdfRequest r, CancellationToken ct) =>
+        EmailPdf(service.ProfitLossDocumentAsync(q, ct), r, ct);
+
+    // The expense book as printed; a manager's copy has only the expenses they recorded.
+    [HttpGet("expenses/pdf"), Authorize(Roles = Roles.AdminOrManager)]
+    public Task<IActionResult> ExpensesPdf([FromQuery] ExpenseQuery q, [FromQuery] bool download, CancellationToken ct) =>
+        Pdf(service.ExpenseListDocumentAsync(q, ct), download);
+
+    [HttpPost("expenses/pdf/email"), Authorize(Roles = Roles.AdminOrManager)]
+    public Task<IActionResult> EmailExpensesPdf([FromQuery] ExpenseQuery q, EmailPdfRequest r, CancellationToken ct) =>
+        EmailPdf(service.ExpenseListDocumentAsync(q, ct), r, ct);
 
     // Stock on hand and its value, every product matching the stock screen's filters.
     [HttpGet("stock/pdf"), Authorize(Roles = Roles.AdminOrManager)]

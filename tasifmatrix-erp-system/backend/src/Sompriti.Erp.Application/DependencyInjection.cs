@@ -4,6 +4,7 @@ using Sompriti.Erp.Application.AppReleases;
 using Sompriti.Erp.Application.Auth;
 using Sompriti.Erp.Application.Billing;
 using Sompriti.Erp.Application.Common;
+using Sompriti.Erp.Application.Expenses;
 using Sompriti.Erp.Application.MasterData;
 using Sompriti.Erp.Application.Orders;
 using Sompriti.Erp.Application.Platform;
@@ -34,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<SupplierService>();
         services.AddScoped<ProductService>();
         services.AddScoped<StockService>();
+        services.AddScoped<ExpenseService>();
         services.AddScoped<PurchaseOrderService>();
         services.AddScoped<SalesOrderService>();
         services.AddScoped<ReportService>();

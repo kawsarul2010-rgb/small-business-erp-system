@@ -309,6 +309,13 @@ public class StockBalance : AuditedEntity, ITenantOwned
     public Guid TenantUuid { get; set; }
     public Guid ProductUuid { get; set; }
     public decimal CurrentStockBalance { get; set; }
+
+    /// <summary>
+    /// What one base unit of the stock on hand cost, on average (weighted average cost). Moves
+    /// only when stock comes in at a price - a purchase, an opening stock, a voided sale - and is
+    /// what a sale is charged at in the profit report. See <see cref="Rules.Costing"/>.
+    /// </summary>
+    public decimal AverageCost { get; set; }
 }
 
 public class StockLedger : ITenantOwned
@@ -337,6 +344,9 @@ public class StockAdjustment : SoftDeletableEntity, ITenantOwned
     public AdjustmentReason Reason { get; set; }
     public string? Note { get; set; }
     public DateOnly AdjustmentDate { get; set; }
+
+    /// <summary>Cost of one base unit moved, at the time it was posted; values a damage or loss in the profit report.</summary>
+    public decimal? UnitCost { get; set; }
 }
 
 /// <summary>Shared header of purchase and sales orders. PartyUuid maps to supplier_uuid / customer_uuid.</summary>
@@ -417,7 +427,15 @@ public class SalesOrder : OrderHeader
     public SalesOrder() { TransactionType = TransactionType.Sales; }
 }
 
-public class SalesOrderLineItem : OrderLine { }
+public class SalesOrderLineItem : OrderLine
+{
+    /// <summary>
+    /// What one base unit of this line cost the business, frozen when the order is finalized
+    /// (the product's average cost then). Cost of goods sold = TotalQuantity x UnitCost, so a
+    /// later price change never rewrites an old month's profit. Null while the order is a draft.
+    /// </summary>
+    public decimal? UnitCost { get; set; }
+}
 
 public class SalesOrderPayment : OrderPayment { }
 
@@ -460,4 +478,35 @@ public class SmsOutbox : ITenantOwned
     public DateTimeOffset? SentDate { get; set; }
     /// <summary>SMS taken from the business's balance for this message; given back if it finally fails.</summary>
     public short ChargedParts { get; set; }
+}
+
+/// <summary>A kind of business expense: salary, rent, transport... Each business keeps its own list.</summary>
+public class ExpenseCategory : SoftDeletableEntity, ITenantOwned
+{
+    public Guid TenantUuid { get; set; }
+    public string CategoryName { get; set; } = "";
+}
+
+/// <summary>
+/// Money the business spent on running itself - not on stock it sells, which is a purchase
+/// order. Recorded once and never deleted: a mistake is voided, with a reason, and stays visible.
+/// </summary>
+public class Expense : AuditedEntity, ITenantOwned
+{
+    public Guid TenantUuid { get; set; }
+    /// <summary>Numbered per business by the database on insert.</summary>
+    public string? ExpenseNumber { get; set; }
+    public DateOnly ExpenseDate { get; set; }
+    public Guid CategoryUuid { get; set; }
+    public decimal Amount { get; set; }
+    /// <summary>Who was paid: an employee, a landlord, "DESCO"...</summary>
+    public string? PaidTo { get; set; }
+    public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Cash;
+    public string? Note { get; set; }
+    public DateTimeOffset? VoidedDate { get; set; }
+    public Guid? VoidedByUserUuid { get; set; }
+    public string? VoidedByUserName { get; set; }
+    public string? VoidReason { get; set; }
+
+    public bool IsVoid => VoidedDate is not null;
 }

@@ -369,6 +369,37 @@ const EN: GuideSection[] = [
     tips: ['Supplier report and Company report (More menu) work the same way.'],
   },
   {
+    id: 'expenses', icon: 'payments', title: 'Expenses and profit', roles: STAFF,
+    intro: 'Write down every cost of running the business - salary, rent, transport, bills - and see what the business really earned.',
+    parts: [
+      {
+        title: 'Record an expense',
+        steps: [
+          'Open Expenses (Transactions, or the More menu on a phone) and tap Add expense.',
+          'Enter the amount and pick a category: Salary, Rent, Transport, Utility bills...',
+          'Optional: who was paid (an employee, the landlord, DESCO) and a note.',
+          'Save. Use "Save and add another" to enter several costs of the same day quickly.',
+        ],
+      },
+      {
+        title: 'Profit and loss (admin)',
+        steps: [
+          'Open Reports > Profit and loss and pick This month, Last month, This year or any dates.',
+          'Sales: finalized sales orders in the period, paid or not.',
+          'Less cost of goods sold: what the products you sold cost you to buy.',
+          'Less expenses (by category) and stock lost or damaged = net profit.',
+          'Print / share the statement as a PDF.',
+        ],
+      },
+    ],
+    tips: [
+      'Stock you buy for sale is a purchase order, not an expense. It becomes a cost only when it is sold, so profit is not "sales minus purchases".',
+      'Each sale is costed at the average purchase price of the stock at the time it is finalized.',
+      'A mistake is voided with a reason, never deleted. Only an admin can edit or void an expense.',
+      'A manager can add expenses and sees only the ones they added. Admins can rename, add or remove categories.',
+    ],
+  },
+  {
     id: 'team', icon: 'manage_accounts', title: 'Your team and roles', roles: ADMIN,
     parts: [
       {
@@ -821,6 +852,37 @@ const BN: GuideSection[] = [
       },
     ],
     tips: ['সরবরাহকারী রিপোর্ট ও কোম্পানি রিপোর্ট ("আরও" মেনু) একইভাবে কাজ করে।'],
+  },
+  {
+    id: 'expenses', icon: 'payments', title: 'খরচ ও লাভ-ক্ষতি', roles: STAFF,
+    intro: 'ব্যবসা চালানোর প্রতিটি খরচ লিখে রাখুন - বেতন, ভাড়া, যাতায়াত, বিল - এবং দেখুন ব্যবসা আসলে কত লাভ করল।',
+    parts: [
+      {
+        title: 'খরচ লিখুন',
+        steps: [
+          '"খরচ" খুলুন (লেনদেন, বা ফোনে "আরও" মেনু) এবং "খরচ যোগ করুন" চাপুন।',
+          'পরিমাণ লিখুন এবং খাত বেছে নিন: বেতন, ভাড়া, যাতায়াত, বিল...',
+          'ঐচ্ছিক: কাকে দেওয়া হয়েছে (কর্মচারী, বাড়িওয়ালা, ডেসকো) এবং নোট।',
+          'সংরক্ষণ করুন। একই দিনের কয়েকটি খরচ দ্রুত লিখতে "সংরক্ষণ করে আরেকটি যোগ করুন" ব্যবহার করুন।',
+        ],
+      },
+      {
+        title: 'লাভ-ক্ষতি (অ্যাডমিন)',
+        steps: [
+          'রিপোর্ট > লাভ-ক্ষতি খুলুন এবং এই মাস, গত মাস, এই বছর বা যেকোনো তারিখ বেছে নিন।',
+          'বিক্রি: ওই সময়ের চূড়ান্ত বিক্রয় অর্ডার, টাকা পাওয়া যাক বা না যাক।',
+          'বাদ বিক্রিত পণ্যের ক্রয়মূল্য: যে পণ্য বিক্রি করেছেন সেগুলো কিনতে কত লেগেছিল।',
+          'বাদ খরচ (খাত অনুযায়ী) এবং হারানো বা নষ্ট স্টক = নিট লাভ।',
+          'হিসাবটি PDF হিসেবে প্রিন্ট / শেয়ার করুন।',
+        ],
+      },
+    ],
+    tips: [
+      'বিক্রির জন্য কেনা পণ্য ক্রয় অর্ডার, খরচ নয়। বিক্রি হলে তবেই সেটি খরচ হয়, তাই লাভ মানে "বিক্রি বিয়োগ ক্রয়" নয়।',
+      'প্রতিটি বিক্রির খরচ ধরা হয় চূড়ান্ত করার সময়ের স্টকের গড় ক্রয়মূল্যে।',
+      'ভুল হলে খরচ কারণসহ বাতিল করা হয়, মুছে ফেলা হয় না। শুধু অ্যাডমিন খরচ সম্পাদনা বা বাতিল করতে পারেন।',
+      'ম্যানেজার খরচ যোগ করতে পারেন এবং শুধু নিজের যোগ করা খরচ দেখেন। অ্যাডমিন খাতের নাম বদলানো, যোগ বা সরাতে পারেন।',
+    ],
   },
   {
     id: 'team', icon: 'manage_accounts', title: 'আপনার দল ও ভূমিকা', roles: ADMIN,

@@ -93,7 +93,8 @@ public sealed class ProductService(IAppDbContext db)
         Apply(p, r);
         db.Products.Add(p);
         // SRS 6.4: stock balance row is created with the product, in the same transaction (one SaveChanges).
-        db.StockBalances.Add(new StockBalance { Uuid = Guid.NewGuid(), ProductUuid = p.Uuid, CurrentStockBalance = 0 });
+        // Its average cost starts at the purchase price, until stock comes in at a real price.
+        db.StockBalances.Add(new StockBalance { Uuid = Guid.NewGuid(), ProductUuid = p.Uuid, CurrentStockBalance = 0, AverageCost = p.ProductPurchasePrice });
         await db.SaveChangesAsync(ct);
         return ToDto(p, 0);
     }
@@ -107,9 +108,12 @@ public sealed class ProductService(IAppDbContext db)
         if (await db.Products.AnyAsync(x => x.ProductCode == code && x.Uuid != id, ct))
             throw DomainException.Conflict(ErrorCodes.DuplicateCode, $"Product code '{code}' is already used.");
         Apply(p, r);
+        // With nothing on the shelf there is no cost to average: the new purchase price is the
+        // best guess until stock comes in. Stock on hand keeps what it actually cost.
+        var balance = await db.StockBalances.FirstOrDefaultAsync(s => s.ProductUuid == id, ct);
+        if (balance is not null && balance.CurrentStockBalance == 0) balance.AverageCost = p.ProductPurchasePrice;
         await db.SaveChangesAsync(ct);
-        var stock = await db.StockBalances.Where(s => s.ProductUuid == id).Select(s => s.CurrentStockBalance).FirstOrDefaultAsync(ct);
-        return ToDto(p, stock);
+        return ToDto(p, balance?.CurrentStockBalance ?? 0);
     }
 
     public async Task DeleteAsync(Guid id, Guid revision, CancellationToken ct)

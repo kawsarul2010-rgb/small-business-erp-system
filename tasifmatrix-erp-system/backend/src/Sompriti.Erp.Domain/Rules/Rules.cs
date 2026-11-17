@@ -713,3 +713,59 @@ public static class SizeRules
         return new SizeFit(ordersPerMonth, true, suggested);
     }
 }
+
+/// <summary>
+/// Weighted average cost (IAS 2): every unit on the shelf is worth the same - what the stock on
+/// hand cost in total, divided by how much of it there is. Stock coming in at a price blends
+/// into the average; stock going out (a sale, damage) leaves at the average and does not move it.
+/// </summary>
+/// <example>
+/// 10 bottles at Tk 100 on the shelf, 10 more bought at Tk 120: (10 x 100 + 10 x 120) / 20 = Tk 110.
+/// Selling 5 of them costs 5 x 110 = Tk 550, and the other 15 are still worth Tk 110 each.
+/// </example>
+public static class Costing
+{
+    public const int Decimals = 4;
+
+    public static decimal Round(decimal value) => Math.Round(value, Decimals, MidpointRounding.AwayFromZero);
+
+    /// <summary>The average after <paramref name="quantity"/> units arrive at <paramref name="unitCost"/> each.</summary>
+    public static decimal AverageIn(decimal onHand, decimal average, decimal quantity, decimal unitCost)
+    {
+        if (quantity <= 0) return average;
+        var held = Math.Max(onHand, 0);
+        return Round((held * average + quantity * unitCost) / (held + quantity));
+    }
+
+    /// <summary>
+    /// The average after units that came in at <paramref name="unitCost"/> are taken back out - a
+    /// purchase voided. Undoes <see cref="AverageIn"/>. When nothing is left, or the arithmetic
+    /// would go below zero (the units were costed differently since), the average is kept.
+    /// </summary>
+    public static decimal AverageOut(decimal onHand, decimal average, decimal quantity, decimal unitCost)
+    {
+        var left = onHand - quantity;
+        if (quantity <= 0 || left <= 0) return average;
+        var result = (onHand * average - quantity * unitCost) / left;
+        return result < 0 ? average : Round(result);
+    }
+
+    /// <summary>Cost of goods: quantity x unit cost, to the paisa.</summary>
+    public static decimal Value(decimal quantity, decimal unitCost) => Money.Round(quantity * unitCost);
+
+    /// <summary>One cost per product for a set of lines: total price over total quantity.</summary>
+    public static Dictionary<Guid, decimal> UnitCostByProduct(IEnumerable<OrderLine> lines) =>
+        lines.Where(l => l.IsActive && l.TotalQuantity > 0)
+             .GroupBy(l => l.ProductUuid)
+             .ToDictionary(g => g.Key, g => Round(g.Sum(l => l.TotalPrice) / g.Sum(l => l.TotalQuantity)));
+}
+
+/// <summary>The expense categories a new business starts with. It can rename, add and remove them.</summary>
+public static class ExpenseDefaults
+{
+    public static readonly string[] Categories =
+    [
+        "Salary", "Rent", "Utility bills", "Transport", "Loading and labour", "Mobile and internet",
+        "Food and entertainment", "Repair and maintenance", "Office supplies", "Others",
+    ];
+}

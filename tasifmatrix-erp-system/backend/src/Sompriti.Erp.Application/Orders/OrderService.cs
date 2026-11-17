@@ -446,9 +446,14 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
 
         var sign = PostingRules.FinalizeSign(Type);
         var changes = LineCalculator.QuantityByProduct(lines).ToDictionary(kv => kv.Key, kv => kv.Value * sign);
-        await stock.ApplyMovementsAsync(changes, PostingRules.FinalizeMovement(Type),
+        // A purchase brings stock in at what was paid for it, which moves the average cost;
+        // a sale takes stock out at the average cost, which each line keeps as its cost of goods.
+        var averages = await stock.ApplyMovementsAsync(changes, PostingRules.FinalizeMovement(Type),
             Type == TransactionType.Sales ? ReferenceType.SalesOrder : ReferenceType.PurchaseOrder,
-            order.Uuid, order.OrderNumber!, ErrorCodes.InsufficientStock, "Not enough stock to finalize.", ct);
+            order.Uuid, order.OrderNumber!, ErrorCodes.InsufficientStock, "Not enough stock to finalize.", ct,
+            Type == TransactionType.Purchase ? CostOf(Costing.UnitCostByProduct(lines)) : null);
+        foreach (var line in lines.OfType<SalesOrderLineItem>())
+            line.UnitCost = averages.GetValueOrDefault(line.ProductUuid);
 
         order.TotalAmount = Money.Round(lines.Sum(l => l.TotalPrice));
         order.PostingStatus = PostingStatus.Final;
@@ -485,10 +490,13 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
             var lines = await Lines.AsNoTracking().Where(l => l.OrderUuid == id && l.Status == RecordStatus.Active).ToListAsync(ct);
             var reverseSign = -PostingRules.FinalizeSign(Type);
             var changes = LineCalculator.QuantityByProduct(lines).ToDictionary(kv => kv.Key, kv => kv.Value * reverseSign);
+            // The stock goes back at the cost it moved at: a voided purchase leaves the average cost
+            // as if it had never arrived, and a voided sale returns its units at their recorded cost.
+            var costs = Type == TransactionType.Purchase ? Costing.UnitCostByProduct(lines) : SoldCostByProduct(lines);
             await stock.ApplyMovementsAsync(changes, PostingRules.VoidMovement(Type),
                 Type == TransactionType.Sales ? ReferenceType.SalesOrder : ReferenceType.PurchaseOrder,
                 order.Uuid, order.OrderNumber!, ErrorCodes.NegativeStockOnVoid,
-                "Cannot void: the purchased stock has already been used.", ct);
+                "Cannot void: the purchased stock has already been used.", ct, CostOf(costs));
         }
 
         order.PostingStatus = PostingStatus.Void;
@@ -653,6 +661,21 @@ public abstract class OrderService<TOrder, TLine, TPayment, TParty>(
         if (order is null || order.Status != RecordStatus.Active) throw DomainException.NotFound(Label);
         return order;
     }
+
+    /// <summary>A product's cost from the given list; the current average cost for any product not in it.</summary>
+    private static Func<Guid, decimal, decimal> CostOf(IReadOnlyDictionary<Guid, decimal> costs) =>
+        (productUuid, average) => costs.TryGetValue(productUuid, out var cost) ? cost : average;
+
+    /// <summary>
+    /// The recorded cost per product of a sale's lines (quantity-weighted). A product with a line
+    /// that has no recorded cost is left out, so it returns at the current average cost.
+    /// </summary>
+    private static Dictionary<Guid, decimal> SoldCostByProduct(IEnumerable<TLine> lines) =>
+        lines.OfType<SalesOrderLineItem>()
+            .Where(l => l.IsActive && l.TotalQuantity > 0)
+            .GroupBy(l => l.ProductUuid)
+            .Where(g => g.All(l => l.UnitCost is not null))
+            .ToDictionary(g => g.Key, g => Costing.Round(g.Sum(l => l.TotalQuantity * l.UnitCost!.Value) / g.Sum(l => l.TotalQuantity)));
 
     /// <summary>Forces a new revision on the header when only child rows changed.</summary>
     private static void Touch(TOrder order) => order.Revision = Guid.NewGuid();

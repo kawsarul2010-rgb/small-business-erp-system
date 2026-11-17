@@ -63,6 +63,8 @@ public interface IAppDbContext
     DbSet<AppRelease> AppReleases { get; }
     DbSet<BusinessPlanPrice> BusinessPlanPrices { get; }
     DbSet<SmsCredit> SmsCredits { get; }
+    DbSet<ExpenseCategory> ExpenseCategories { get; }
+    DbSet<Expense> Expenses { get; }
 
     DbSet<TEntity> Set<TEntity>() where TEntity : class;
     DatabaseFacade Database { get; }

@@ -46,6 +46,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Sales orders', short: 'Sales', icon: 'point_of_sale', link: '/sales-orders', roles: ['ADMIN', 'MANAGER'] },
       { label: 'Purchase orders', short: 'Purchases', icon: 'shopping_cart', link: '/purchase-orders', roles: ['ADMIN'] },
+      { label: 'Expenses', short: 'Expenses', icon: 'payments', link: '/expenses', roles: ['ADMIN', 'MANAGER'] },
       { label: 'My purchases', short: 'Orders', icon: 'receipt_long', link: '/sales-orders', roles: ['USER'], show: linkedBuyer },
       { label: 'My supplies', short: 'Supplies', icon: 'local_shipping', link: '/purchase-orders', roles: ['USER'], show: linkedSupplier },
     ],
@@ -73,6 +74,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Due report', short: 'Dues', icon: 'pending_actions', link: '/reports/dues', roles: ['ADMIN', 'MANAGER', 'USER'], show: (u) => staffOrLinkedBuyer(u) || staffOrLinkedSupplier(u) },
       { label: 'Customer report', icon: 'person_search', link: '/reports/customers', roles: ['ADMIN', 'MANAGER', 'USER'], show: staffOrLinkedBuyer },
       { label: 'Supplier report', icon: 'contact_page', link: '/reports/suppliers', roles: ['ADMIN', 'USER'], show: staffOrLinkedSupplier },
+      { label: 'Profit and loss', icon: 'bar_chart', link: '/reports/profit-loss', roles: ['ADMIN'] },
       { label: 'Company report', icon: 'domain', link: '/reports/companies', roles: ['ADMIN', 'MANAGER'] },
     ],
   },

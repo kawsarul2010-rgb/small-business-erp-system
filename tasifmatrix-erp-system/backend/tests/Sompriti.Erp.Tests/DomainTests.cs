@@ -623,3 +623,63 @@ public class SmsCreditTests
         Assert.Equal(new DateTimeOffset(2027, 2, 28, 0, 0, 0, TimeSpan.Zero), SmsCredits.ExpiresAt(new DateTimeOffset(2026, 11, 30, 0, 0, 0, TimeSpan.Zero), 3));
     }
 }
+
+public class CostingTests
+{
+    [Fact]
+    public void A_purchase_blends_into_the_average_and_a_sale_leaves_at_it()
+    {
+        // 10 bottles at Tk 100 on the shelf, 10 more bought at Tk 120.
+        var average = Costing.AverageIn(10, 100, 10, 120);
+        Assert.Equal(110m, average);
+        // Selling 5 costs 5 x 110; the average does not move.
+        Assert.Equal(550m, Costing.Value(5, average));
+    }
+
+    [Fact]
+    public void The_first_stock_on_an_empty_shelf_sets_the_average()
+    {
+        Assert.Equal(87.5m, Costing.AverageIn(0, 0, 50, 87.5m));
+        Assert.Equal(87.5m, Costing.AverageIn(0, 120, 50, 87.5m));
+    }
+
+    [Fact]
+    public void Voiding_a_purchase_undoes_it()
+    {
+        Assert.Equal(100m, Costing.AverageOut(20, 110, 10, 120));
+        // Nothing left, or arithmetic below zero: the average is kept.
+        Assert.Equal(95m, Costing.AverageOut(10, 95, 10, 95));
+        Assert.Equal(10m, Costing.AverageOut(12, 10, 10, 50));
+    }
+
+    [Fact]
+    public void Measured_units_average_to_four_decimals()
+    {
+        // (12.5 x 64.40 + 7.25 x 66.10) / 19.75 = 65.02405...
+        Assert.Equal(65.0241m, Costing.AverageIn(12.5m, 64.40m, 7.25m, 66.10m));
+    }
+
+    [Fact]
+    public void Profit_counts_the_cost_of_what_was_sold_not_everything_bought()
+    {
+        // 100 bottles bought at Tk 150; 40 sold at Tk 180; Tk 1,000 of expenses.
+        var average = Costing.AverageIn(0, 0, 100, 150);
+        var sales = 40 * 180m;
+        var costOfGoodsSold = Costing.Value(40, average);
+        Assert.Equal(1_200m, sales - costOfGoodsSold);        // gross profit
+        Assert.Equal(200m, sales - costOfGoodsSold - 1_000m); // net profit
+    }
+
+    [Fact]
+    public void Unit_cost_per_product_is_total_price_over_total_quantity()
+    {
+        var product = Guid.NewGuid();
+        var lines = new OrderLine[]
+        {
+            new PurchaseOrderLineItem { ProductUuid = product, TotalQuantity = 10, TotalPrice = 1_000 },
+            new PurchaseOrderLineItem { ProductUuid = product, TotalQuantity = 30, TotalPrice = 3_600 },
+            new PurchaseOrderLineItem { ProductUuid = product, TotalQuantity = 5, TotalPrice = 999, Status = RecordStatus.Deleted },
+        };
+        Assert.Equal(115m, Costing.UnitCostByProduct(lines)[product]);
+    }
+}

@@ -359,6 +359,56 @@ export interface Dashboard {
   asBuyer: LinkedSummary | null;
   asSupplier: LinkedSummary | null;
   salesLast30Days: { date: string; total: number }[];
+  /** Admin only, when the dashboard shows the whole business. */
+  monthExpenses?: number | null;
+  monthNetProfit?: number | null;
+}
+
+// ---------------------------------------------------------------- expenses / profit
+export interface ExpenseCategory {
+  uuid: string;
+  categoryName: string;
+  revision: string;
+}
+
+export interface Expense {
+  uuid: string;
+  expenseNumber: string;
+  expenseDate: string;
+  categoryUuid: string;
+  categoryName: string;
+  amount: number;
+  paidTo: string | null;
+  paymentMethod: PaymentMethod;
+  note: string | null;
+  isVoid: boolean;
+  voidReason: string | null;
+  voidedDate: string | null;
+  voidedByUserName: string | null;
+  createdDate: string;
+  createdByUserName: string;
+  revision: string;
+}
+
+/** A page of expenses plus what every matching (not voided) expense adds up to. */
+export interface ExpensePage extends Paged<Expense> {
+  totalAmount: number;
+}
+
+export interface ProfitLoss {
+  fromDate: string | null;
+  toDate: string | null;
+  salesOrderCount: number;
+  sales: number;
+  costOfGoodsSold: number;
+  grossProfit: number;
+  grossMarginPercent: number | null;
+  expenses: { categoryUuid: string; categoryName: string; amount: number }[];
+  totalExpenses: number;
+  stockLoss: number;
+  netProfit: number;
+  netMarginPercent: number | null;
+  purchases: number;
 }
 
 // ---------------------------------------------------------------- users / sms

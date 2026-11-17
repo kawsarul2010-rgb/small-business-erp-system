@@ -49,12 +49,14 @@ export const routes: Routes = [
       { path: 'sales-orders/new', title: 'New sales order', canActivate: [roleGuard], data: { roles: ['ADMIN', 'MANAGER'], kind: 'sales' }, loadComponent: () => import('./features/orders/order-editor').then((m) => m.OrderEditorPage) },
       { path: 'sales-orders/:id', title: 'Sales order', canActivate: [roleGuard], data: { roles: ['ADMIN', 'MANAGER', 'USER'], kind: 'sales' }, loadComponent: () => import('./features/orders/order-view').then((m) => m.OrderViewPage) },
       { path: 'sales-orders/:id/edit', title: 'Edit sales order', canActivate: [roleGuard], data: { roles: ['ADMIN', 'MANAGER'], kind: 'sales' }, loadComponent: () => import('./features/orders/order-editor').then((m) => m.OrderEditorPage) },
+      { path: 'expenses', title: 'Expenses', canActivate: [roleGuard], data: { roles: ['ADMIN', 'MANAGER'] }, loadComponent: () => import('./features/expenses/expenses').then((m) => m.ExpensesPage) },
 
       // reports
       { path: 'reports/customers', title: 'Customer report', canActivate: [businessGuard], data: { kind: 'customer' }, loadComponent: () => import('./features/reports/party-report').then((m) => m.PartyReportPage) },
       { path: 'reports/suppliers', title: 'Supplier report', canActivate: [roleGuard], data: { roles: ['ADMIN', 'USER'], kind: 'supplier' }, loadComponent: () => import('./features/reports/party-report').then((m) => m.PartyReportPage) },
       { path: 'reports/companies', title: 'Company report', canActivate: [roleGuard], data: { roles: ['ADMIN', 'MANAGER'] }, loadComponent: () => import('./features/reports/company-report').then((m) => m.CompanyReportPage) },
       { path: 'reports/dues', title: 'Due report', canActivate: [businessGuard], loadComponent: () => import('./features/reports/due-report').then((m) => m.DueReportPage) },
+      { path: 'reports/profit-loss', title: 'Profit and loss', canActivate: [roleGuard], data: { roles: ['ADMIN'] }, loadComponent: () => import('./features/reports/profit-loss').then((m) => m.ProfitLossPage) },
 
       // administration
       { path: 'users', title: 'Users', canActivate: [roleGuard], data: { roles: ['ADMIN'] }, loadComponent: () => import('./features/users/users').then((m) => m.UsersPage) },

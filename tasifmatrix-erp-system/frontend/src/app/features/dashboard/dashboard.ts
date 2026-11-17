@@ -104,10 +104,11 @@ export class DashboardPage implements OnInit, AfterViewInit, OnDestroy {
     return [o.transactionType === 'SALES' ? '/sales-orders' : '/purchase-orders', o.uuid];
   }
 
-  /** Tiles per row on desktop: all in one row when there are four or fewer, otherwise rows of three. */
+  /** Tiles per row on desktop: all in one row when there are four or fewer, rows of four for eight, otherwise rows of three. */
   tileCount(d: Dashboard): number {
-    const n = 4 + (d.monthPurchases !== null ? 1 : 0) + (d.supplierDue !== null ? 1 : 0);
-    return n <= 4 ? n : 3;
+    const has = (v: number | null | undefined) => (v !== null && v !== undefined ? 1 : 0);
+    const n = 4 + has(d.monthPurchases) + has(d.supplierDue) + has(d.monthExpenses) + has(d.monthNetProfit);
+    return n <= 4 ? n : n % 4 === 0 ? 4 : 3;
   }
 
   /** How full the bar under a low-stock product is (current stock against its alert level). */

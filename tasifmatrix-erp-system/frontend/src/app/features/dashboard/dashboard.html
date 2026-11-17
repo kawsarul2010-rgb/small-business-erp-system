@@ -88,6 +88,24 @@
             <span class="hint">@if (d.draftPurchaseOrders !== null) { {{ '{sales} sales · {purchase} purchase' | t: { sales: d.draftSalesOrders, purchase: d.draftPurchaseOrders } }} } @else { {{ '{sales} sales' | t: { sales: d.draftSalesOrders } }} }</span>
           </span>
         </a>
+        @if (d.monthExpenses !== null && d.monthExpenses !== undefined) {
+          <a class="card stat" routerLink="/expenses">
+            <span class="icon-badge amber"><mat-icon>payments</mat-icon></span>
+            <span class="stat-body">
+              <span class="label">{{ 'Expenses this month' | t }}</span>
+              <strong>{{ d.monthExpenses | money }}</strong>
+            </span>
+          </a>
+        }
+        @if (d.monthNetProfit !== null && d.monthNetProfit !== undefined) {
+          <a class="card stat" routerLink="/reports/profit-loss">
+            <span class="icon-badge" [class.teal]="d.monthNetProfit >= 0" [class.rose]="d.monthNetProfit < 0"><mat-icon>trending_up</mat-icon></span>
+            <span class="stat-body">
+              <span class="label">{{ (d.monthNetProfit < 0 ? 'Net loss this month' : 'Net profit this month') | t }}</span>
+              <strong [class.negative]="d.monthNetProfit < 0">{{ d.monthNetProfit | money }}</strong>
+            </span>
+          </a>
+        }
       </div>
 
       <div class="grid-2 wide-left">

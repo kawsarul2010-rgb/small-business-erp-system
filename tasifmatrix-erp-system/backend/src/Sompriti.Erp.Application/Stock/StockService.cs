@@ -146,10 +146,21 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
         await db.SaveChangesAsync(ct); // generates adjustment_number
 
         var change = adj.AdjustmentType == AdjustmentType.Increase ? adj.Quantity : -adj.Quantity;
-        await ApplyMovementsAsync(new Dictionary<Guid, decimal> { [adj.ProductUuid] = change },
+        // Opening stock comes in at the product's purchase price; any other increase (a recount
+        // finding more) at the current average cost. A decrease leaves at the average.
+        decimal? incomingCost = null;
+        Func<Guid, decimal, decimal>? costOf = null;
+        if (adj.AdjustmentType == AdjustmentType.Increase)
+            costOf = (_, average) =>
+            {
+                incomingCost = adj.Reason == AdjustmentReason.OpeningStock || average <= 0 ? product!.ProductPurchasePrice : average;
+                return incomingCost.Value;
+            };
+        var averages = await ApplyMovementsAsync(new Dictionary<Guid, decimal> { [adj.ProductUuid] = change },
             adj.AdjustmentType == AdjustmentType.Increase ? MovementType.AdjustmentIn : MovementType.AdjustmentOut,
             ReferenceType.StockAdjustment, adj.Uuid, adj.AdjustmentNumber!, ErrorCodes.NegativeStock,
-            "This adjustment would make stock negative.", ct);
+            "This adjustment would make stock negative.", ct, costOf);
+        adj.UnitCost = incomingCost ?? averages.GetValueOrDefault(adj.ProductUuid);
 
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
@@ -163,15 +174,22 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
     /// locks the balance rows in product_uuid order, validates no negative balance, updates balances
     /// and adds ledger rows. The caller must call SaveChangesAsync and commit.
     /// </summary>
-    public async Task ApplyMovementsAsync(IReadOnlyDictionary<Guid, decimal> changes, MovementType movement,
+    /// <param name="unitCost">
+    /// The cost of one base unit moved, given the product's current average cost. When set, stock
+    /// coming in blends into the average at that cost and stock going out is taken back out of it
+    /// (a voided purchase). When null, the average does not move: stock leaves at the average.
+    /// </param>
+    /// <returns>Each product's average cost before the movement - what a sale or a loss is charged at.</returns>
+    public async Task<Dictionary<Guid, decimal>> ApplyMovementsAsync(IReadOnlyDictionary<Guid, decimal> changes, MovementType movement,
         ReferenceType referenceType, Guid referenceUuid, string referenceNumber,
-        string shortageCode, string shortageMessage, CancellationToken ct)
+        string shortageCode, string shortageMessage, CancellationToken ct, Func<Guid, decimal, decimal>? unitCost = null)
     {
         if (db.Database.CurrentTransaction is null)
             throw new InvalidOperationException("Stock movements must run inside a database transaction.");
 
+        var averages = new Dictionary<Guid, decimal>();
         var ids = changes.Where(c => c.Value != 0).Select(c => c.Key).OrderBy(id => id).ToArray();
-        if (ids.Length == 0) return;
+        if (ids.Length == 0) return averages;
 
         // Lock rows in a consistent order to avoid deadlocks. The business condition is written
         // into the SQL rather than added by the query filter, so the lock statement runs exactly
@@ -183,11 +201,17 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
             .ToListAsync(ct);
 
         // Create missing balance rows defensively (should already exist from product creation).
-        foreach (var id in ids.Where(id => balances.All(b => b.ProductUuid != id)))
+        var missing = ids.Where(id => balances.All(b => b.ProductUuid != id)).ToList();
+        if (missing.Count > 0)
         {
-            var b = new StockBalance { Uuid = Guid.NewGuid(), ProductUuid = id, CurrentStockBalance = 0 };
-            db.StockBalances.Add(b);
-            balances.Add(b);
+            var prices = await db.Products.AsNoTracking().Where(p => missing.Contains(p.Uuid))
+                .ToDictionaryAsync(p => p.Uuid, p => p.ProductPurchasePrice, ct);
+            foreach (var id in missing)
+            {
+                var b = new StockBalance { Uuid = Guid.NewGuid(), ProductUuid = id, CurrentStockBalance = 0, AverageCost = prices.GetValueOrDefault(id) };
+                db.StockBalances.Add(b);
+                balances.Add(b);
+            }
         }
 
         var shortages = balances
@@ -210,6 +234,14 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
         foreach (var b in balances.OrderBy(b => b.ProductUuid))
         {
             var change = changes[b.ProductUuid];
+            averages[b.ProductUuid] = b.AverageCost;
+            if (unitCost is not null)
+            {
+                var cost = unitCost(b.ProductUuid, b.AverageCost);
+                b.AverageCost = change > 0
+                    ? Costing.AverageIn(b.CurrentStockBalance, b.AverageCost, change, cost)
+                    : Costing.AverageOut(b.CurrentStockBalance, b.AverageCost, -change, cost);
+            }
             b.CurrentStockBalance += change;
             db.StockLedgers.Add(new StockLedger
             {
@@ -226,6 +258,7 @@ public sealed class StockService(IAppDbContext db, ICurrentUser user, TimeProvid
                 CreatedByUserName = user.IsAuthenticated ? user.UserName : AppUser.SystemUserName,
             });
         }
+        return averages;
     }
 
     /// <summary>Current balances for the given products (no locking), used for line-level stock warnings.</summary>

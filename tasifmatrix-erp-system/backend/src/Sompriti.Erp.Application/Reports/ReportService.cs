@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sompriti.Erp.Application.Common;
+using Sompriti.Erp.Application.Expenses;
 using Sompriti.Erp.Application.Orders;
 using Sompriti.Erp.Domain.Common;
 using Sompriti.Erp.Domain.Entities;
@@ -15,6 +16,25 @@ public sealed record ReportQuery : PageQuery
     public Guid? CompanyUuid { get; init; }
     public bool DueOnly { get; init; }
 }
+
+public sealed record ProfitLossExpense(Guid CategoryUuid, string CategoryName, decimal Amount);
+
+/// <summary>
+/// Profit and loss for a period, the standard way (accrual, weighted average cost):
+///   Sales                - finalized sales orders dated in the period (paid or not)
+///   Cost of goods sold   - what the units sold cost, at the average cost when each sale was finalized
+///   Gross profit         = Sales - Cost of goods sold
+///   Operating expenses   - expenses dated in the period, by category (voided ones left out)
+///   Stock loss           - stock written off by adjustments (damage, loss, corrections), at cost
+///   Net profit           = Gross profit - Operating expenses - Stock loss
+/// Purchases are not subtracted: stock bought is still on the shelf until it is sold, and then
+/// its cost arrives as cost of goods sold. They are shown for information.
+/// </summary>
+public sealed record ProfitLossDto(
+    DateOnly? FromDate, DateOnly? ToDate,
+    int SalesOrderCount, decimal Sales, decimal CostOfGoodsSold, decimal GrossProfit, decimal? GrossMarginPercent,
+    IReadOnlyList<ProfitLossExpense> Expenses, decimal TotalExpenses, decimal StockLoss,
+    decimal NetProfit, decimal? NetMarginPercent, decimal Purchases);
 
 /// <summary>The stock balance screen's filters, for its printed version.</summary>
 public sealed record StockReportQuery : PageQuery
@@ -42,14 +62,17 @@ public sealed record DashboardDto(
     IReadOnlyList<OrderListItemDto> LatestSales,
     IReadOnlyList<OrderListItemDto> LatestPurchases,
     LinkedSummary? AsBuyer, LinkedSummary? AsSupplier,
-    IReadOnlyList<DailyTotal> SalesLast30Days);
+    IReadOnlyList<DailyTotal> SalesLast30Days,
+    /// <summary>Admin only, and only when the dashboard shows the whole business.</summary>
+    decimal? MonthExpenses = null,
+    decimal? MonthNetProfit = null);
 
 public sealed record LowStockItem(Guid ProductUuid, string ProductCode, string ProductName, decimal CurrentStock, decimal Threshold);
 public sealed record LinkedSummary(Guid PartyUuid, string PartyName, int OrderCount, decimal TotalAmount, decimal TotalPaid, decimal Due);
 public sealed record DailyTotal(DateOnly Date, decimal Total);
 
 public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvider clock,
-    SalesOrderService salesOrders, PurchaseOrderService purchaseOrders, IBusinessProfile business)
+    SalesOrderService salesOrders, PurchaseOrderService purchaseOrders, IBusinessProfile business, ExpenseService expenses)
 {
     // ------------------------------------------------------------------ party reports
 
@@ -570,6 +593,144 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
     /// <summary>The party's name; a previous due says so, as it has no order behind it.</summary>
     private static string PartyCell(OrderListItemDto o) => o.IsOpeningDue ? $"{o.PartyName} (previous due)" : o.PartyName;
 
+    // ------------------------------------------------------------------ profit and loss
+
+    /// <summary>Profit and loss for the period (see <see cref="ProfitLossDto"/>). Admin only: it shows costs.</summary>
+    public async Task<ProfitLossDto> ProfitLossAsync(ReportQuery q, CancellationToken ct)
+    {
+        if (user.Role != Role.Admin) throw DomainException.Forbidden();
+        var fromDate = q.FromDate;
+        var toDate = q.ToDate;
+
+        // Previous dues are money owed from before the app, not sales made: they never count.
+        var sales = db.SalesOrders.AsNoTracking().Where(o => o.Status == RecordStatus.Active
+            && o.PostingStatus == PostingStatus.Final && !o.IsOpeningDue
+            && (fromDate == null || o.OrderDate >= fromDate) && (toDate == null || o.OrderDate <= toDate));
+        var salesTotal = await sales.SumAsync(o => (decimal?)o.TotalAmount, ct) ?? 0;
+        var salesCount = await sales.CountAsync(ct);
+
+        // Each line was costed when its sale was finalized. A line with no recorded cost (none
+        // should be left after migration 0017) falls back to the product's purchase price.
+        var cogs = await (from l in db.SalesOrderLines.AsNoTracking()
+                          join o in sales on l.OrderUuid equals o.Uuid
+                          join p in db.Products.AsNoTracking() on l.ProductUuid equals p.Uuid
+                          where l.Status == RecordStatus.Active
+                          select (decimal?)(l.TotalQuantity * (l.UnitCost ?? p.ProductPurchasePrice))).SumAsync(ct) ?? 0;
+
+        var expenseLines = await (from e in db.Expenses.AsNoTracking()
+                                  join c in db.ExpenseCategories.AsNoTracking() on e.CategoryUuid equals c.Uuid
+                                  where e.VoidedDate == null
+                                        && (fromDate == null || e.ExpenseDate >= fromDate) && (toDate == null || e.ExpenseDate <= toDate)
+                                  group e by new { c.Uuid, c.CategoryName } into g
+                                  select new ProfitLossExpense(g.Key.Uuid, g.Key.CategoryName, g.Sum(e => e.Amount)))
+                                 .ToListAsync(ct);
+        expenseLines = expenseLines.OrderByDescending(e => e.Amount).ThenBy(e => e.CategoryName).ToList();
+
+        // Stock written off (damage, loss, a recount finding less) is a cost; a recount finding
+        // more takes it back. Opening stock is stock the business already had, not a gain.
+        var adjustments = await db.StockAdjustments.AsNoTracking()
+            .Where(a => a.Status == RecordStatus.Active && a.Reason != AdjustmentReason.OpeningStock
+                        && (fromDate == null || a.AdjustmentDate >= fromDate) && (toDate == null || a.AdjustmentDate <= toDate))
+            .Select(a => new { a.AdjustmentType, a.Quantity, Cost = a.UnitCost ?? 0 })
+            .ToListAsync(ct);
+        var stockLoss = adjustments.Sum(a => (a.AdjustmentType == AdjustmentType.Decrease ? 1 : -1) * Costing.Value(a.Quantity, a.Cost));
+
+        var purchases = await db.PurchaseOrders.AsNoTracking()
+            .Where(o => o.Status == RecordStatus.Active && o.PostingStatus == PostingStatus.Final && !o.IsOpeningDue
+                        && (fromDate == null || o.OrderDate >= fromDate) && (toDate == null || o.OrderDate <= toDate))
+            .SumAsync(o => (decimal?)o.TotalAmount, ct) ?? 0;
+
+        var cost = Money.Round(cogs);
+        var gross = salesTotal - cost;
+        var totalExpenses = expenseLines.Sum(e => e.Amount);
+        var net = gross - totalExpenses - stockLoss;
+        return new ProfitLossDto(fromDate, toDate, salesCount, salesTotal, cost, gross, Percent(gross, salesTotal),
+            expenseLines, totalExpenses, stockLoss, net, Percent(net, salesTotal), purchases);
+    }
+
+    private static decimal? Percent(decimal part, decimal whole) =>
+        whole == 0 ? null : Math.Round(part * 100 / whole, 1, MidpointRounding.AwayFromZero);
+
+    public async Task<ReportDocument> ProfitLossDocumentAsync(ReportQuery q, CancellationToken ct)
+    {
+        var pl = await ProfitLossAsync(q, ct);
+        string Amount(decimal v) => v < 0 ? "-" + Money.FormatPlain(-v) : Money.FormatPlain(v);
+
+        var rows = new List<ReportRow>
+        {
+            new([pl.SalesOrderCount == 1 ? "Sales (1 order)" : $"Sales ({pl.SalesOrderCount.ToString(Invariant)} orders)", Amount(pl.Sales)]),
+            new(["Less: cost of goods sold", Amount(pl.CostOfGoodsSold)]),
+            new(["Gross profit", Amount(pl.GrossProfit)]),
+            new(["Less: operating expenses", Amount(pl.TotalExpenses)],
+                pl.Expenses.Select(e => (IReadOnlyList<string>)[e.CategoryName, Amount(e.Amount)]).ToList()),
+        };
+        if (pl.StockLoss != 0) rows.Add(new(["Less: stock lost or damaged", Amount(pl.StockLoss)]));
+
+        var filters = new List<(string, string)> { ("Period", Period(q.FromDate, q.ToDate)) };
+        if (pl.GrossMarginPercent is { } gm) filters.Add(("Gross margin", $"{gm.ToString("0.#", Invariant)}% of sales"));
+        if (pl.NetMarginPercent is { } nm) filters.Add(("Net margin", $"{nm.ToString("0.#", Invariant)}% of sales"));
+        filters.Add(("Purchases", $"{Money.Format(pl.Purchases)} bought in the period - a cost only when sold"));
+
+        return new ReportDocument(
+            Title: "Profit and loss",
+            BusinessName: await business.NameAsync(ct),
+            Filters: filters,
+            Columns: [new ReportColumn("Particulars"), new ReportColumn("Amount (Tk)", 120, RightAligned: true)],
+            Rows: rows,
+            Totals: [pl.NetProfit < 0 ? "NET LOSS" : "NET PROFIT", Amount(pl.NetProfit)],
+            FileName: FileName("profit-and-loss", q.FromDate, q.ToDate),
+            DetailColumns: [new ReportColumn("Expense"), new ReportColumn("Amount", 120, RightAligned: true)]);
+    }
+
+    // ------------------------------------------------------------------ expense list
+
+    /// <summary>The expense book as printed: every expense matching the screen's filters, voided ones left out.</summary>
+    public async Task<ReportDocument> ExpenseListDocumentAsync(ExpenseQuery q, CancellationToken ct)
+    {
+        var all = q with { Page = 1, AllRows = true, IncludeVoid = false };
+        var items = (await expenses.Filtered(all).ToListAsync(ct)).Select(ExpenseService.ToDto).ToList();
+
+        var rows = items.Select(e => new ReportRow(
+        [
+            e.ExpenseNumber,
+            Day(e.ExpenseDate),
+            e.CategoryName,
+            string.Join(" - ", new[] { e.PaidTo, e.Note }.Where(x => !string.IsNullOrWhiteSpace(x))),
+            Label(e.PaymentMethod),
+            Money.FormatPlain(e.Amount),
+        ])).ToList();
+
+        var filters = new List<(string, string)> { ("Period", Period(q.FromDate, q.ToDate)) };
+        if (q.CategoryUuid is { } cid)
+            filters.Add(("Category", await db.ExpenseCategories.AsNoTracking().Where(c => c.Uuid == cid)
+                .Select(c => c.CategoryName).FirstOrDefaultAsync(ct) ?? "-"));
+        if (q.Term is { } term) filters.Add(("Search", term));
+        if (user.Role == Role.Manager) filters.Add(("Recorded by", user.UserName));
+
+        var total = items.Sum(e => e.Amount);
+        return new ReportDocument(
+            Title: "Expense report",
+            BusinessName: await business.NameAsync(ct),
+            Filters: filters,
+            Columns:
+            [
+                new ReportColumn("No.", 50), new ReportColumn("Date", 62), new ReportColumn("Category", 94),
+                new ReportColumn("Paid to / note"), new ReportColumn("Method", 74), new ReportColumn("Amount", 78, RightAligned: true),
+            ],
+            Rows: rows,
+            Totals: ["TOTAL", "", "", items.Count == 1 ? "1 expense" : $"{items.Count.ToString(Invariant)} expenses", "", Money.FormatPlain(total)],
+            FileName: FileName("expense-report", q.FromDate, q.ToDate));
+    }
+
+    private static string Label(PaymentMethod m) => m switch
+    {
+        PaymentMethod.Cash => "Cash",
+        PaymentMethod.Bank => "Bank",
+        PaymentMethod.MobileBanking => "Mobile banking",
+        PaymentMethod.Cheque => "Cheque",
+        _ => "Other",
+    };
+
     // ------------------------------------------------------------------ stock balance report
 
     /// <summary>
@@ -745,8 +906,17 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
         var series = Enumerable.Range(0, 30).Select(i => from30.AddDays(i))
             .Select(d => new DailyTotal(d, daily.FirstOrDefault(x => x.Date == d)?.Total ?? 0)).ToList();
 
+        // Profit is the whole business's: expenses belong to no one company.
+        decimal? monthExpenses = null, monthProfit = null;
+        if (isAdmin && companyUuid is null)
+        {
+            var pl = await ProfitLossAsync(new ReportQuery { FromDate = monthStart }, ct);
+            monthExpenses = pl.TotalExpenses;
+            monthProfit = pl.NetProfit;
+        }
+
         return new DashboardDto(user.Role, todaySales, monthSales, monthPurchases, customerDue, supplierDue,
-            draftSales, draftPurchases, lowStock, latestSalesList, latestPurch, null, null, series);
+            draftSales, draftPurchases, lowStock, latestSalesList, latestPurch, null, null, series, monthExpenses, monthProfit);
     }
 
     private async Task<LinkedSummary?> LinkedAsync<TOrder, TParty>(Guid partyUuid, ReportQuery q, CancellationToken ct)
