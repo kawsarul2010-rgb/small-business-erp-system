@@ -69,6 +69,15 @@ public sealed class ReportsController(ReportService service, IReportPdfRenderer 
     public Task<IActionResult> PurchaseDuePdf([FromQuery] ReportQuery q, [FromQuery] bool download, CancellationToken ct) =>
         Pdf(service.DueReportDocumentAsync(Domain.Enums.TransactionType.Purchase, q, ct), download);
 
+    // Stock on hand and its value, every product matching the stock screen's filters.
+    [HttpGet("stock/pdf"), Authorize(Roles = Roles.AdminOrManager)]
+    public Task<IActionResult> StockPdf([FromQuery] StockReportQuery q, [FromQuery] bool download, CancellationToken ct) =>
+        Pdf(service.StockBalanceDocumentAsync(q, ct), download);
+
+    [HttpPost("stock/pdf/email"), Authorize(Roles = Roles.AdminOrManager)]
+    public Task<IActionResult> EmailStockPdf([FromQuery] StockReportQuery q, EmailPdfRequest r, CancellationToken ct) =>
+        EmailPdf(service.StockBalanceDocumentAsync(q, ct), r, ct);
+
     // ---------------------------------------------------------------- email the printable version
     // Sharing a report from a desktop browser: the browser cannot attach a file to an email, so
     // the server renders the same document and sends it. Filters and roles are exactly as above.

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -17,12 +17,13 @@ import { Paged, StockBalance, Uom } from '../../core/models';
 import { ListFooter } from '../../shared/list-footer';
 import { ListState } from '../../shared/list-state';
 import { QtyPipe } from '../../shared/pipes';
+import { ReportExport } from '../../shared/report-export';
 import { stockLabel } from '../../shared/units';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 
 @Component({
   selector: 'app-stock-balances',
-  imports: [TranslatePipe, RouterLink, DatePipe, MatTableModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatCheckboxModule, MatTooltipModule, ListFooter, QtyPipe],
+  imports: [TranslatePipe, RouterLink, DatePipe, MatTableModule, MatSortModule, MatButtonModule, MatIconModule, MatFormFieldModule, MatInputModule, MatProgressBarModule, MatCheckboxModule, MatTooltipModule, ListFooter, QtyPipe, ReportExport],
   template: `
     <div class="page">
       <div class="page-header">
@@ -33,6 +34,7 @@ import { TranslatePipe } from '../../core/i18n/translate.pipe';
           }
         </div>
         <div class="actions">
+          <app-report-export path="/reports/stock/pdf" [filters]="pdfFilters()" [label]="'Stock balance report' | t" />
           @if (!layout.isHandset()) {
             <a mat-stroked-button routerLink="/stock/ledger"><mat-icon>receipt_long</mat-icon>{{ 'Ledger' | t }}</a>
             @if (auth.isAdmin()) { <a mat-flat-button routerLink="/stock/adjustments"><mat-icon>tune</mat-icon>{{ 'Adjust stock' | t }}</a> }
@@ -110,6 +112,12 @@ export class StockBalancesPage implements OnInit {
   readonly lowOnly = signal(false);
   readonly columns = ['productCode', 'productName', 'currentStockBalance', 'boxes', 'threshold', 'updated', 'actions'];
   readonly list = new ListState<StockBalance>((q) => this.api.get<Paged<StockBalance>>('/stock/balances', { ...q, lowStockOnly: this.lowOnly() }));
+
+  /** The printed report covers every product matching the search, filter and sort on screen. */
+  readonly pdfFilters = computed(() => {
+    const q = this.list.query();
+    return { search: q.search || null, sort: q.sort || null, lowStockOnly: this.lowOnly() };
+  });
 
   ngOnInit(): void {
     this.list.reload();

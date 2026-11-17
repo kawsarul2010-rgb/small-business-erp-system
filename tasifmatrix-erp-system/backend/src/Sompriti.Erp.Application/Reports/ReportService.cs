@@ -16,6 +16,12 @@ public sealed record ReportQuery : PageQuery
     public bool DueOnly { get; init; }
 }
 
+/// <summary>The stock balance screen's filters, for its printed version.</summary>
+public sealed record StockReportQuery : PageQuery
+{
+    public bool LowStockOnly { get; init; }
+}
+
 public sealed record PartyReportRow(Guid PartyUuid, string PartyName, string PartyCode, string MobileNumber,
     int OrderCount, decimal TotalAmount, decimal TotalPaid, decimal Due);
 
@@ -563,6 +569,98 @@ public sealed class ReportService(IAppDbContext db, ICurrentUser user, TimeProvi
 
     /// <summary>The party's name; a previous due says so, as it has no order behind it.</summary>
     private static string PartyCell(OrderListItemDto o) => o.IsOpeningDue ? $"{o.PartyName} (previous due)" : o.PartyName;
+
+    // ------------------------------------------------------------------ stock balance report
+
+    /// <summary>
+    /// Every active product with its stock on hand and what that stock is worth, at purchase and
+    /// at sales price - the shop's stock valuation. Same filters and order as the stock balance
+    /// screen. Purchase prices are admin-only, as on the products screen, so a manager's copy
+    /// shows sales value alone.
+    /// </summary>
+    public async Task<ReportDocument> StockBalanceDocumentAsync(StockReportQuery q, CancellationToken ct)
+    {
+        if (user.Role == Role.User) throw DomainException.Forbidden();
+        var withPurchase = user.Role == Role.Admin;
+
+        var query = from s in db.StockBalances.AsNoTracking()
+                    join p in db.Products.AsNoTracking() on s.ProductUuid equals p.Uuid
+                    where p.Status == RecordStatus.Active
+                    select new { s, p };
+        if (q.Term is { } t)
+        {
+            var term = t.ToLower();
+            query = query.Where(x => x.p.ProductName.ToLower().Contains(term) || x.p.ProductCode.ToLower().Contains(term));
+        }
+        if (q.LowStockOnly) query = query.Where(x => x.p.LowStockThreshold != null && x.s.CurrentStockBalance <= x.p.LowStockThreshold);
+
+        var desc = q.Sort?.StartsWith('-') == true;
+        query = q.Sort?.TrimStart('-') switch
+        {
+            "currentStockBalance" => desc ? query.OrderByDescending(x => x.s.CurrentStockBalance) : query.OrderBy(x => x.s.CurrentStockBalance),
+            "productCode" => desc ? query.OrderByDescending(x => x.p.ProductCode) : query.OrderBy(x => x.p.ProductCode),
+            _ => desc ? query.OrderByDescending(x => x.p.ProductName) : query.OrderBy(x => x.p.ProductName),
+        };
+
+        var items = await query.Select(x => new
+        {
+            x.p.ProductCode, x.p.ProductName, x.p.Uom, x.p.SecondaryUom,
+            Stock = x.s.CurrentStockBalance,
+            Buy = x.p.ProductPurchasePrice, Sell = x.p.ProductSalesPrice,
+        }).ToListAsync(ct);
+
+        // Prices are per base unit (pcs, kg, litre...), the unit stock is counted in. Stock below
+        // zero (sold before it was received) is worth nothing rather than a negative amount.
+        decimal totalBuy = 0, totalSell = 0;
+        var rows = new List<ReportRow>(items.Count);
+        foreach (var i in items)
+        {
+            var onHand = Math.Max(i.Stock, 0);
+            var buyValue = Money.Round(onHand * i.Buy);
+            var sellValue = Money.Round(onHand * i.Sell);
+            totalBuy += buyValue;
+            totalSell += sellValue;
+
+            var cells = new List<string>
+            {
+                i.ProductCode,
+                i.ProductName,
+                $"{Qty.Format(i.Stock)} {Units.PrintLabel(Units.BaseUnit(i.Uom, i.SecondaryUom))}",
+            };
+            if (withPurchase) cells.AddRange([Money.FormatPlain(i.Buy), Money.FormatPlain(buyValue)]);
+            cells.AddRange([Money.FormatPlain(i.Sell), Money.FormatPlain(sellValue)]);
+            rows.Add(new ReportRow(cells));
+        }
+
+        var columns = new List<ReportColumn>
+        {
+            new("Code", 50),
+            new("Product"),
+            new("Stock", 62, RightAligned: true),
+        };
+        if (withPurchase) columns.AddRange([new("Buy price", 58, true), new("Buy value", 78, true)]);
+        columns.AddRange([new("Sell price", 58, true), new("Sell value", 78, true)]);
+
+        var totals = new List<string> { "TOTAL", items.Count == 1 ? "1 product" : $"{items.Count.ToString(Invariant)} products", "" };
+        if (withPurchase) totals.AddRange(["", Money.FormatPlain(totalBuy)]);
+        totals.AddRange(["", Money.FormatPlain(totalSell)]);
+
+        var now = clock.GetUtcNow().ToOffset(BusinessClock.Offset);
+        var filters = new List<(string, string)> { ("As of", now.ToString("dd MMM yyyy, h:mm tt", Invariant)) };
+        if (await SingleCompanyNameAsync(ct) is { } company) filters.Add(("Company", company));
+        if (q.Term is { } search) filters.Add(("Search", search));
+        if (q.LowStockOnly) filters.Add(("Filter", "Low stock only"));
+        if (withPurchase && items.Count > 0) filters.Add(("Expected profit", Money.Format(totalSell - totalBuy)));
+
+        return new ReportDocument(
+            Title: "Stock balance report",
+            BusinessName: await business.NameAsync(ct),
+            Filters: filters,
+            Columns: columns,
+            Rows: rows,
+            Totals: totals,
+            FileName: $"stock-balance-{now:yyyy-MM-dd}.pdf");
+    }
 
     private static string Day(DateOnly d) => d.ToString("dd MMM yyyy", Invariant);
 

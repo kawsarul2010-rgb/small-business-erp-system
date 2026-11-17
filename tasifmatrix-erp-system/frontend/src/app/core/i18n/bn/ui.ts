@@ -895,6 +895,7 @@ export const BN_UI: Record<string, string> = {
   "Stock for {n} line item(s) will be added to inventory.": "{n}টি লাইনের পণ্য স্টকে যোগ হবে।",
   "Stock for {n} line item(s) will be deducted from inventory.": "{n}টি লাইনের পণ্য স্টক থেকে কমবে।",
   "Stock balance": "স্টক ব্যালেন্স",
+  "Stock balance report": "স্টক ব্যালেন্স রিপোর্ট",
   "Stock is counted in this unit": "স্টক এই এককে গোনা হয়",
   "Stock ledger": "স্টক লেজার",
   "Subscription": "সাবস্ক্রিপশন",
