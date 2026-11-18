@@ -28,6 +28,6 @@ export class AiStore {
 
   /** After an answer: the server says how many questions the business has used today. */
   used(usedToday: number, dailyLimit: number): void {
-    this.status.update((s) => ({ available: true, business: s?.business ?? false, usedToday, dailyLimit }));
+    this.status.update((s) => ({ available: true, business: s?.business ?? false, memo: s?.memo ?? false, usedToday, dailyLimit }));
   }
 }

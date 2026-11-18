@@ -851,6 +851,54 @@ export interface AiStatus {
   usedToday: number;
   /** Admins and managers may also ask about the business's own figures. */
   business: boolean;
+  /** Admins may read a supplier's memo photo into a purchase order. */
+  memo: boolean;
+}
+
+/** A note on a scanned memo or one of its lines; the code is worded in the app (see memo-scan.ts). */
+export interface MemoNote {
+  code: string;
+  amount: number | null;
+  text: string | null;
+}
+
+/** One line of a scanned memo: what it says, the product found, and the order line it becomes. */
+export interface MemoLine {
+  text: string;
+  memoQuantity: number | null;
+  memoUnit: string | null;
+  memoUnitPrice: number | null;
+  memoLineTotal: number | null;
+  /** The memo's unit as one of ours, and what one of it is in that unit (gm: KG, 0.001). */
+  memoUnitType: QuantityType | null;
+  memoUnitFactor: number;
+  product: ProductDropdownItem | null;
+  /** CODE, AI, NAME: found; CHECK: suggested; NONE: not found. */
+  match: 'CODE' | 'AI' | 'NAME' | 'CHECK' | 'NONE';
+  quantityType: QuantityType | null;
+  boxQuantity: number | null;
+  unitQuantity: number | null;
+  totalQuantity: number | null;
+  perUnitPrice: number | null;
+  perBoxPrice: number | null;
+  totalPrice: number | null;
+  flags: MemoNote[];
+}
+
+export interface MemoScan {
+  usageId: string | null;
+  isMemo: boolean;
+  supplier: (DropdownItem & { check: boolean }) | null;
+  supplierText: string | null;
+  memoNumber: string | null;
+  orderDate: string | null;
+  memoTotal: number | null;
+  draftTotal: number;
+  notes: string | null;
+  lines: MemoLine[];
+  warnings: MemoNote[];
+  usedToday: number;
+  dailyLimit: number;
 }
 
 /** A button under a business answer: the screen the figure came from. Label is English, translated in the app. */
@@ -891,6 +939,7 @@ export interface AiSettings {
   aiEnabled: boolean;
   helpModel: string;
   businessModel: string;
+  memoModel: string;
   effort: 'low' | 'medium' | 'high';
   dailyLimitPerBusiness: number;
   maxOutputTokens: number;
@@ -926,6 +975,10 @@ export interface AiBusiness {
   thumbsUp: number;
   thumbsDown: number;
   lastUsed: string | null;
+  memoScans: number;
+  /** Lines read from memos whose draft was saved, and how many of them were saved unchanged. */
+  memoLines: number;
+  memoLinesKept: number;
 }
 
 export interface HelpEvalItem {

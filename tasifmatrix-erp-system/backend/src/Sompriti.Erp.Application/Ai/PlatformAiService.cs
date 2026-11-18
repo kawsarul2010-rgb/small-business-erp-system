@@ -9,11 +9,12 @@ using Sompriti.Erp.Domain.Rules;
 
 namespace Sompriti.Erp.Application.Ai;
 
-public sealed record AiSettingsDto(bool AiEnabled, string HelpModel, string BusinessModel, string Effort, int DailyLimitPerBusiness,
-    int MaxOutputTokens, bool KeyConfigured, DateTimeOffset UpdatedDate, string UpdatedByUserName);
+public sealed record AiSettingsDto(bool AiEnabled, string HelpModel, string BusinessModel, string MemoModel, string Effort,
+    int DailyLimitPerBusiness, int MaxOutputTokens, bool KeyConfigured, DateTimeOffset UpdatedDate, string UpdatedByUserName);
 
+/// <param name="MemoModel">Optional: left out, the memo reader keeps its model.</param>
 public sealed record AiSettingsRequest(bool? AiEnabled, string? HelpModel, string? BusinessModel, string? Effort,
-    int? DailyLimitPerBusiness, int? MaxOutputTokens);
+    int? DailyLimitPerBusiness, int? MaxOutputTokens, string? MemoModel = null);
 
 public sealed record AiModelDto(string Id, string DisplayName, decimal? InputPricePerMillion, decimal? OutputPricePerMillion);
 
@@ -22,8 +23,10 @@ public sealed record AiTestRequest(string? Model);
 public sealed record AiTestResultDto(string Model, string Reply, int LatencyMs, int InputTokens, int OutputTokens, decimal? CostUsd);
 
 /// <summary>One business on the AI page: its switch, and this month's questions, cost and thumbs.</summary>
+/// <param name="MemoLines">Lines read from memos whose draft was saved; MemoLinesKept of them were saved unchanged.</param>
 public sealed record AiBusinessDto(Guid Uuid, string TenantCode, string TenantName, bool AiEnabled,
-    int Questions, int Failed, decimal CostUsd, int ThumbsUp, int ThumbsDown, DateTimeOffset? LastUsed);
+    int Questions, int Failed, decimal CostUsd, int ThumbsUp, int ThumbsDown, DateTimeOffset? LastUsed,
+    int MemoScans = 0, int MemoLines = 0, int MemoLinesKept = 0);
 
 public sealed record AiBusinessRequest(bool AiEnabled);
 
@@ -55,6 +58,7 @@ public sealed class PlatformAiService(IAppDbContext db, ICurrentUser currentUser
         var v = new Validator();
         v.When(!AiRules.IsModelId(r.HelpModel), "helpModel", "Enter a model id, for example claude-haiku-5-5.");
         v.When(!AiRules.IsModelId(r.BusinessModel), "businessModel", "Enter a model id, for example claude-haiku-5-5.");
+        v.When(r.MemoModel is not null && !AiRules.IsModelId(r.MemoModel), "memoModel", "Enter a model id, for example claude-haiku-5-5.");
         v.When(r.Effort is null || !AiRules.Efforts.Contains(r.Effort), "effort", "Choose low, medium or high.");
         v.When(r.DailyLimitPerBusiness is not (>= 1 and <= 10_000), "dailyLimitPerBusiness", "Daily limit must be 1 to 10000.");
         v.When(r.MaxOutputTokens is not (>= 256 and <= 16_000), "maxOutputTokens", "Longest answer must be 256 to 16000 tokens.");
@@ -64,6 +68,7 @@ public sealed class PlatformAiService(IAppDbContext db, ICurrentUser currentUser
         s.AiEnabled = r.AiEnabled ?? false;
         s.HelpModel = r.HelpModel!.Trim();
         s.BusinessModel = r.BusinessModel!.Trim();
+        if (r.MemoModel is not null) s.MemoModel = r.MemoModel.Trim();
         s.Effort = r.Effort!;
         s.DailyLimitPerBusiness = r.DailyLimitPerBusiness!.Value;
         s.MaxOutputTokens = r.MaxOutputTokens!.Value;
@@ -139,6 +144,10 @@ public sealed class PlatformAiService(IAppDbContext db, ICurrentUser currentUser
                 Up = g.Count(u => u.Rating == 1),
                 Down = g.Count(u => u.Rating == -1),
                 Last = g.Max(u => u.CreatedDate),
+                Memos = g.Count(u => u.Feature == AiFeature.MemoScan && u.Success),
+                // Accuracy counts only the scans whose draft was saved: a scan left unsaved says nothing.
+                MemoLines = g.Sum(u => u.ItemsUnchanged != null ? u.ItemsProposed ?? 0 : 0),
+                MemoKept = g.Sum(u => u.ItemsUnchanged ?? 0),
             })
             .ToListAsync(ct);
         var byTenant = usage.ToDictionary(u => u.Tenant);
@@ -147,7 +156,7 @@ public sealed class PlatformAiService(IAppDbContext db, ICurrentUser currentUser
         {
             var u = byTenant.GetValueOrDefault(t.Uuid);
             return new AiBusinessDto(t.Uuid, t.TenantCode, t.TenantName, t.AiEnabled, u?.Questions ?? 0, u?.Failed ?? 0,
-                u?.Cost ?? 0, u?.Up ?? 0, u?.Down ?? 0, u?.Last);
+                u?.Cost ?? 0, u?.Up ?? 0, u?.Down ?? 0, u?.Last, u?.Memos ?? 0, u?.MemoLines ?? 0, u?.MemoKept ?? 0);
         })
         .OrderByDescending(b => b.AiEnabled).ThenByDescending(b => b.Questions).ThenBy(b => b.TenantName)
         .ToList();
@@ -310,7 +319,7 @@ public sealed class PlatformAiService(IAppDbContext db, ICurrentUser currentUser
         return s;
     }
 
-    private AiSettingsDto ToDto(AiSettings s) => new(s.AiEnabled, s.HelpModel, s.BusinessModel, s.Effort, s.DailyLimitPerBusiness,
+    private AiSettingsDto ToDto(AiSettings s) => new(s.AiEnabled, s.HelpModel, s.BusinessModel, s.MemoModel, s.Effort, s.DailyLimitPerBusiness,
         s.MaxOutputTokens, client.IsConfigured, s.UpdatedDate, s.UpdatedByUserName);
 
     private void EnsureSuperAdmin()

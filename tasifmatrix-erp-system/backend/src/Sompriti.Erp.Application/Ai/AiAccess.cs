@@ -10,9 +10,12 @@ namespace Sompriti.Erp.Application.Ai;
 
 /// <summary>What a business's screens need to know: may this user ask the assistant, and how much is left today.</summary>
 /// <param name="Business">Whether this person may also ask about the business's own figures (admins and managers).</param>
-public sealed record AiStatusDto(bool Available, int DailyLimit, int UsedToday, bool Business = false);
+/// <param name="Memo">Whether this person may read a supplier memo photo into a purchase order (admins).</param>
+public sealed record AiStatusDto(bool Available, int DailyLimit, int UsedToday, bool Business = false, bool Memo = false);
 
 public sealed record AiRatingRequest(short Rating);
+
+public sealed record MemoOutcomeRequest(int? LinesUnchanged);
 
 /// <summary>The platform's AI settings, read on every question; cached briefly so a change shows within seconds.</summary>
 public sealed class AiSettingsCache(IMemoryCache cache)
@@ -41,7 +44,8 @@ public sealed class AiAccess(IAppDbContext db, ICurrentUser user, AiSettingsCach
     {
         var s = await settings.GetAsync(db, ct);
         if (!await IsOnAsync(s, ct)) return new AiStatusDto(false, 0, 0);
-        return new AiStatusDto(true, s.DailyLimitPerBusiness, await UsedTodayAsync(ct), user.Role is Role.Admin or Role.Manager);
+        return new AiStatusDto(true, s.DailyLimitPerBusiness, await UsedTodayAsync(ct), user.Role is Role.Admin or Role.Manager,
+            user.Role is Role.Admin);
     }
 
     /// <summary>The settings to answer with, or a clear refusal: AI off, not set up, or today's questions used up.</summary>
@@ -58,7 +62,7 @@ public sealed class AiAccess(IAppDbContext db, ICurrentUser user, AiSettingsCach
 
     /// <summary>Logs one question. Returns its id, which the answer carries so it can be rated.</summary>
     public async Task<Guid> RecordAsync(AiFeature feature, string model, AiTokens tokens, int latencyMs, int modelCalls,
-        bool success, string? errorCode, CancellationToken ct)
+        bool success, string? errorCode, CancellationToken ct, int? itemsProposed = null)
     {
         var usage = new AiUsage
         {
@@ -75,6 +79,7 @@ public sealed class AiAccess(IAppDbContext db, ICurrentUser user, AiSettingsCach
             ModelCalls = modelCalls,
             Success = success,
             ErrorCode = errorCode,
+            ItemsProposed = itemsProposed,
             CreatedDate = clock.GetUtcNow(),
         };
         db.AiUsages.Add(usage);
@@ -88,6 +93,20 @@ public sealed class AiAccess(IAppDbContext db, ICurrentUser user, AiSettingsCach
         if (r.Rating is not (1 or -1)) throw DomainException.Validation("rating", "Rating must be 1 or -1.");
         var usage = await db.AiUsages.FirstOrDefaultAsync(u => u.Uuid == usageId && u.UserUuid == user.UserUuid, ct);
         usage.OrNotFound("Answer").Rating = r.Rating;
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// A scanned memo's draft was saved: how many of its lines went in exactly as read. Kept as the
+    /// memo reader's accuracy (the AI page shows it); the order itself is not linked to the scan.
+    /// </summary>
+    public async Task RecordMemoOutcomeAsync(Guid usageId, MemoOutcomeRequest r, CancellationToken ct)
+    {
+        var usage = await db.AiUsages.FirstOrDefaultAsync(u => u.Uuid == usageId && u.UserUuid == user.UserUuid
+                                                               && u.Feature == AiFeature.MemoScan, ct);
+        usage = usage.OrNotFound("Memo scan");
+        if (r.LinesUnchanged is not { } n || n < 0) throw DomainException.Validation("linesUnchanged", "Enter 0 or more.");
+        usage.ItemsUnchanged = Math.Min(n, usage.ItemsProposed ?? 0);
         await db.SaveChangesAsync(ct);
     }
 

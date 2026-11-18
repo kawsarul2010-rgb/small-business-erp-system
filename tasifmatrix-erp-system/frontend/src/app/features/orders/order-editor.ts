@@ -11,10 +11,12 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
-import { ApiService, dateToIso, isoToDate, problemOf } from '../../core/api.service';
+import { AiStore } from '../../core/ai';
+import { ApiService, dateToIso, errorMessage, isoToDate, problemOf } from '../../core/api.service';
 import { LayoutService } from '../../core/layout.service';
 import {
-  BusinessSettings, DropdownItem, OrderDetail, OrderKind, OrderLineRequest, OrderSaveRequest, PaymentType, Product, ProductDropdownItem, QuantityType, StockShortage, Uom,
+  BusinessSettings, DropdownItem, MemoLine, MemoNote, MemoScan, OrderDetail, OrderKind, OrderLineRequest, OrderSaveRequest, PaymentType, Product,
+  ProductDropdownItem, QuantityType, StockShortage, Uom,
 } from '../../core/models';
 import { NotifyService } from '../../core/notify.service';
 import { applyServerErrors, controlError } from '../../shared/form-errors';
@@ -22,6 +24,7 @@ import { MoneyPipe, QtyPipe } from '../../shared/pipes';
 import { SearchSelect } from '../../shared/search-select';
 import { UnitPipe, allowsFractions, baseQuantityType, baseUnit, boxSizeLabel, entryTypesFor, quantityInputMode, quantityLabel, quantityStep, stockLabel } from '../../shared/units';
 import { orderMeta } from './order-kind';
+import { LineScan, lineNoteText, memoLineSummary, memoNoteText, shrinkPhoto, unchanged } from './memo-scan';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { t } from '../../core/i18n/i18n';
 
@@ -76,6 +79,7 @@ export class OrderEditorPage implements OnInit {
   private readonly router = inject(Router);
   private readonly notify = inject(NotifyService);
   private readonly fb = inject(FormBuilder);
+  private readonly ai = inject(AiStore);
 
   readonly meta = computed(() => orderMeta(this.kind()));
   readonly isSales = computed(() => this.kind() === 'sales');
@@ -92,6 +96,22 @@ export class OrderEditorPage implements OnInit {
   readonly lineProducts = signal<(LineProduct | null)[]>([]);
   readonly total = signal(0);
   readonly stockWarnings = signal<StockWarning[]>([]);
+  /** The supplier or customer's name for the search box, once it is chosen by the program (an order loaded, a memo read). */
+  readonly partyLabel = signal<string | null>(null);
+
+  // ---- memo scan (AI plan, feature 3): a photo of the supplier's memo fills a new purchase order
+  /** Only on a new purchase order, for admins of a business with AI on. */
+  readonly canScan = computed(() => this.kind() === 'purchase' && !this.id() && !!this.ai.status()?.available && !!this.ai.status()?.memo);
+  readonly scanning = signal(false);
+  readonly scanError = signal<string | null>(null);
+  /** The latest scan, for the summary above the lines. */
+  readonly scan = signal<MemoScan | null>(null);
+  /** What the memo said for each line it filled, keyed by the line's form group. */
+  readonly scans = signal(new Map<AbstractControl, LineScan>());
+  readonly aiStatus = this.ai.status;
+  readonly memoLineSummary = memoLineSummary;
+  readonly lineNoteText = lineNoteText;
+  readonly memoNoteText = memoNoteText;
 
   readonly paymentTypes: { value: PaymentType; label: string }[] = [
     { value: 'CASH', label: 'Cash' },
@@ -155,6 +175,7 @@ export class OrderEditorPage implements OnInit {
 
   private loadOrder(order: OrderDetail): void {
     this.order.set(order);
+    this.partyLabel.set(`${order.party.name} (${order.party.code})`);
     this.form.patchValue({
       companyUuid: order.company.uuid,
       partyUuid: order.party.uuid,
@@ -227,6 +248,7 @@ export class OrderEditorPage implements OnInit {
     const line = this.lines.at(i);
     const hasContent = !!line.value.productUuid;
     const doRemove = () => {
+      this.forgetScan(line);
       this.lines.removeAt(i);
       this.lineProducts.update((m) => m.filter((_, idx) => idx !== i));
       if (this.lines.length === 0) this.addLine();
@@ -287,14 +309,7 @@ export class OrderEditorPage implements OnInit {
       this.refresh();
       return;
     }
-    const meta: LineProduct = {
-      label: item.label,
-      uom: item.uom,
-      secondaryUom: item.secondaryUom,
-      unitPerBox: item.unitPerBox,
-      defaultPrice: this.isSales() ? item.salesPrice : item.purchasePrice,
-      currentStock: item.currentStock,
-    };
+    const meta = this.metaOf(item);
     this.lineProducts.update((m) => m.map((x, idx) => (idx === i ? meta : x)));
     // A product is ordered in its own unit: boxes for a BOX product, kg for a KG one.
     const useBox = item.uom === 'BOX' && (item.unitPerBox ?? 0) > 0;
@@ -306,6 +321,24 @@ export class OrderEditorPage implements OnInit {
     });
     this.applyQuantityValidators(i);
     this.recalcQuantity(i);
+
+    // A memo line no product was found for: once the person picks one, the memo's numbers go in.
+    const scan = this.scans().get(line);
+    if (scan && !scan.applied) {
+      this.applyMemoValues(i, item, scan.memo);
+      this.scans.update((m) => new Map(m).set(line, { ...scan, applied: true }));
+    }
+  }
+
+  private metaOf(item: ProductDropdownItem): LineProduct {
+    return {
+      label: item.label,
+      uom: item.uom,
+      secondaryUom: item.secondaryUom,
+      unitPerBox: item.unitPerBox,
+      defaultPrice: this.isSales() ? item.salesPrice : item.purchasePrice,
+      currentStock: item.currentStock,
+    };
   }
 
   onQuantityTypeChange(i: number): void {
@@ -417,6 +450,158 @@ export class OrderEditorPage implements OnInit {
     return controlError(control, label);
   }
 
+  // ---------------------------------------------------------------- memo scan
+
+  /** A photo was taken or chosen: shrink it, send it, and fill the draft with what was read. */
+  async onMemoPhoto(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = ''; // the same photo can be chosen again
+    if (!file || this.scanning()) return;
+    this.scanError.set(null);
+    this.scanning.set(true);
+    let image: string;
+    try {
+      image = await shrinkPhoto(file);
+    } catch {
+      this.scanning.set(false);
+      this.scanError.set(t('This file could not be opened as a photo.'));
+      return;
+    }
+    this.api.post<MemoScan>('/ai/memo/scan', { image }).subscribe({
+      next: (s) => {
+        this.scanning.set(false);
+        this.ai.used(s.usedToday, s.dailyLimit);
+        this.applyScan(s);
+      },
+      error: (e) => {
+        this.scanning.set(false);
+        this.scanError.set(errorMessage(e));
+      },
+    });
+  }
+
+  /**
+   * Puts the scan into the form: the supplier (unless one is already chosen), the memo's date
+   * and number, and a line per memo row in place of the empty lines. Nothing is saved.
+   */
+  private applyScan(s: MemoScan): void {
+    this.scan.set(s);
+    if (s.lines.length === 0) return;
+    const c = this.form.controls;
+    if (s.supplier && !c.partyUuid.value) {
+      this.partyLabel.set(s.supplier.label);
+      c.partyUuid.setValue(s.supplier.uuid);
+    }
+    if (s.orderDate) c.orderDate.setValue(isoToDate(s.orderDate));
+    if (s.notes) {
+      const current = c.notes.value?.trim() ?? '';
+      if (!current) c.notes.setValue(s.notes);
+      else if (!current.includes(s.notes)) c.notes.setValue(`${current}\n${s.notes}`);
+    }
+
+    for (let i = this.lines.length - 1; i >= 0; i--) {
+      if (this.lines.at(i).value.productUuid) continue;
+      this.forgetScan(this.lines.at(i));
+      this.lines.removeAt(i);
+      this.lineProducts.update((m) => m.filter((_, idx) => idx !== i));
+    }
+
+    const scans = new Map(this.scans());
+    for (const m of s.lines) {
+      const p = m.product;
+      const found = !!p && !!m.quantityType;
+      const line = found
+        ? this.newLine({
+            productUuid: p!.uuid, quantityType: m.quantityType, boxQuantity: m.boxQuantity, unitQuantity: m.unitQuantity,
+            totalQuantity: m.totalQuantity, perUnitPrice: m.perUnitPrice, perBoxPrice: m.perBoxPrice, totalPrice: m.totalPrice,
+          })
+        : this.newLine();
+      this.lines.push(line);
+      this.lineProducts.update((list) => [...list, found ? this.metaOf(p!) : null]);
+      this.applyQuantityValidators(this.lines.length - 1);
+      scans.set(line, {
+        memo: m,
+        usageId: s.usageId,
+        proposed: found
+          ? { productUuid: p!.uuid, quantityType: m.quantityType!, totalQuantity: m.totalQuantity ?? 0, perUnitPrice: m.perUnitPrice ?? 0 }
+          : null,
+        applied: found,
+      });
+    }
+    if (this.lines.length === 0) this.addLine();
+    this.scans.set(scans);
+    this.refresh();
+  }
+
+  /** The memo's quantity and rate in the unit of the product the person picked (2 ctn of a 12-pcs carton: 2 boxes). */
+  private applyMemoValues(i: number, item: ProductDropdownItem, m: MemoLine): void {
+    const line = this.lines.at(i);
+    const qty = m.memoQuantity ?? (m.memoLineTotal && m.memoUnitPrice ? m.memoLineTotal / m.memoUnitPrice : null);
+    if (!qty || qty <= 0) return;
+    const rate = m.memoUnitPrice ?? (m.memoLineTotal !== null ? m.memoLineTotal / qty : null);
+    const perBox = item.unitPerBox ?? 0;
+    const byBox = m.memoUnitType === 'BOX' || (m.memoUnitType === null && item.uom === 'BOX');
+    if (byBox && perBox > 0 && Number.isInteger(qty)) {
+      line.patchValue({ quantityType: 'BOX', boxQuantity: qty, unitQuantity: null });
+      this.applyQuantityValidators(i);
+      this.recalcQuantity(i);
+      if (rate !== null) {
+        line.controls.perBoxPrice.setValue(round2(rate));
+        this.recalcFromPerBox(i);
+      }
+      return;
+    }
+    const base = baseQuantityType(item);
+    const factor = m.memoUnitType === base ? m.memoUnitFactor : 1;
+    line.patchValue({ quantityType: base, boxQuantity: null, unitQuantity: Math.round(qty * factor * 1000) / 1000, perBoxPrice: null });
+    this.applyQuantityValidators(i);
+    this.recalcQuantity(i);
+    if (rate !== null) {
+      line.controls.perUnitPrice.setValue(round2(rate / factor));
+      this.recalcFromPerUnit(i);
+    }
+  }
+
+  scanOf(line: AbstractControl): LineScan | null {
+    return this.scans().get(line) ?? null;
+  }
+
+  /** A line's notes still worth showing: "no product found" goes once one is chosen, "check the product" once it is changed. */
+  lineFlags(line: AbstractControl): MemoNote[] {
+    const scan = this.scans().get(line);
+    if (!scan) return [];
+    const product = line.get('productUuid')?.value as string | null;
+    return scan.memo.flags.filter((f) =>
+      !(f.code === 'NO_PRODUCT' && product) && !(f.code === 'CHECK_PRODUCT' && product !== scan.proposed?.productUuid));
+  }
+
+  dismissScan(): void {
+    this.scan.set(null);
+    this.scanError.set(null);
+  }
+
+  private forgetScan(line: AbstractControl): void {
+    if (!this.scans().has(line)) return;
+    this.scans.update((m) => {
+      const next = new Map(m);
+      next.delete(line);
+      return next;
+    });
+  }
+
+  /** After saving: how many lines of each scan went in exactly as read - the memo reader's accuracy. */
+  private reportScanOutcome(): void {
+    const kept = new Map<string, number>();
+    for (const [, scan] of this.scans()) if (scan.usageId) kept.set(scan.usageId, 0);
+    for (const line of this.lines.controls) {
+      const scan = this.scans().get(line);
+      if (scan?.usageId && unchanged(scan.proposed, line.getRawValue())) kept.set(scan.usageId, (kept.get(scan.usageId) ?? 0) + 1);
+    }
+    for (const [usageId, linesUnchanged] of kept)
+      this.api.post<void>(`/ai/memo/${usageId}/outcome`, { linesUnchanged }).subscribe({ error: () => undefined });
+  }
+
   // ---------------------------------------------------------------- save
 
   /** Says what is missing ("Choose the customer."), not just that something is. */
@@ -483,6 +668,7 @@ export class OrderEditorPage implements OnInit {
 
     req.subscribe({
       next: (saved) => {
+        this.reportScanOutcome();
         this.notify.success(this.isSales() ? 'Sales order #{no} saved as draft.' : 'Purchase order #{no} saved as draft.', { no: saved.orderNumber });
         void this.router.navigate([this.meta().route, saved.uuid]);
       },

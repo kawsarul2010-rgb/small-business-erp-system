@@ -89,3 +89,34 @@ SELECT pg_temp.check(true, 'a business cannot change its special prices');
 SELECT set_config('app.tenant_id', current_setting('test.a'), false);
 SELECT pg_temp.check((SELECT count(*) FROM business_plan_price) = 0, 'and never sees another business''s');
 RESET ROLE;
+
+-- ------------------------------------------------------------------ AI usage log (0018, 0019)
+SET ROLE erp_tenant;
+SELECT set_config('app.tenant_id', current_setting('test.a'), false);
+INSERT INTO ai_usage (uuid, tenant_uuid, user_uuid, feature, model, success, items_proposed, created_date)
+     VALUES ('aaaaaaaa-0000-0000-0000-0000000a1001', current_setting('test.a')::uuid, gen_random_uuid(), 'MEMO_SCAN', 'claude-haiku-5-5', true, 7, now());
+UPDATE ai_usage SET items_unchanged = 5 WHERE uuid = 'aaaaaaaa-0000-0000-0000-0000000a1001';
+SELECT pg_temp.check((SELECT items_unchanged FROM ai_usage WHERE uuid = 'aaaaaaaa-0000-0000-0000-0000000a1001') = 5,
+       'a business logs a memo scan and records how many lines it kept');
+DO $$ BEGIN
+  UPDATE ai_usage SET cost_usd = 0 WHERE uuid = 'aaaaaaaa-0000-0000-0000-0000000a1001';
+  RAISE EXCEPTION USING ERRCODE = 'T0001', MESSAGE = 'FAIL: a business rewrote the cost in its AI log';
+EXCEPTION WHEN insufficient_privilege THEN NULL;
+END $$;
+SELECT pg_temp.check(true, 'a business cannot rewrite its AI log beyond rating and memo outcome');
+DO $$ BEGIN
+  UPDATE ai_settings SET memo_model = 'x';
+  RAISE EXCEPTION USING ERRCODE = 'T0001', MESSAGE = 'FAIL: a business changed the platform AI settings';
+EXCEPTION WHEN insufficient_privilege THEN NULL;
+END $$;
+SELECT pg_temp.check((SELECT memo_model FROM ai_settings) = 'claude-haiku-5-5', 'a business reads the AI settings but cannot change them');
+DO $$ BEGIN
+  INSERT INTO ai_usage (uuid, tenant_uuid, user_uuid, feature, model, success, created_date)
+       VALUES (gen_random_uuid(), current_setting('test.a')::uuid, gen_random_uuid(), 'SOMETHING_ELSE', 'm', true, now());
+  RAISE EXCEPTION USING ERRCODE = 'T0001', MESSAGE = 'FAIL: an unknown AI feature was logged';
+EXCEPTION WHEN check_violation THEN NULL;
+END $$;
+SELECT pg_temp.check(true, 'only known AI features are logged');
+SELECT set_config('app.tenant_id', 'bbbbbbbb-0000-0000-0000-000000000000', false);
+SELECT pg_temp.check((SELECT count(*) FROM ai_usage) = 0, 'another business does not see the AI log');
+RESET ROLE;

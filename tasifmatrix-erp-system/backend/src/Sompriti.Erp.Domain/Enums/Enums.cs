@@ -66,4 +66,4 @@ public enum PostChannel { All, Web, App }
 public enum AppUpdateType { Minor, Major }
 
 /// <summary>An AI feature, for the usage log and limits.</summary>
-public enum AiFeature { Help, AskBusiness }
+public enum AiFeature { Help, AskBusiness, MemoScan }

@@ -810,4 +810,18 @@ public static class AiRules
 
     /// <summary>The longest question a person can type into an assistant.</summary>
     public const int MaxQuestionLength = 500;
+
+    /// <summary>Largest memo photo accepted, after the browser has shrunk it (the provider allows 5 MB).</summary>
+    public const int MaxImageBytes = 4_500_000;
+
+    /// <summary>Most lines read from one memo into a draft.</summary>
+    public const int MaxMemoLines = 60;
+
+    /// <summary>The photo formats the model reads, by their first bytes.</summary>
+    public static string? ImageType(ReadOnlySpan<byte> b) =>
+        b.Length >= 3 && b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF ? "image/jpeg"
+        : b.Length >= 8 && b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47 ? "image/png"
+        : b.Length >= 12 && b[0] == 0x52 && b[1] == 0x49 && b[2] == 0x46 && b[3] == 0x46
+          && b[8] == 0x57 && b[9] == 0x45 && b[10] == 0x42 && b[11] == 0x50 ? "image/webp"
+        : null;
 }

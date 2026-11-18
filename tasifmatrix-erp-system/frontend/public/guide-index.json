@@ -761,6 +761,40 @@
      "desktop": null
     },
     {
+     "id": "memo-scan",
+     "title": "Purchase from a memo photo",
+     "intro": "Got a memo or bill from your supplier? Take a photo of it and the assistant fills in a new purchase order for you to check. It appears when AI is turned on for your business.",
+     "roles": [
+      "ADMIN"
+     ],
+     "webOnly": false,
+     "parts": [
+      {
+       "title": "Scan the memo",
+       "steps": [
+        "Go to Purchase orders → New purchase order and tap Scan memo.",
+        "Take a photo of the memo from straight above, in good light, with the whole memo in the picture - or choose one from your gallery.",
+        "In a few seconds the supplier, the date, the memo number and each item are filled in. Products are matched to your own product list, and cartons, sacks and dozens are changed to your units."
+       ]
+      },
+      {
+       "title": "Check and save",
+       "steps": [
+        "Lines marked in yellow need a look: the product was not found or is only similar, the photo was hard to read, quantity × rate does not match the memo, or the rate is far from the usual price.",
+        "For a line with no product, choose the product - the memo's quantity and rate go in by themselves.",
+        "Compare the order total with the memo's total, then tap Save draft. Nothing is saved before that, and stock changes only when you finalize the order."
+       ]
+      }
+     ],
+     "tips": [
+      "The memo number goes into the notes, so scanning the same memo again warns you that it was already entered.",
+      "Handwritten memos are harder to read. Check every line; if your memos are mostly handwritten, ask us to use a stronger AI model.",
+      "Each scan counts as one of the business's AI questions for the day. The photo is not stored."
+     ],
+     "faq": [],
+     "desktop": null
+    },
+    {
      "id": "team",
      "title": "Your team and roles",
      "intro": null,
@@ -1867,6 +1901,40 @@
       "ম্যানেজার উত্তরে বিক্রি, গ্রাহক ও স্টক দেখেন; ক্রয়, সরবরাহকারী ও লাভ শুধু অ্যাডমিনের জন্য।",
       "প্রতিটি ব্যবসার জন্য দিনে নির্দিষ্ট সংখ্যক প্রশ্ন করা যায়; আজ কতটি বাকি তা প্যানেলে দেখা যায়।",
       "এআই ভুল করতে পারে। গুরুত্বপূর্ণ সংখ্যার জন্য উত্তরের নিচের বোতাম চেপে রিপোর্ট মিলিয়ে নিন।"
+     ],
+     "faq": [],
+     "desktop": null
+    },
+    {
+     "id": "memo-scan",
+     "title": "মেমোর ছবি থেকে ক্রয়",
+     "intro": "সরবরাহকারীর কাছ থেকে মেমো বা বিল পেয়েছেন? ছবি তুলুন, সহায়ক নতুন ক্রয় অর্ডার পূরণ করে দেবে, আপনি মিলিয়ে দেখবেন। আপনার ব্যবসার জন্য এআই চালু থাকলে এটি দেখা যায়।",
+     "roles": [
+      "ADMIN"
+     ],
+     "webOnly": false,
+     "parts": [
+      {
+       "title": "মেমো স্ক্যান করুন",
+       "steps": [
+        "ক্রয় অর্ডার → নতুন ক্রয় অর্ডার-এ গিয়ে \"মেমো স্ক্যান করুন\" চাপুন।",
+        "ভালো আলোতে, ঠিক ওপর থেকে, পুরো মেমো ফ্রেমে রেখে ছবি তুলুন - অথবা গ্যালারি থেকে বেছে নিন।",
+        "কয়েক সেকেন্ডে সরবরাহকারী, তারিখ, মেমো নম্বর ও প্রতিটি পণ্য পূরণ হয়ে যায়। পণ্যগুলো আপনার নিজের পণ্য তালিকার সাথে মেলানো হয়, আর কার্টন, বস্তা, ডজন আপনার এককে বদলে নেওয়া হয়।"
+       ]
+      },
+      {
+       "title": "মিলিয়ে দেখে সংরক্ষণ করুন",
+       "steps": [
+        "হলুদ চিহ্নিত লাইনগুলো দেখে নিন: পণ্য পাওয়া যায়নি বা শুধু কাছাকাছি, ছবিতে পড়তে অসুবিধা, পরিমাণ × দর মেমোর সাথে মেলেনি, অথবা দর সাধারণ দামের চেয়ে অনেক আলাদা।",
+        "যে লাইনে পণ্য নেই সেখানে পণ্যটি বেছে নিন - মেমোর পরিমাণ ও দর নিজে থেকেই বসে যাবে।",
+        "অর্ডারের মোট মেমোর মোটের সাথে মিলিয়ে \"খসড়া সংরক্ষণ\" চাপুন। এর আগে কিছুই সংরক্ষণ হয় না, আর অর্ডার চূড়ান্ত করলে তবেই স্টক বদলায়।"
+       ]
+      }
+     ],
+     "tips": [
+      "মেমো নম্বর নোটে লেখা থাকে, তাই একই মেমো আবার স্ক্যান করলে জানিয়ে দেয় যে এটি আগেই এন্ট্রি হয়েছে।",
+      "হাতে লেখা মেমো পড়া কঠিন। প্রতিটি লাইন মিলিয়ে দেখুন; আপনার মেমো বেশিরভাগ হাতে লেখা হলে আমাদের আরও শক্তিশালী এআই মডেল চালু করতে বলুন।",
+      "প্রতিটি স্ক্যান ব্যবসার দিনের এআই প্রশ্নের একটি হিসেবে গোনা হয়। ছবিটি সংরক্ষণ করা হয় না।"
      ],
      "faq": [],
      "desktop": null

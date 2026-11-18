@@ -59,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<HelpAssistantService>();
         services.AddScoped<BusinessTools>();
         services.AddScoped<BusinessAssistantService>();
+        services.AddScoped<MemoScanService>();
         services.AddScoped<PlatformAiService>();
         return services;
     }

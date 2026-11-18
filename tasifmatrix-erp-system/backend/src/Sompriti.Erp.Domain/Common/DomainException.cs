@@ -23,6 +23,7 @@ public static class ErrorCodes
     public const string AiUnavailable = "AI_UNAVAILABLE";
     public const string AiLimitReached = "AI_LIMIT_REACHED";
     public const string AiProviderError = "AI_PROVIDER_ERROR";
+    public const string AiMemoUnreadable = "AI_MEMO_UNREADABLE";
 }
 
 public enum ErrorKind

@@ -113,3 +113,50 @@
   .page { padding-bottom: calc(86px + var(--erp-bottom-nav) + var(--erp-safe-bottom)); }
 }
 .header-grid .notes { margin-bottom: 0; }
+
+// ---------------------------------------------------------------- memo scan
+.scan-card { margin-bottom: 16px; }
+.scan-head {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  .scan-icon { flex: none; color: var(--erp-brand); }
+  .switch-text { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 2px; }
+  .switch-title { font-weight: 600; font-size: 14px; line-height: 1.35; }
+  .switch-hint { font-size: 12.5px; color: var(--erp-muted); line-height: 1.45; }
+  button { flex: none; }
+}
+.scan-wait, .scan-error { margin-top: 8px; font-size: 13px; }
+.scan-card mat-progress-bar { margin-top: 12px; }
+.scan-result {
+  position: relative;
+  margin-top: 12px; padding: 12px 44px 12px 14px;
+  border-radius: var(--erp-radius-sm);
+  background: var(--erp-tint-indigo-bg);
+  .scan-summary { display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
+  .scan-close { position: absolute; top: 4px; right: 4px; }
+}
+.scan-warnings {
+  list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px;
+  li {
+    display: flex; gap: 8px; align-items: flex-start; font-size: 13px;
+    padding: 6px 10px; border-radius: 8px;
+    background: var(--erp-tint-amber-bg); color: var(--erp-tint-amber-fg);
+  }
+  mat-icon { flex: none; font-size: 18px; width: 18px; height: 18px; }
+}
+
+// A line the scan is unsure of: yellow until the person has dealt with it.
+.line-row.scan-flagged, .line-card.scan-flagged {
+  background: var(--erp-tint-amber-bg);
+  box-shadow: inset 3px 0 0 var(--erp-warning);
+}
+.line-row.scan-flagged { border-radius: 8px; }
+.scan-note {
+  grid-column: 2 / -1;
+  display: flex; align-items: flex-start; gap: 6px;
+  margin-top: 2px; font-size: 12.5px; color: var(--erp-muted);
+  > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  mat-icon { flex: none; font-size: 16px; width: 16px; height: 16px; margin-top: 1px; }
+  .memo-says { overflow-wrap: anywhere; }
+  &.flagged { color: var(--erp-tint-amber-fg); .flag { font-weight: 600; } }
+}
+.line-card .scan-note { grid-column: auto; margin-top: 8px; }

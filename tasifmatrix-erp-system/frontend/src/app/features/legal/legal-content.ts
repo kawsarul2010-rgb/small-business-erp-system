@@ -75,15 +75,16 @@ export const PRIVACY: Record<'en' | 'bn', LegalDoc> = {
       {
         heading: 'The AI assistant',
         blocks: [
-          'Some businesses have an AI assistant in the app. It is off unless it is turned on for your business, and nobody has to use it. It answers questions in two ways:',
+          'Some businesses have an AI assistant in the app. It is off unless it is turned on for your business, and nobody has to use it. It helps in three ways:',
           {
             list: [
               'Help: questions about how to use the app. We send the question and the matching parts of our user guide to the AI model.',
               'My business (admins and managers): questions about the business, such as "How much does Karim owe?". To answer, the app looks up the records needed - for example a customer\'s name, code and due, sales totals or stock - and sends the question and those records to the AI model. It only looks up what the person asking is allowed to see, and it can only read: it never creates, changes or deletes anything.',
+              'Memo scan (admins): a photo of a supplier\'s memo becomes a draft purchase order. We send the photo, with the business\'s product names and codes and supplier names and codes, to the AI model so it can read the memo and match its items. The draft is filled in on screen and nothing is saved until the person checks it and saves it. We do not store the photo. Only photograph memos and bills, not people or ID cards.',
             ],
           },
           'The AI model is Claude, run by Anthropic, which processes this information on our behalf only to produce the answer. Under Anthropic\'s terms for business customers, it does not use it to train its AI models and keeps it only for a limited time.',
-          'In our own database we keep only a record that a question was asked - who asked, when, how much it cost and any thumbs up or down - not the question or the answer.',
+          'In our own database we keep only a record that a question was asked or a memo scanned - who, when, how much it cost, any thumbs up or down, and for a memo how many of its lines were saved unchanged - not the question, the answer or the photo.',
           'Answers are written by AI and can be wrong: check important figures in the reports. If you do not want your business to use AI, ask us and we will turn it off.',
         ],
       },
@@ -178,15 +179,16 @@ export const PRIVACY: Record<'en' | 'bn', LegalDoc> = {
       {
         heading: 'এআই সহায়ক',
         blocks: [
-          'কিছু ব্যবসার অ্যাপে একটি এআই সহায়ক আছে। আপনার ব্যবসার জন্য চালু না করা পর্যন্ত এটি বন্ধ থাকে, এবং কাউকে এটি ব্যবহার করতে হয় না। এটি দুইভাবে প্রশ্নের উত্তর দেয়:',
+          'কিছু ব্যবসার অ্যাপে একটি এআই সহায়ক আছে। আপনার ব্যবসার জন্য চালু না করা পর্যন্ত এটি বন্ধ থাকে, এবং কাউকে এটি ব্যবহার করতে হয় না। এটি তিনভাবে সাহায্য করে:',
           {
             list: [
               'সাহায্য: অ্যাপ কীভাবে ব্যবহার করবেন সে বিষয়ে প্রশ্ন। আমরা প্রশ্নটি এবং আমাদের ব্যবহার নির্দেশিকার মিলে যাওয়া অংশ এআই মডেলের কাছে পাঠাই।',
               'আমার ব্যবসা (অ্যাডমিন ও ম্যানেজার): ব্যবসা নিয়ে প্রশ্ন, যেমন "করিমের কাছে কত বাকি?"। উত্তর দিতে অ্যাপ প্রয়োজনীয় রেকর্ড খুঁজে বের করে - যেমন গ্রাহকের নাম, কোড ও বাকি, বিক্রির মোট বা স্টক - এবং প্রশ্ন ও সেই রেকর্ড এআই মডেলের কাছে পাঠায়। প্রশ্নকারী যা দেখার অনুমতি পান শুধু সেটুকুই খোঁজে, এবং শুধু পড়তে পারে: কিছু তৈরি, পরিবর্তন বা মুছে ফেলে না।',
+              'মেমো স্ক্যান (অ্যাডমিন): সরবরাহকারীর মেমোর ছবি থেকে ক্রয় অর্ডারের খসড়া তৈরি হয়। মেমো পড়ে পণ্য মেলানোর জন্য আমরা ছবিটি, ব্যবসার পণ্যের নাম ও কোড এবং সরবরাহকারীর নাম ও কোডসহ এআই মডেলের কাছে পাঠাই। খসড়াটি শুধু স্ক্রিনে পূরণ হয়; ব্যবহারকারী মিলিয়ে দেখে সংরক্ষণ না করা পর্যন্ত কিছুই সংরক্ষণ হয় না। ছবিটি আমরা সংরক্ষণ করি না। শুধু মেমো ও বিলের ছবি তুলুন, মানুষ বা পরিচয়পত্রের নয়।',
             ],
           },
           'এআই মডেলটি হলো Anthropic পরিচালিত Claude, যা শুধু উত্তর তৈরির জন্য আমাদের পক্ষে এই তথ্য প্রক্রিয়া করে। ব্যবসায়িক গ্রাহকদের জন্য Anthropic-এর শর্ত অনুযায়ী, এটি এই তথ্য দিয়ে তাদের এআই মডেল প্রশিক্ষণ দেয় না এবং শুধু সীমিত সময়ের জন্য রাখে।',
-          'আমাদের নিজের ডাটাবেসে শুধু একটি প্রশ্ন করা হয়েছে সেই রেকর্ড রাখি - কে, কখন, খরচ কত এবং ভালো/মন্দ মতামত থাকলে তা - প্রশ্ন বা উত্তর রাখি না।',
+          'আমাদের নিজের ডাটাবেসে শুধু একটি প্রশ্ন করা বা মেমো স্ক্যান করার রেকর্ড রাখি - কে, কখন, খরচ কত, ভালো/মন্দ মতামত থাকলে তা, এবং মেমোর কয়টি লাইন অপরিবর্তিত সংরক্ষণ হয়েছে - প্রশ্ন, উত্তর বা ছবি রাখি না।',
           'উত্তর এআই লেখে এবং ভুল হতে পারে: গুরুত্বপূর্ণ সংখ্যা রিপোর্টে মিলিয়ে নিন। আপনার ব্যবসায় এআই ব্যবহার করতে না চাইলে আমাদের জানান, আমরা বন্ধ করে দেব।',
         ],
       },

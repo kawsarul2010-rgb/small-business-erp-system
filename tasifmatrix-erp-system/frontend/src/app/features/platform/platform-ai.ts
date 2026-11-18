@@ -71,6 +71,13 @@ const KNOWN_MODELS: AiModel[] = [
               <mat-hint>{{ 'Answers from each business\'s own figures.' | t }}</mat-hint>
             </mat-form-field>
             <mat-form-field>
+              <mat-label>{{ 'Memo scan model' | t }}</mat-label>
+              <mat-select formControlName="memoModel">
+                @for (m of modelChoices(); track m.id) { <mat-option [value]="m.id">{{ m.displayName }} <span class="muted">({{ m.id }}){{ price(m) }}</span></mat-option> }
+              </mat-select>
+              <mat-hint>{{ 'Reads supplier memo photos into purchase orders. Handwriting reads better on a larger model.' | t }}</mat-hint>
+            </mat-form-field>
+            <mat-form-field>
               <mat-label>{{ 'Thinking effort' | t }}</mat-label>
               <mat-select formControlName="effort">
                 <mat-option value="low">{{ 'Low - fastest and cheapest' | t }}</mat-option>
@@ -117,7 +124,7 @@ const KNOWN_MODELS: AiModel[] = [
           </div>
           <div class="table-wrap">
             <table class="plain">
-              <thead><tr><th>{{ 'Business' | t }}</th><th>{{ 'AI' | t }}</th><th class="num">{{ 'Questions' | t }}</th><th class="num">{{ 'Failed' | t }}</th><th class="num">{{ 'Cost (USD)' | t }}</th><th class="num">👍 / 👎</th><th>{{ 'Last used' | t }}</th></tr></thead>
+              <thead><tr><th>{{ 'Business' | t }}</th><th>{{ 'AI' | t }}</th><th class="num">{{ 'Questions' | t }}</th><th class="num">{{ 'Failed' | t }}</th><th class="num">{{ 'Cost (USD)' | t }}</th><th class="num">👍 / 👎</th><th class="num">{{ 'Memo scans' | t }}</th><th class="num">{{ 'Memo lines kept' | t }}</th><th>{{ 'Last used' | t }}</th></tr></thead>
               <tbody>
                 @for (b of businesses(); track b.uuid) {
                   <tr>
@@ -127,6 +134,10 @@ const KNOWN_MODELS: AiModel[] = [
                     <td class="num" [class.negative]="b.failed > 0">{{ b.failed }}</td>
                     <td class="num">{{ b.costUsd | number: '1.2-4' }}</td>
                     <td class="num">{{ b.thumbsUp }} / {{ b.thumbsDown }}</td>
+                    <td class="num">{{ b.memoScans }}</td>
+                    <td class="num" [matTooltip]="'Lines saved exactly as read, of the lines in saved scans' | t">
+                      @if (b.memoLines > 0) { {{ b.memoLinesKept * 100 / b.memoLines | number: '1.0-0' }}% <span class="muted">({{ b.memoLinesKept }}/{{ b.memoLines }})</span> }
+                    </td>
                     <td class="muted nowrap">{{ b.lastUsed ? (b.lastUsed | date: 'dd MMM, h:mm a') : '' }}</td>
                   </tr>
                 }
@@ -220,6 +231,7 @@ export class PlatformAiPage implements OnInit {
     aiEnabled: [false],
     helpModel: ['claude-haiku-5-5', Validators.required],
     businessModel: ['claude-haiku-5-5', Validators.required],
+    memoModel: ['claude-haiku-5-5', Validators.required],
     effort: ['low' as AiSettings['effort']],
     dailyLimitPerBusiness: [30, [Validators.required, Validators.min(1), Validators.max(10000)]],
     maxOutputTokens: [2048, [Validators.required, Validators.min(256), Validators.max(16000)]],
@@ -229,7 +241,7 @@ export class PlatformAiPage implements OnInit {
   readonly modelChoices = computed(() => {
     const list = this.models().length ? this.models() : KNOWN_MODELS;
     const s = this.settings();
-    const extra = [s?.helpModel, s?.businessModel].filter((id): id is string => !!id && !list.some((m) => m.id === id))
+    const extra = [...new Set([s?.helpModel, s?.businessModel, s?.memoModel])].filter((id): id is string => !!id && !list.some((m) => m.id === id))
       .map((id) => ({ id, displayName: id, inputPricePerMillion: null, outputPricePerMillion: null }));
     return [...list, ...extra];
   });
@@ -298,7 +310,7 @@ export class PlatformAiPage implements OnInit {
   private apply(s: AiSettings): void {
     this.settings.set(s);
     this.form.reset({
-      aiEnabled: s.aiEnabled, helpModel: s.helpModel, businessModel: s.businessModel, effort: s.effort,
+      aiEnabled: s.aiEnabled, helpModel: s.helpModel, businessModel: s.businessModel, memoModel: s.memoModel, effort: s.effort,
       dailyLimitPerBusiness: s.dailyLimitPerBusiness, maxOutputTokens: s.maxOutputTokens,
     });
   }

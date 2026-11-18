@@ -10,7 +10,8 @@ namespace Sompriti.Erp.Api.Controllers;
 [ApiController]
 [Route("api/v1/ai")]
 [Authorize(Roles = "ADMIN,MANAGER,USER")]
-public sealed class AiController(AiAccess access, HelpAssistantService help, BusinessAssistantService business) : ControllerBase
+public sealed class AiController(AiAccess access, HelpAssistantService help, BusinessAssistantService business, MemoScanService memo)
+    : ControllerBase
 {
     /// <summary>Whether to show the assistant, and how many questions are left today.</summary>
     [HttpGet("status")]
@@ -22,6 +23,18 @@ public sealed class AiController(AiAccess access, HelpAssistantService help, Bus
     /// <summary>"Ask your business": answers from the business's own figures, read-only, within the asker's role.</summary>
     [HttpPost("business/ask"), Authorize(Roles = Roles.AdminOrManager), EnableRateLimiting("ai")]
     public Task<BusinessAnswerDto> AskBusiness(BusinessAskRequest r, CancellationToken ct) => business.AskAsync(r, ct);
+
+    /// <summary>Reads a supplier memo photo into a draft purchase order. Nothing is saved; the photo is not kept.</summary>
+    [HttpPost("memo/scan"), Authorize(Roles = "ADMIN"), EnableRateLimiting("ai"), RequestSizeLimit(8_000_000)]
+    public Task<MemoScanDto> ScanMemo(MemoScanRequest r, CancellationToken ct) => memo.ScanAsync(r, ct);
+
+    /// <summary>The scanned draft was saved: how many of its lines went in as read (the reader's accuracy).</summary>
+    [HttpPost("memo/{id:guid}/outcome"), Authorize(Roles = "ADMIN")]
+    public async Task<IActionResult> MemoOutcome(Guid id, MemoOutcomeRequest r, CancellationToken ct)
+    {
+        await access.RecordMemoOutcomeAsync(id, r, ct);
+        return NoContent();
+    }
 
     [HttpPost("answers/{id:guid}/rating")]
     public async Task<IActionResult> Rate(Guid id, AiRatingRequest r, CancellationToken ct)

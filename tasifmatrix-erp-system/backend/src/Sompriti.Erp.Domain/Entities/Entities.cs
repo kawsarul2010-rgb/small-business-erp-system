@@ -528,6 +528,8 @@ public class AiSettings
     public string HelpModel { get; set; } = "claude-haiku-5-5";
     /// <summary>Model of the "Ask your business" assistant (next step of the AI plan).</summary>
     public string BusinessModel { get; set; } = "claude-haiku-5-5";
+    /// <summary>Model that reads supplier memo photos into a draft purchase order (needs vision).</summary>
+    public string MemoModel { get; set; } = "claude-haiku-5-5";
     /// <summary>How much the model thinks before answering: low, medium or high. Low is fastest and cheapest.</summary>
     public string Effort { get; set; } = "low";
     /// <summary>Questions one business may ask a day, all AI features together.</summary>
@@ -562,5 +564,9 @@ public class AiUsage : ITenantOwned
     public string? ErrorCode { get; set; }
     /// <summary>The asker's thumbs: 1 up, -1 down, null not rated.</summary>
     public short? Rating { get; set; }
+    /// <summary>Memo scan: lines read from the photo into the draft.</summary>
+    public int? ItemsProposed { get; set; }
+    /// <summary>Memo scan: of those, lines the person saved without changing (the accuracy measure).</summary>
+    public int? ItemsUnchanged { get; set; }
     public DateTimeOffset CreatedDate { get; set; }
 }

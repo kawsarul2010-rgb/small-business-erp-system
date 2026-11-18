@@ -28,6 +28,50 @@
     }
 
     <form [formGroup]="form" (ngSubmit)="save()">
+      <!-- ---------------------------------------------------------- memo scan -->
+      @if (canScan() || scan()) {
+        <section class="card card-pad scan-card">
+          <div class="scan-head">
+            <mat-icon class="scan-icon">document_scanner</mat-icon>
+            <div class="switch-text">
+              <span class="switch-title">{{ 'Fill in from a memo photo' | t }}</span>
+              <span class="switch-hint">{{ 'Take a photo of the supplier memo. The assistant fills in the supplier and the lines; you check them before saving.' | t }}</span>
+            </div>
+            <input #memoInput type="file" accept="image/*" hidden (change)="onMemoPhoto($event)" />
+            <button mat-stroked-button type="button" (click)="memoInput.click()" [disabled]="scanning() || !canScan()">
+              <mat-icon>photo_camera</mat-icon>{{ (scan() ? 'Scan another memo' : 'Scan memo') | t }}
+            </button>
+          </div>
+          @if (scanning()) {
+            <mat-progress-bar mode="indeterminate" />
+            <div class="muted scan-wait">{{ 'Reading the memo. This takes a few seconds.' | t }}</div>
+          }
+          @if (scanError(); as e) { <div class="negative scan-error">{{ e }}</div> }
+          @if (scan(); as s) {
+            <div class="scan-result">
+              <div class="scan-summary">
+                <strong>{{ 'Read {n} lines from the memo.' | t: { n: s.lines.length } }}</strong>
+                @if (s.lines.length > 0) {
+                  <span>{{ 'Check the lines marked in yellow. Nothing is saved until you press Save draft.' | t }}</span>
+                }
+                @if (s.memoTotal !== null) {
+                  <span class="muted">{{ 'Memo total {memo} · this order {lines}' | t: { memo: (s.memoTotal | money), lines: (s.draftTotal | money) } }}</span>
+                }
+                @if (aiStatus(); as st) {
+                  <span class="muted">{{ '{used} of {limit} AI uses today' | t: { used: st.usedToday, limit: st.dailyLimit } }}</span>
+                }
+              </div>
+              @if (s.warnings.length > 0) {
+                <ul class="scan-warnings">
+                  @for (w of s.warnings; track $index) { <li><mat-icon>warning</mat-icon><span>{{ memoNoteText(w, s.draftTotal) }}</span></li> }
+                </ul>
+              }
+              <button mat-icon-button type="button" class="scan-close" [attr.aria-label]="'Close' | t" (click)="dismissScan()"><mat-icon>close</mat-icon></button>
+            </div>
+          }
+        </section>
+      }
+
       <!-- ---------------------------------------------------------- header -->
       <section class="card card-pad header-card">
         <div class="header-grid" [class.with-company]="companies().length > 1">
@@ -48,7 +92,7 @@
             [label]="meta().partyLabel"
             [control]="form.controls.partyUuid"
             [fetch]="fetchParties"
-            [initialLabel]="order() ? order()!.party.name + ' (' + order()!.party.code + ')' : null"
+            [initialLabel]="partyLabel()"
             [errorText]="kind() === 'purchase' ? 'Supplier is required.' : 'Customer is required.'" />
 
           <mat-form-field>
@@ -105,7 +149,7 @@
           @for (line of lines.controls; track line; let i = $index) {
             @if (layout.isHandset()) {
               <!-- ------------------------------------ phone: one card per line -->
-              <div class="line-card" [formGroupName]="i">
+              <div class="line-card" [formGroupName]="i" [class.scan-flagged]="lineFlags(line).length > 0">
                 <div class="line-card-head">
                   <span class="line-no">{{ i + 1 }}</span>
                   <app-search-select
@@ -178,10 +222,19 @@
                     @for (message of lineErrors($any(line)); track message) { <span>{{ message }}</span> }
                   </div>
                 }
+                @if (scanOf(line); as sc) {
+                  <div class="scan-note" [class.flagged]="lineFlags(line).length > 0">
+                    <mat-icon>{{ lineFlags(line).length > 0 ? 'warning' : 'document_scanner' }}</mat-icon>
+                    <div>
+                      <span class="memo-says">{{ 'Memo:' | t }} {{ sc.memo.text }}@if (memoLineSummary(sc.memo); as sum) { · {{ sum }} }</span>
+                      @for (f of lineFlags(line); track f.code) { <span class="flag">{{ lineNoteText(f) }}</span> }
+                    </div>
+                  </div>
+                }
               </div>
             } @else {
               <!-- ------------------------------------ desktop: one grid row per line -->
-              <div class="line-grid line-row" [formGroupName]="i">
+              <div class="line-grid line-row" [formGroupName]="i" [class.scan-flagged]="lineFlags(line).length > 0">
                 <span class="line-no">{{ i + 1 }}</span>
 
                 <div class="cell product">
@@ -256,6 +309,15 @@
                   <div class="line-error negative">
                     <mat-icon>error</mat-icon>
                     @for (message of lineErrors($any(line)); track message) { <span>{{ message }}</span> }
+                  </div>
+                }
+                @if (scanOf(line); as sc) {
+                  <div class="scan-note" [class.flagged]="lineFlags(line).length > 0">
+                    <mat-icon>{{ lineFlags(line).length > 0 ? 'warning' : 'document_scanner' }}</mat-icon>
+                    <div>
+                      <span class="memo-says">{{ 'Memo:' | t }} {{ sc.memo.text }}@if (memoLineSummary(sc.memo); as sum) { · {{ sum }} }</span>
+                      @for (f of lineFlags(line); track f.code) { <span class="flag">{{ lineNoteText(f) }}</span> }
+                    </div>
                   </div>
                 }
               </div>

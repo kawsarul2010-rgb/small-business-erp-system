@@ -174,6 +174,12 @@ The help assistant (and later AI features) use Claude. They stay hidden until al
 **Run evals** on that page after changing the model: it asks the help assistant its test questions
 (`backend/src/Sompriti.Erp.Application/Ai/help-evals.json`) and shows the score. It costs a few US cents.
 
+**Memo scan** (admins, New purchase order → Scan memo) uses the "Memo scan model". Haiku is cheap
+(well under a US cent a photo) and reads printed memos well; for mostly handwritten memos try a Sonnet
+model and compare the **Memo lines kept** column (lines saved exactly as read) before and after. The
+photo is not stored. Accuracy needs real memos: before rolling it out, scan 30–50 real memos from a
+pilot shop and check each draft against the paper.
+
 The assistant answers from `guide-index.json`, which the frontend build writes from the user guide
 (`npm run build` runs `tools/export-guide.mjs` first), so a guide change reaches the assistant on the next deploy.
 
