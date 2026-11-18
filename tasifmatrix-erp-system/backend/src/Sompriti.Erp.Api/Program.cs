@@ -59,6 +59,11 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("signup", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromHours(1), QueueLimit = 0 }));
+    // AI questions: a person types, reads, types again - 10 a minute is generous, and stops a script running up the bill.
+    o.AddPolicy("ai", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? ctx.User.FindFirst("sub")?.Value
+            ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
     o.AddPolicy("refresh", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
@@ -113,8 +118,9 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 
-app.UseRateLimiter();
 app.UseAuthentication();
+// After authentication, so a limit can be per signed-in person (the AI questions); the others go by address.
+app.UseRateLimiter();
 app.UseMiddleware<PlatformBoundaryMiddleware>();
 app.UseMiddleware<PasswordChangeRequiredMiddleware>();
 app.UseMiddleware<SubscriptionGateMiddleware>();

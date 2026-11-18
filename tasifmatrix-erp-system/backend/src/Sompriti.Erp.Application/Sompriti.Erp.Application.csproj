@@ -11,4 +11,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Sompriti.Erp.Domain\Sompriti.Erp.Domain.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- The assistants' eval questions (run from the super admin's AI page). -->
+    <EmbeddedResource Include="Ai\help-evals.json" LogicalName="Sompriti.Erp.Application.Ai.help-evals.json" />
+    <EmbeddedResource Include="Ai\business-evals.json" LogicalName="Sompriti.Erp.Application.Ai.business-evals.json" />
+  </ItemGroup>
 </Project>

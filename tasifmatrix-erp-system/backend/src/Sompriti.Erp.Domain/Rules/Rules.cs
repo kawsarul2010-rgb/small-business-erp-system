@@ -769,3 +769,45 @@ public static class ExpenseDefaults
         "Food and entertainment", "Repair and maintenance", "Office supplies", "Others",
     ];
 }
+
+/// <summary>What one AI call costs, from the tokens it used.</summary>
+/// <remarks>
+/// US dollars per million tokens, from the provider's price list (November 2026). Prices change:
+/// check https://platform.claude.com/docs/en/about-claude/pricing when adding a model. A model
+/// not listed here still works; its cost is just not shown.
+/// </remarks>
+public static class AiPricing
+{
+    public sealed record Price(decimal Input, decimal Output, decimal CacheWrite, decimal CacheRead);
+
+    private static readonly (string Prefix, Price Price)[] Known =
+    [
+        ("claude-haiku-5-5", new Price(0.10m, 0.50m, 0.125m, 0.01m)),
+        ("claude-sonnet-5-5", new Price(2m, 10m, 2.5m, 0.2m)),
+        ("claude-opus-5-5", new Price(4m, 20m, 5m, 0.4m)),
+    ];
+
+    public static Price? For(string model) =>
+        Known.FirstOrDefault(k => model.StartsWith(k.Prefix, StringComparison.OrdinalIgnoreCase)).Price;
+
+    /// <summary>Null when the model's price is not known.</summary>
+    public static decimal? Cost(string model, int input, int output, int cacheWrite, int cacheRead)
+    {
+        if (For(model) is not { } p) return null;
+        var cost = (input * p.Input + output * p.Output + cacheWrite * p.CacheWrite + cacheRead * p.CacheRead) / 1_000_000m;
+        return Math.Round(cost, 6, MidpointRounding.AwayFromZero);
+    }
+}
+
+public static class AiRules
+{
+    /// <summary>Effort levels offered on the settings page (the API also has xhigh and max, too slow for chat).</summary>
+    public static readonly string[] Efforts = ["low", "medium", "high"];
+
+    /// <summary>A model id as the provider writes them: "claude-haiku-5-5", "claude-sonnet-5-5-20261007".</summary>
+    public static bool IsModelId(string? value) =>
+        value is not null && Regex.IsMatch(value, "^[a-z0-9][a-z0-9.\\-]{2,99}$");
+
+    /// <summary>The longest question a person can type into an assistant.</summary>
+    public const int MaxQuestionLength = 500;
+}

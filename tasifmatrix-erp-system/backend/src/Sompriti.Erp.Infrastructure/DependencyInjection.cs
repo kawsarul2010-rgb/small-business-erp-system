@@ -4,8 +4,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Sompriti.Erp.Application.Ai;
 using Sompriti.Erp.Application.Billing;
 using Sompriti.Erp.Application.Common;
+using Sompriti.Erp.Infrastructure.Ai;
 using Sompriti.Erp.Infrastructure.Billing;
 using Sompriti.Erp.Application.Sms;
 using Sompriti.Erp.Infrastructure.Notifications;
@@ -32,6 +34,9 @@ public static class DependencyInjection
         services.AddScoped<ISystemDbFactory, SystemDbFactory>();
         services.AddSingleton<ISecretProtector, AesSecretProtector>();
         services.AddHttpClient<IBkashGateway, BkashGateway>(c => c.Timeout = TimeSpan.FromSeconds(30));
+
+        // AI: Claude over HTTP. Without ANTHROPIC_API_KEY the AI features simply report that they are not set up.
+        services.AddHttpClient<IAiModelClient, AnthropicClient>(c => c.Timeout = TimeSpan.FromSeconds(90));
 
         services.Configure<JwtOptions>(config.GetSection(JwtOptions.Section));
         services.AddSingleton<JwtTokenService>();

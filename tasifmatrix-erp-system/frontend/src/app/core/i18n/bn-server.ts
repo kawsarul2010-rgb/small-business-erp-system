@@ -23,6 +23,8 @@ export const BN_SERVER_PATTERNS: [RegExp, (m: RegExpExecArray) => string][] = [
   [/^(.+) was not found\.$/, (m) => `${t(m[1])} পাওয়া যায়নি।`],
   [/^Buy at least (\d+) SMS\.$/, (m) => `কমপক্ষে ${m[1]}টি SMS কিনুন।`],
   [/^Company code '(.+)' is already used\.$/, (m) => `কোম্পানি কোড '${m[1]}' আগে থেকেই ব্যবহৃত হচ্ছে।`],
+  [/^Your business has used today's (\d+) questions\. The assistant is available again tomorrow\.$/, (m) => `আপনার ব্যবসা আজকের ${m[1]}টি প্রশ্ন ব্যবহার করে ফেলেছে। কাল আবার সহায়ক ব্যবহার করা যাবে।`],
+  [/^Keep the question under (\d+) characters\.$/, (m) => `প্রশ্নটি ${m[1]} অক্ষরের মধ্যে রাখুন।`],
   [/^There is already a category named '(.+)'\.$/, (m) => `'${m[1]}' নামে একটি খাত আগে থেকেই আছে।`],
   [/^Product code '(.+)' is already used\.$/, (m) => `পণ্যের কোড '${m[1]}' আগে থেকেই ব্যবহৃত হচ্ছে।`],
   [/^Not enough stock\. (.+)$/s, (m) => `পর্যাপ্ত স্টক নেই। ${shortages(m[1])}`],

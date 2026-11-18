@@ -843,3 +843,110 @@ export interface AppVersionCheck {
   latestVersion: string | null;
   notes: { version: string; updateType: AppUpdateType; releaseNotes: string | null }[];
 }
+
+// ---------------------------------------------------------------- AI
+export interface AiStatus {
+  available: boolean;
+  dailyLimit: number;
+  usedToday: number;
+  /** Admins and managers may also ask about the business's own figures. */
+  business: boolean;
+}
+
+/** A button under a business answer: the screen the figure came from. Label is English, translated in the app. */
+export interface AssistantLink {
+  label: string;
+  route: string;
+  query: Record<string, string> | null;
+  params: Record<string, string> | null;
+}
+
+export interface BusinessAnswer {
+  answer: string;
+  links: AssistantLink[];
+  usageId: string | null;
+  usedToday: number;
+  dailyLimit: number;
+}
+
+export interface HelpTurn {
+  role: 'user' | 'assistant';
+  text: string;
+}
+
+export interface HelpSource {
+  sectionId: string;
+  title: string;
+}
+
+export interface HelpAnswer {
+  answer: string;
+  sources: HelpSource[];
+  usageId: string | null;
+  usedToday: number;
+  dailyLimit: number;
+}
+
+export interface AiSettings {
+  aiEnabled: boolean;
+  helpModel: string;
+  businessModel: string;
+  effort: 'low' | 'medium' | 'high';
+  dailyLimitPerBusiness: number;
+  maxOutputTokens: number;
+  keyConfigured: boolean;
+  updatedDate: string;
+  updatedByUserName: string;
+}
+
+export interface AiModel {
+  id: string;
+  displayName: string;
+  inputPricePerMillion: number | null;
+  outputPricePerMillion: number | null;
+}
+
+export interface AiTestResult {
+  model: string;
+  reply: string;
+  latencyMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number | null;
+}
+
+export interface AiBusiness {
+  uuid: string;
+  tenantCode: string;
+  tenantName: string;
+  aiEnabled: boolean;
+  questions: number;
+  failed: number;
+  costUsd: number;
+  thumbsUp: number;
+  thumbsDown: number;
+  lastUsed: string | null;
+}
+
+export interface HelpEvalItem {
+  question: string;
+  lang: string;
+  expected: string[];
+  passed: boolean;
+  answer: string;
+  sources: string[];
+  searches: string[];
+  latencyMs: number;
+  costUsd: number | null;
+  error: string | null;
+}
+
+export interface HelpEvalRun {
+  model: string;
+  passed: number;
+  total: number;
+  scorePercent: number;
+  costUsd: number;
+  averageLatencyMs: number;
+  items: HelpEvalItem[];
+}

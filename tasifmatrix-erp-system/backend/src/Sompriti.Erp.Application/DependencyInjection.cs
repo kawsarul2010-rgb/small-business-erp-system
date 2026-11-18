@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Sompriti.Erp.Application.Ai;
 using Sompriti.Erp.Application.AppReleases;
 using Sompriti.Erp.Application.Auth;
 using Sompriti.Erp.Application.Billing;
@@ -50,6 +51,15 @@ public static class DependencyInjection
         services.AddScoped<PlatformBillingService>();
         services.AddScoped<PostService>();
         services.AddScoped<AppReleaseService>();
+
+        // AI (see the AI features plan): the gate, the guide search, the help assistant and "Ask your business".
+        services.AddSingleton<AiSettingsCache>();
+        services.AddSingleton<GuideIndexProvider>();
+        services.AddScoped<AiAccess>();
+        services.AddScoped<HelpAssistantService>();
+        services.AddScoped<BusinessTools>();
+        services.AddScoped<BusinessAssistantService>();
+        services.AddScoped<PlatformAiService>();
         return services;
     }
 }

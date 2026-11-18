@@ -60,6 +60,9 @@
         </span>
       }
       <span class="spacer"></span>
+      @if (ai.status()?.available) {
+        <button mat-icon-button class="on-brand" (click)="openHelp()" [attr.aria-label]="'Assistant' | t"><mat-icon>support_agent</mat-icon></button>
+      }
       <button mat-icon-button class="on-brand" (click)="theme.toggle()" [attr.aria-label]="(theme.isDark() ? 'Switch to light mode' : 'Switch to dark mode') | t">
         <mat-icon>{{ theme.isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
       </button>
@@ -141,6 +144,9 @@
           <span class="crumb-page">{{ pageTitle() | t }}</span>
         </div>
         <span class="spacer"></span>
+        @if (ai.status()?.available) {
+          <button mat-stroked-button class="help-button" (click)="openHelp()"><mat-icon>support_agent</mat-icon>{{ 'Assistant' | t }}</button>
+        }
         <button class="lang-switch" type="button" (click)="toggleLang()" [attr.lang]="otherLang().code"
                 [matTooltip]="'Language' | t" [attr.aria-label]="'Switch language to {name}' | t: { name: otherLang().label }">
           <mat-icon>translate</mat-icon>{{ otherLang().label }}

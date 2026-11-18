@@ -64,3 +64,6 @@ public enum PostChannel { All, Web, App }
 
 /// <summary>Minor: the app offers the update. Major: the app cannot be used until it is updated.</summary>
 public enum AppUpdateType { Minor, Major }
+
+/// <summary>An AI feature, for the usage log and limits.</summary>
+public enum AiFeature { Help, AskBusiness }

@@ -3,7 +3,7 @@
  * Kept as whole documents rather than translation keys: a policy reads as one piece, and both
  * languages must say the same thing. Change both when you change one, and move LAST_UPDATED.
  */
-export const LAST_UPDATED = '2026-10-07';
+export const LAST_UPDATED = '2026-11-18';
 
 /** A paragraph, or a bulleted list. */
 export type Block = string | { list: string[] };
@@ -52,7 +52,8 @@ export const PRIVACY: Record<'en' | 'bn', LegalDoc> = {
               'to sign you in and keep accounts and businesses secure;',
               'to send the messages you ask for: password reset emails, invoices and reports by email, and SMS to your customers and suppliers when your business turns SMS on;',
               'to manage your subscription: free trial, reminders before it ends, and payments;',
-              'to answer your questions and to tell you about news, maintenance and changes in Announcements.',
+              'to answer your questions and to tell you about news, maintenance and changes in Announcements;',
+              'to answer questions asked in the AI assistant, when AI is turned on for your business (see "The AI assistant" below).',
             ],
           },
           'We do not sell your information, and we do not use it for advertising.',
@@ -65,10 +66,25 @@ export const PRIVACY: Record<'en' | 'bn', LegalDoc> = {
             list: [
               'People in your business, according to the role their admin gives them. Other businesses using Tasif Matrix cannot see your data: each business is kept separate in the database.',
               'Tasif Matrix Limited sees what it needs to run the service: your business name and contact details, usage counts and your subscription. We do not look through your business records except when you ask us to help, or when the law requires it.',
-              'Service providers that work for us: Railway (servers and database), Brevo (sending emails), bKash (subscription payments), and our SMS gateway (sending SMS). They may use the information only to provide their service to us.',
+              'Service providers that work for us: Railway (servers and database), Brevo (sending emails), bKash (subscription payments), our SMS gateway (sending SMS), and Anthropic (the AI model behind the AI assistant). They may use the information only to provide their service to us.',
               'Authorities, when Bangladeshi law requires us to share it.',
             ],
           },
+        ],
+      },
+      {
+        heading: 'The AI assistant',
+        blocks: [
+          'Some businesses have an AI assistant in the app. It is off unless it is turned on for your business, and nobody has to use it. It answers questions in two ways:',
+          {
+            list: [
+              'Help: questions about how to use the app. We send the question and the matching parts of our user guide to the AI model.',
+              'My business (admins and managers): questions about the business, such as "How much does Karim owe?". To answer, the app looks up the records needed - for example a customer\'s name, code and due, sales totals or stock - and sends the question and those records to the AI model. It only looks up what the person asking is allowed to see, and it can only read: it never creates, changes or deletes anything.',
+            ],
+          },
+          'The AI model is Claude, run by Anthropic, which processes this information on our behalf only to produce the answer. Under Anthropic\'s terms for business customers, it does not use it to train its AI models and keeps it only for a limited time.',
+          'In our own database we keep only a record that a question was asked - who asked, when, how much it cost and any thumbs up or down - not the question or the answer.',
+          'Answers are written by AI and can be wrong: check important figures in the reports. If you do not want your business to use AI, ask us and we will turn it off.',
         ],
       },
       {
@@ -139,7 +155,8 @@ export const PRIVACY: Record<'en' | 'bn', LegalDoc> = {
               'আপনাকে সাইন ইন করাতে এবং অ্যাকাউন্ট ও ব্যবসা নিরাপদ রাখতে;',
               'আপনি যে বার্তা চান তা পাঠাতে: পাসওয়ার্ড রিসেট ইমেইল, ইমেইলে ইনভয়েস ও রিপোর্ট, এবং আপনার ব্যবসা SMS চালু করলে গ্রাহক ও সরবরাহকারীদের SMS;',
               'আপনার সাবস্ক্রিপশন পরিচালনা করতে: ফ্রি ট্রায়াল, শেষ হওয়ার আগে রিমাইন্ডার, এবং পেমেন্ট;',
-              'আপনার প্রশ্নের উত্তর দিতে, এবং ঘোষণা পাতায় খবর, রক্ষণাবেক্ষণ ও পরিবর্তনের কথা জানাতে।',
+              'আপনার প্রশ্নের উত্তর দিতে, এবং ঘোষণা পাতায় খবর, রক্ষণাবেক্ষণ ও পরিবর্তনের কথা জানাতে;',
+              'আপনার ব্যবসার জন্য এআই চালু থাকলে এআই সহায়কে করা প্রশ্নের উত্তর দিতে (নিচে "এআই সহায়ক" দেখুন)।',
             ],
           },
           'আমরা আপনার তথ্য বিক্রি করি না, এবং বিজ্ঞাপনের জন্য ব্যবহার করি না।',
@@ -152,10 +169,25 @@ export const PRIVACY: Record<'en' | 'bn', LegalDoc> = {
             list: [
               'আপনার ব্যবসার লোকজন, তাদের অ্যাডমিন যে ভূমিকা দেন সে অনুযায়ী। Tasif Matrix ব্যবহারকারী অন্য ব্যবসা আপনার তথ্য দেখতে পারে না: ডাটাবেসে প্রতিটি ব্যবসা আলাদা রাখা হয়।',
               'সেবা চালাতে Tasif Matrix Limited যা দরকার তা দেখে: আপনার ব্যবসার নাম ও যোগাযোগের তথ্য, ব্যবহারের সংখ্যা এবং আপনার সাবস্ক্রিপশন। আপনি সাহায্য না চাইলে বা আইন না চাইলে আমরা আপনার ব্যবসার রেকর্ড ঘেঁটে দেখি না।',
-              'আমাদের হয়ে কাজ করা সেবাদাতা: Railway (সার্ভার ও ডাটাবেস), Brevo (ইমেইল পাঠানো), bKash (সাবস্ক্রিপশন পেমেন্ট), এবং আমাদের SMS গেটওয়ে (SMS পাঠানো)। তারা শুধু আমাদের সেবা দিতেই এই তথ্য ব্যবহার করতে পারে।',
+              'আমাদের হয়ে কাজ করা সেবাদাতা: Railway (সার্ভার ও ডাটাবেস), Brevo (ইমেইল পাঠানো), bKash (সাবস্ক্রিপশন পেমেন্ট), আমাদের SMS গেটওয়ে (SMS পাঠানো), এবং Anthropic (এআই সহায়কের পেছনের এআই মডেল)। তারা শুধু আমাদের সেবা দিতেই এই তথ্য ব্যবহার করতে পারে।',
               'বাংলাদেশের আইন অনুযায়ী প্রয়োজন হলে কর্তৃপক্ষ।',
             ],
           },
+        ],
+      },
+      {
+        heading: 'এআই সহায়ক',
+        blocks: [
+          'কিছু ব্যবসার অ্যাপে একটি এআই সহায়ক আছে। আপনার ব্যবসার জন্য চালু না করা পর্যন্ত এটি বন্ধ থাকে, এবং কাউকে এটি ব্যবহার করতে হয় না। এটি দুইভাবে প্রশ্নের উত্তর দেয়:',
+          {
+            list: [
+              'সাহায্য: অ্যাপ কীভাবে ব্যবহার করবেন সে বিষয়ে প্রশ্ন। আমরা প্রশ্নটি এবং আমাদের ব্যবহার নির্দেশিকার মিলে যাওয়া অংশ এআই মডেলের কাছে পাঠাই।',
+              'আমার ব্যবসা (অ্যাডমিন ও ম্যানেজার): ব্যবসা নিয়ে প্রশ্ন, যেমন "করিমের কাছে কত বাকি?"। উত্তর দিতে অ্যাপ প্রয়োজনীয় রেকর্ড খুঁজে বের করে - যেমন গ্রাহকের নাম, কোড ও বাকি, বিক্রির মোট বা স্টক - এবং প্রশ্ন ও সেই রেকর্ড এআই মডেলের কাছে পাঠায়। প্রশ্নকারী যা দেখার অনুমতি পান শুধু সেটুকুই খোঁজে, এবং শুধু পড়তে পারে: কিছু তৈরি, পরিবর্তন বা মুছে ফেলে না।',
+            ],
+          },
+          'এআই মডেলটি হলো Anthropic পরিচালিত Claude, যা শুধু উত্তর তৈরির জন্য আমাদের পক্ষে এই তথ্য প্রক্রিয়া করে। ব্যবসায়িক গ্রাহকদের জন্য Anthropic-এর শর্ত অনুযায়ী, এটি এই তথ্য দিয়ে তাদের এআই মডেল প্রশিক্ষণ দেয় না এবং শুধু সীমিত সময়ের জন্য রাখে।',
+          'আমাদের নিজের ডাটাবেসে শুধু একটি প্রশ্ন করা হয়েছে সেই রেকর্ড রাখি - কে, কখন, খরচ কত এবং ভালো/মন্দ মতামত থাকলে তা - প্রশ্ন বা উত্তর রাখি না।',
+          'উত্তর এআই লেখে এবং ভুল হতে পারে: গুরুত্বপূর্ণ সংখ্যা রিপোর্টে মিলিয়ে নিন। আপনার ব্যবসায় এআই ব্যবহার করতে না চাইলে আমাদের জানান, আমরা বন্ধ করে দেব।',
         ],
       },
       {

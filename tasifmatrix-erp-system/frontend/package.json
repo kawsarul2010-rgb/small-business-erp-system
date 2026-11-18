@@ -4,9 +4,11 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "prebuild": "node tools/export-guide.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "prebuild:mobile": "node tools/export-guide.mjs",
     "build:mobile": "ng build --configuration mobile",
     "android:sync": "npm run build:mobile && npx cap sync android",
     "android:open": "npm run android:sync && npx cap open android",

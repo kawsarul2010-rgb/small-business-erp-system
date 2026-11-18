@@ -65,6 +65,8 @@ public interface IAppDbContext
     DbSet<SmsCredit> SmsCredits { get; }
     DbSet<ExpenseCategory> ExpenseCategories { get; }
     DbSet<Expense> Expenses { get; }
+    DbSet<AiSettings> AiSettings { get; }
+    DbSet<AiUsage> AiUsages { get; }
 
     DbSet<TEntity> Set<TEntity>() where TEntity : class;
     DatabaseFacade Database { get; }

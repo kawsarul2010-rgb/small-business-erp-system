@@ -160,6 +160,23 @@ Notes on the ones that matter:
 
 Saving the variables triggers a fresh deploy.
 
+### AI features (optional)
+
+The help assistant (and later AI features) use Claude. They stay hidden until all three are on:
+
+1. **API key** — create one in the Claude Console (console.anthropic.com → API keys; the API is billed
+   separately from a Claude chat subscription, so add a little credit there). Add it to the app
+   service's Variables as `ANTHROPIC_API_KEY=...` and let it redeploy. Never put it in code, git or chat.
+2. **Platform switch** — sign in as the super admin → **AI settings** → turn on "AI features on for the
+   platform", pick the model (default `claude-haiku-5-5`) and Save. **Test the model** checks the key.
+3. **Business switch** — on the same page, turn AI on for each business that should have it.
+
+**Run evals** on that page after changing the model: it asks the help assistant its test questions
+(`backend/src/Sompriti.Erp.Application/Ai/help-evals.json`) and shows the score. It costs a few US cents.
+
+The assistant answers from `guide-index.json`, which the frontend build writes from the user guide
+(`npm run build` runs `tools/export-guide.mjs` first), so a guide change reaches the assistant on the next deploy.
+
 ## 5. Watch the first deploy
 
 The **Deployments** tab shows the build (about 4–6 minutes the first time: Angular build, then

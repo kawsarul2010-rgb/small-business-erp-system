@@ -20,6 +20,9 @@ public static class ErrorCodes
     public const string InvalidToken = "INVALID_TOKEN";
     public const string BusinessRule = "BUSINESS_RULE";
     public const string BusinessSuspended = "BUSINESS_SUSPENDED";
+    public const string AiUnavailable = "AI_UNAVAILABLE";
+    public const string AiLimitReached = "AI_LIMIT_REACHED";
+    public const string AiProviderError = "AI_PROVIDER_ERROR";
 }
 
 public enum ErrorKind

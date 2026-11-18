@@ -60,6 +60,8 @@ public class Tenant : AuditedEntity
     public bool BillingExempt { get; set; }
     /// <summary>The super admin chose to keep the size although the business is above its limit: no alert until then.</summary>
     public DateTimeOffset? SizeReviewSnoozedUntil { get; set; }
+    /// <summary>The super admin turned the AI features on for this business (they also need AI on for the platform).</summary>
+    public bool AiEnabled { get; set; }
 }
 
 /// <summary>Small / Medium / Large ...: decides which price a business pays.</summary>
@@ -509,4 +511,56 @@ public class Expense : AuditedEntity, ITenantOwned
     public string? VoidReason { get; set; }
 
     public bool IsVoid => VoidedDate is not null;
+}
+
+/// <summary>
+/// The platform's AI settings (one row), kept by the super admin. Which model each feature uses
+/// is a setting, not code, so a newer or cheaper model is a change on the AI settings page.
+/// The API key is not here: it is an environment variable on the server (ANTHROPIC_API_KEY).
+/// </summary>
+public class AiSettings
+{
+    public const int SingletonId = 1;
+    public int Id { get; set; } = SingletonId;
+    /// <summary>The master switch: off, no business can use AI.</summary>
+    public bool AiEnabled { get; set; }
+    /// <summary>Model of the help assistant (answers from the user guide).</summary>
+    public string HelpModel { get; set; } = "claude-haiku-5-5";
+    /// <summary>Model of the "Ask your business" assistant (next step of the AI plan).</summary>
+    public string BusinessModel { get; set; } = "claude-haiku-5-5";
+    /// <summary>How much the model thinks before answering: low, medium or high. Low is fastest and cheapest.</summary>
+    public string Effort { get; set; } = "low";
+    /// <summary>Questions one business may ask a day, all AI features together.</summary>
+    public int DailyLimitPerBusiness { get; set; } = 30;
+    /// <summary>Longest answer, in tokens (thinking included).</summary>
+    public int MaxOutputTokens { get; set; } = 2048;
+    public DateTimeOffset UpdatedDate { get; set; }
+    public string UpdatedByUserName { get; set; } = "";
+}
+
+/// <summary>
+/// One AI question: who asked (business and user), which feature and model, the tokens and what
+/// they cost, how long it took and whether it worked. The question and the answer are not kept.
+/// </summary>
+public class AiUsage : ITenantOwned
+{
+    public Guid Uuid { get; set; }
+    public Guid TenantUuid { get; set; }
+    public Guid UserUuid { get; set; }
+    public AiFeature Feature { get; set; }
+    public string Model { get; set; } = "";
+    public int InputTokens { get; set; }
+    public int OutputTokens { get; set; }
+    public int CacheReadTokens { get; set; }
+    public int CacheWriteTokens { get; set; }
+    /// <summary>US dollars; null for a model whose price is not known to the app.</summary>
+    public decimal? CostUsd { get; set; }
+    public int LatencyMs { get; set; }
+    /// <summary>Model calls made for this question (a search in between is one more).</summary>
+    public int ModelCalls { get; set; }
+    public bool Success { get; set; }
+    public string? ErrorCode { get; set; }
+    /// <summary>The asker's thumbs: 1 up, -1 down, null not rated.</summary>
+    public short? Rating { get; set; }
+    public DateTimeOffset CreatedDate { get; set; }
 }

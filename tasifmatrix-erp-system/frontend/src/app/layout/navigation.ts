@@ -32,6 +32,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: 'Subscriptions', short: 'Billing', icon: 'credit_card', link: '/platform/billing', roles: ['SUPER_ADMIN'] },
       { label: 'Posts', short: 'Posts', icon: 'campaign', link: '/platform/posts', roles: ['SUPER_ADMIN'] },
       { label: 'App versions', short: 'Versions', icon: 'system_update_alt', link: '/platform/app-versions', roles: ['SUPER_ADMIN'] },
+      { label: 'AI settings', short: 'AI', icon: 'smart_toy', link: '/platform/ai', roles: ['SUPER_ADMIN'] },
     ],
   },
   {

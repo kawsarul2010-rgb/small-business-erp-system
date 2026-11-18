@@ -23,6 +23,8 @@ import { FROZEN_GROUPS, NAV_GROUPS, NavItem, bottomTabs, visibleGroups } from '.
 import { BillingStore } from '../core/billing';
 import { PostsStore } from '../core/posts';
 import { SubscriptionBanner } from './subscription-banner';
+import { AiStore } from '../core/ai';
+import { HelpChat } from '../shared/help-chat';
 
 @Component({
   selector: 'app-shell',
@@ -102,9 +104,18 @@ export class Shell {
   /** On a phone the More tab shows a dot when the unread announcements are only reachable through it. */
   readonly moreDot = computed(() => this.posts.unread() > 0 && !this.tabs().some((tab) => tab.badge === 'posts'));
 
+  readonly ai = inject(AiStore);
+
+  /** The AI assistant: help from the user guide, and (admins, managers) questions about the business's figures. */
+  openHelp(): void {
+    // On a computer the cursor waits in the question box; on a phone the keyboard opens only when tapped.
+    this.dialog.open(HelpChat, { ...this.layout.dialog(null, '520px'), autoFocus: this.layout.isHandset() ? 'dialog' : 'textarea' });
+  }
+
   constructor() {
     this.billing.load();
     this.posts.loadUnread();
+    this.ai.load();
     // New posts show up without signing in again: re-checked on navigation, at most every few minutes.
     this.router.events.pipe(filter((e) => e instanceof NavigationEnd)).subscribe(() => this.posts.refreshIfStale());
   }

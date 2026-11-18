@@ -400,6 +400,34 @@ const EN: GuideSection[] = [
     ],
   },
   {
+    id: 'assistant', icon: 'support_agent', title: 'The AI assistant', roles: STAFF,
+    intro: 'Ask questions in Bangla or English and get answers in seconds. It appears when AI is turned on for your business: tap Assistant at the top of the screen.',
+    parts: [
+      {
+        title: 'My business - your own figures',
+        steps: [
+          'Ask about your business, for example "How much does Karim owe?", "How much did I sell this month?" or "Is sugar running out?".',
+          'The assistant looks up your real records and answers with the figures - the same Total Due as on the invoice.',
+          'Two customers with the same name? It shows both and asks which one.',
+          'Tap the button under the answer to open the orders, the due report or the stock it came from.',
+        ],
+      },
+      {
+        title: 'Help - how to use the app',
+        steps: [
+          'Switch to Help and ask how to do something, for example "How do I add a previous due?".',
+          'It answers with the steps from this guide and a link to the section.',
+        ],
+      },
+    ],
+    tips: [
+      'The assistant can only read. It never creates, changes or deletes anything - you do that yourself in the app.',
+      'A manager sees sales, customers and stock in the answers; purchases, suppliers and profit are for the admin only.',
+      'There is a daily number of questions for each business; the panel shows how many are left today.',
+      'AI can make mistakes. For an important figure, tap the button under the answer and check the report.',
+    ],
+  },
+  {
     id: 'team', icon: 'manage_accounts', title: 'Your team and roles', roles: ADMIN,
     parts: [
       {
@@ -882,6 +910,34 @@ const BN: GuideSection[] = [
       'প্রতিটি বিক্রির খরচ ধরা হয় চূড়ান্ত করার সময়ের স্টকের গড় ক্রয়মূল্যে।',
       'ভুল হলে খরচ কারণসহ বাতিল করা হয়, মুছে ফেলা হয় না। শুধু অ্যাডমিন খরচ সম্পাদনা বা বাতিল করতে পারেন।',
       'ম্যানেজার খরচ যোগ করতে পারেন এবং শুধু নিজের যোগ করা খরচ দেখেন। অ্যাডমিন খাতের নাম বদলানো, যোগ বা সরাতে পারেন।',
+    ],
+  },
+  {
+    id: 'assistant', icon: 'support_agent', title: 'এআই সহায়ক', roles: STAFF,
+    intro: 'বাংলা বা ইংরেজিতে প্রশ্ন করুন, কয়েক সেকেন্ডে উত্তর পান। আপনার ব্যবসার জন্য এআই চালু থাকলে স্ক্রিনের উপরে "সহায়ক" চাপুন।',
+    parts: [
+      {
+        title: 'আমার ব্যবসা - আপনার নিজের হিসাব',
+        steps: [
+          'আপনার ব্যবসা নিয়ে জিজ্ঞেস করুন, যেমন "করিমের কাছে কত বাকি?", "এই মাসে কত বিক্রি হয়েছে?" বা "চিনি কি শেষ হয়ে যাচ্ছে?"।',
+          'সহায়ক আপনার আসল হিসাব দেখে সংখ্যাসহ উত্তর দেয় - ইনভয়েসের মোট বাকির সাথে মিলিয়ে।',
+          'একই নামে দুইজন গ্রাহক? দুজনকেই দেখিয়ে জিজ্ঞেস করে কোনজন।',
+          'উত্তরের নিচের বোতাম চাপলে সেই অর্ডার, বাকির রিপোর্ট বা স্টক খুলবে।',
+        ],
+      },
+      {
+        title: 'সাহায্য - অ্যাপ কীভাবে চালাবেন',
+        steps: [
+          '"সাহায্য" বেছে নিয়ে কোনো কাজ কীভাবে করবেন জিজ্ঞেস করুন, যেমন "আগের বাকি কীভাবে যোগ করব?"।',
+          'এই নির্দেশিকা থেকে ধাপগুলো এবং অধ্যায়ের লিংকসহ উত্তর দেয়।',
+        ],
+      },
+    ],
+    tips: [
+      'সহায়ক শুধু দেখতে পারে। কিছু তৈরি, পরিবর্তন বা মুছে ফেলে না - সেগুলো আপনি অ্যাপে নিজে করবেন।',
+      'ম্যানেজার উত্তরে বিক্রি, গ্রাহক ও স্টক দেখেন; ক্রয়, সরবরাহকারী ও লাভ শুধু অ্যাডমিনের জন্য।',
+      'প্রতিটি ব্যবসার জন্য দিনে নির্দিষ্ট সংখ্যক প্রশ্ন করা যায়; আজ কতটি বাকি তা প্যানেলে দেখা যায়।',
+      'এআই ভুল করতে পারে। গুরুত্বপূর্ণ সংখ্যার জন্য উত্তরের নিচের বোতাম চেপে রিপোর্ট মিলিয়ে নিন।',
     ],
   },
   {

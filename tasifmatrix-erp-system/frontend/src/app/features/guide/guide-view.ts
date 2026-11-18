@@ -1,4 +1,6 @@
 import { Component, computed, inject, input, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatIconModule } from '@angular/material/icon';
@@ -204,6 +206,16 @@ export class GuideView {
   readonly device = signal<GuideDevice>(this.initialDevice());
   readonly zoom = signal<string | null>(null);
 
+  constructor() {
+    // A link to a section (/guide#expenses, as the help assistant gives) scrolls to it once it is drawn.
+    inject(ActivatedRoute, { optional: true })?.fragment.pipe(takeUntilDestroyed()).subscribe((id) => {
+      if (!id) return;
+      // Once when drawn, and again after the pictures above it have taken their space.
+      setTimeout(() => this.jump(id, false), 150);
+      setTimeout(() => this.jump(id, false), 900);
+    });
+  }
+
   readonly text = computed(() => GUIDE[this.lang()].text);
   readonly sections = computed<ShownSection[]>(() => {
     const role = this.forRole() ? this.auth.user()?.role : null;
@@ -242,9 +254,9 @@ export class GuideView {
     return this.platform.isNative || this.layout.isHandset() ? 'mobile' : 'desktop';
   }
 
-  jump(id: string | null): void {
+  jump(id: string | null, smooth = true): void {
     const el = id ? document.getElementById('guide-' + id) : document.querySelector('app-guide-view');
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
   }
 }
 

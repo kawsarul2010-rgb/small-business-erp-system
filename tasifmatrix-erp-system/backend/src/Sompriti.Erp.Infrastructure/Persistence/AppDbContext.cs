@@ -70,6 +70,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
     public DbSet<SmsCredit> SmsCredits => Set<SmsCredit>();
     public DbSet<ExpenseCategory> ExpenseCategories => Set<ExpenseCategory>();
     public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<AiSettings> AiSettings => Set<AiSettings>();
+    public DbSet<AiUsage> AiUsages => Set<AiUsage>();
 
     public void SetOriginalRevision(AuditedEntity entity, Guid revision) =>
         Entry(entity).Property(nameof(AuditedEntity.Revision)).OriginalValue = revision;
@@ -222,6 +224,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options, ICurren
             e.Property(x => x.ExpenseNumber).ValueGeneratedOnAdd(); // numbered per business by trigger
             e.Ignore(x => x.IsVoid);
         });
+
+        b.Entity<AiSettings>(e => { e.ToTable("ai_settings"); e.HasKey(x => x.Id); e.Property(x => x.Id).ValueGeneratedNever(); });
+        b.Entity<AiUsage>(e => { e.ToTable("ai_usage"); e.HasKey(x => x.Uuid); });
 
         b.Entity<RefreshToken>(e => { e.ToTable("refresh_token"); e.HasKey(x => x.Uuid); });
         b.Entity<PasswordResetToken>(e => { e.ToTable("password_reset_token"); e.HasKey(x => x.Uuid); });

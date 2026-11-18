@@ -219,3 +219,9 @@
   mat-icon { font-size: 18px; width: 18px; height: 18px; }
   &:hover { border-color: var(--erp-border-strong); color: var(--erp-text); }
 }
+
+/* the help assistant, beside the language switch on a computer */
+.help-button {
+  height: 34px; margin-right: 8px; border-radius: 999px;
+  mat-icon { font-size: 18px; width: 18px; height: 18px; }
+}
